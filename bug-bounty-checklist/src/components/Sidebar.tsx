@@ -1,4 +1,4 @@
-import { Bug, Download, Upload, RotateCcw } from "lucide-react";
+import { Bug, Download, Upload, RotateCcw, X } from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
 import { domainProgress } from "../lib/progress";
@@ -10,11 +10,15 @@ export function Sidebar({
   onSelectDomain,
   view,
   onSelectView,
+  open,
+  onClose,
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
   view: "checklist" | "findings";
   onSelectView: (v: "checklist" | "findings") => void;
+  open: boolean;
+  onClose: () => void;
 }) {
   const profile = useActiveProfile();
   const resetActiveProfile = useChecklistStore((s) => s.resetActiveProfile);
@@ -55,17 +59,36 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-border bg-card p-4">
+    <>
+      {open && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 -translate-x-full flex-col overflow-y-auto border-r border-border bg-card p-4 transition-transform duration-200 lg:sticky lg:top-0 lg:z-0 lg:h-screen lg:translate-x-0 ${
+          open ? "translate-x-0" : ""
+        }`}
+      >
       <div className="mb-4 flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-md bg-foreground text-background">
           <Bug className="h-5 w-5" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-bold leading-tight">Bug Bounty Checklist</p>
           <p className="text-[11px] text-slate-500">
             {totalDone} / {totalItems} completed
           </p>
         </div>
+        <button
+          onClick={onClose}
+          className="shrink-0 rounded-md p-1 text-slate-400 hover:text-slate-200 lg:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       <ProfileSwitcher />
@@ -74,7 +97,10 @@ export function Sidebar({
 
       <nav className="mb-3 space-y-1">
         <button
-          onClick={() => onSelectView("checklist")}
+          onClick={() => {
+            onSelectView("checklist");
+            onClose();
+          }}
           className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
             view === "checklist" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
           }`}
@@ -82,7 +108,10 @@ export function Sidebar({
           ✅ Checklist
         </button>
         <button
-          onClick={() => onSelectView("findings")}
+          onClick={() => {
+            onSelectView("findings");
+            onClose();
+          }}
           className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
             view === "findings" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
           }`}
@@ -105,6 +134,7 @@ export function Sidebar({
               onClick={() => {
                 onSelectView("checklist");
                 onSelectDomain(d.id);
+                onClose();
               }}
               className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
                 view === "checklist" && activeDomain === d.id
@@ -146,6 +176,7 @@ export function Sidebar({
       <p className="mt-3 text-center text-[10px] text-slate-600">
         {Object.keys(profiles).length} profile(s) · data stored locally
       </p>
-    </aside>
+      </aside>
+    </>
   );
 }

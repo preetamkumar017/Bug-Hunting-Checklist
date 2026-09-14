@@ -53,7 +53,7 @@ export function ChecklistItemRow({
 
   return (
     <div className="border-b border-border/60 last:border-b-0">
-      <div className="flex items-start gap-3 px-4 py-3">
+      <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
         <button
           onClick={() => setOpen((o) => !o)}
           className="mt-0.5 shrink-0 text-slate-500 hover:text-slate-300"
@@ -66,6 +66,11 @@ export function ChecklistItemRow({
           <button onClick={() => setOpen((o) => !o)} className="block w-full text-left">
             <p className="text-sm text-slate-200">{item.text}</p>
           </button>
+
+          <div className="mt-2 flex items-center gap-2 sm:hidden">
+            <SeverityBadge severity={item.severity} />
+            <StatusSelect value={status} onChange={handleStatusChange} severity={item.severity} />
+          </div>
 
           {open && (
             <div className="mt-3 space-y-2 rounded-md bg-black/20 p-3 text-xs text-slate-400">
@@ -149,7 +154,7 @@ export function ChecklistItemRow({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
           <SeverityBadge severity={item.severity} />
           <StatusSelect value={status} onChange={handleStatusChange} severity={item.severity} />
         </div>

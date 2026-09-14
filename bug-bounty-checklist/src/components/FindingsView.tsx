@@ -29,12 +29,12 @@ export function FindingsView() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold text-slate-100">Findings — {profile.name}</h2>
         {profile.findings.length > 0 && (
           <button
             onClick={exportMarkdown}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
           >
             Export as Markdown report
           </button>

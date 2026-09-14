@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { domains } from "./data/domains";
 import type { Domain } from "./types/checklist";
 import { Sidebar } from "./components/Sidebar";
@@ -12,6 +12,7 @@ export default function App() {
   const [activeDomain, setActiveDomain] = useState<Domain>("web");
   const [view, setView] = useState<"checklist" | "findings">("checklist");
   const [query, setQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const domain = domains.find((d) => d.id === activeDomain)!;
 
@@ -42,16 +43,31 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-slate-200">
+    <div className="min-h-screen bg-background text-slate-200 lg:flex">
       <Sidebar
         activeDomain={activeDomain}
         onSelectDomain={setActiveDomain}
         view={view}
         onSelectView={setView}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-6">
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-card px-4 py-3 lg:hidden">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="shrink-0 rounded-md p-1 text-slate-300 hover:text-slate-100"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <p className="truncate text-sm font-bold text-slate-100">
+          {domain.emoji} {domain.label} Checklist
+        </p>
+      </header>
+
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
           <div className="relative mb-5">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
