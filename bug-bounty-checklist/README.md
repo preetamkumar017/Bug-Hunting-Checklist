@@ -1,32 +1,92 @@
-# React + TypeScript + Vite
+# Bug Bounty Checklist
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An interactive, guided bug bounty / security testing checklist — built for personal use during real engagements, not just a static reference list.
 
-Currently, two official plugins are available:
+Unlike a plain checklist, every check comes with an actual testing guide, ready-to-use payloads, and a status you can act on (not just tick/untick). Mark something vulnerable and it turns into a findings entry; mark a category clean and it nudges you toward the next thing worth testing.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **6 domains, 83 categories, 500+ checks** — Web, API, Android, iOS, Thick Client, and Web3/Smart Contracts, ordered to follow a real methodology flow (recon → auth → access control → injection → business logic → advanced) rather than a random list.
+- **Guided checks** — every item expands into a *How* (step-by-step method), copy-ready payloads/commands, and a reference link.
+- **Result tracking, not just checkboxes** — `Not Tested / Clean / Vulnerable / Blocked-N/A`, with a free-text note per item for payloads used and observations.
+- **Findings tracker** — marking an item Vulnerable opens a finding form; saved findings live in their own tab and export as a Markdown report.
+- **Smart suggestions** — a rule-based engine that recommends the next category in the flow, related deep-dive checks when something is found vulnerable, and WAF-bypass techniques when checks get blocked.
+- **Target profiles** — track multiple bug bounty targets independently, each with its own progress and findings.
+- **Search** across every check's title and testing guide.
+- **Export / Import** progress as JSON for backup or moving between devices.
+- **Local-first** — everything is stored in the browser via `localStorage`. No backend, no account, no data leaves your machine.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the Oxlint configuration
+- [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vite.dev/) — build tooling
+- [Tailwind CSS v4](https://tailwindcss.com/) — styling
+- [Zustand](https://github.com/pmndrs/zustand) — state management with `localStorage` persistence
+- [lucide-react](https://lucide.dev/) — icons
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Getting Started
 
-```json
+```bash
+npm install
+npm run dev
+```
+
+The app runs at `http://localhost:5173`.
+
+### Other commands
+
+```bash
+npm run build      # type-check and build for production
+npm run preview    # preview the production build locally
+```
+
+## Project Structure
+
+```
+src/
+  types/checklist.ts   # core data model (domains, categories, items, findings, profiles)
+  data/                # checklist content, one file per domain
+    web.ts
+    api.ts
+    android.ts
+    ios.ts
+    thickclient.ts
+    web3.ts
+    domains.ts         # registry that ties all domains together
+  store/                # Zustand store — target profiles, item status/notes, findings
+  lib/
+    progress.ts         # progress calculations
+    suggestions.ts       # rule-based "what to test next" engine
+  components/           # UI: sidebar, category/item rows, findings view, suggestions panel
+```
+
+## Adding or Editing Checklist Content
+
+Each domain's checks live in its own file under `src/data/`. A checklist item looks like:
+
+```ts
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  id: "web-inject-xss-1",
+  text: "Reflected XSS in URL parameters",
+  how: "Inject a basic script payload into every reflected parameter and check if it executes unescaped.",
+  payloads: ["<script>alert(1)</script>", "\"><svg onload=alert(1)>"],
+  severity: "high",
+  tags: { relatedItemIds: ["web-inject-xss-2"] }, // optional, drives the suggestion engine
 }
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Item `id`s must stay unique across the whole app (they're the key for saved progress, so avoid renaming an existing id once you've used it).
+
+## Data & Privacy
+
+All progress, notes, and findings are stored locally in your browser (`localStorage`) under a single `bbc-store` key. Nothing is sent to a server. Use **Export progress (JSON)** in the sidebar to back up or move data between browsers/devices, and **Import progress** to restore it.
+
+## Roadmap
+
+- [ ] AI-assisted suggestions and finding-report generation (requires a small backend to keep API keys server-side)
+- [ ] Optional cloud sync (Supabase) for multi-device use
+- [ ] Custom/user-added checklist items
+
+## Disclaimer
+
+This checklist is for authorized security testing only — use it strictly within the scope and rules of engagement of a bug bounty program or an explicitly authorized penetration test.
