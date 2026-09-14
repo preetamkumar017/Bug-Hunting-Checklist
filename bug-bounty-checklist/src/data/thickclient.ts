@@ -6,6 +6,7 @@ import type { ChecklistCategory } from "../types/checklist";
 export const thickClientCategories: ChecklistCategory[] = [
   {
     id: "tc-static",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Static Analysis",
     emoji: "🖥️",
     items: [
@@ -49,6 +50,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-dynamic",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Dynamic Analysis",
     emoji: "⚙️",
     items: [
@@ -92,6 +94,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-binary",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Binary Analysis",
     emoji: "🧬",
     items: [
@@ -129,6 +132,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-network",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Network Communication",
     emoji: "📡",
     items: [
@@ -166,6 +170,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-electron",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/11-Client-side_Testing/README",
     name: "Electron Application Security",
     emoji: "⚛️",
     items: [
@@ -209,6 +214,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-java",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Java Thick Client Security",
     emoji: "☕",
     items: [
@@ -240,6 +246,7 @@ export const thickClientCategories: ChecklistCategory[] = [
   },
   {
     id: "tc-privesc",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/",
     name: "Local Privilege Escalation",
     emoji: "⬆️",
     items: [

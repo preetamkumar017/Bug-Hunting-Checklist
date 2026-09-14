@@ -87,9 +87,9 @@ export function ChecklistItemRow({
                   </ul>
                 </div>
               )}
-              {item.reference && (
+              {(item.reference ?? category.reference) && (
                 <a
-                  href={item.reference}
+                  href={item.reference ?? category.reference}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-blue-400 hover:underline"

@@ -8,6 +8,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── RECON ───────────────────────────
   {
     id: "recon-subdomain",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Subdomain Enumeration",
     emoji: "🌐",
     description: "Discover the full attack surface before testing anything.",
@@ -83,6 +84,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-ports",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Port Scanning & Service Enumeration",
     emoji: "🔌",
     items: [
@@ -157,6 +159,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-tech",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Technology Fingerprinting",
     emoji: "🔍",
     items: [
@@ -215,6 +218,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-content",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Content & URL Discovery",
     emoji: "📁",
     items: [
@@ -289,6 +293,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-params",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Link & Parameter Discovery",
     emoji: "🔗",
     items: [
@@ -348,6 +353,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-js",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "JavaScript Analysis",
     emoji: "📜",
     items: [
@@ -407,6 +413,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-osint",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Google Dorking & OSINT",
     emoji: "🕵️",
     items: [
@@ -466,6 +473,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-email",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "Email Security Testing",
     emoji: "📧",
     items: [
@@ -505,6 +513,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "recon-dns",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/01-Information_Gathering/README",
     name: "DNS Security Testing",
     emoji: "🧭",
     items: [
@@ -545,6 +554,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── AUTH & SESSION ───────────────────────────
   {
     id: "auth-password",
+    reference: "https://portswigger.net/web-security/authentication",
     name: "Password & Credential Attacks",
     emoji: "🔑",
     items: [
@@ -615,6 +625,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "auth-session",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/06-Session_Management_Testing/README",
     name: "Session Management",
     emoji: "🍪",
     items: [
@@ -683,6 +694,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "auth-oauth",
+    reference: "https://portswigger.net/web-security/oauth",
     name: "OAuth & SSO Testing",
     emoji: "🔐",
     items: [
@@ -733,6 +745,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "auth-login",
+    reference: "https://portswigger.net/web-security/authentication",
     name: "Login & Registration Bypass",
     emoji: "🚪",
     items: [
@@ -793,6 +806,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── ACCESS CONTROL ───────────────────────────
   {
     id: "access-idor",
+    reference: "https://portswigger.net/web-security/access-control",
     name: "IDOR (Insecure Direct Object Reference)",
     emoji: "🔓",
     items: [
@@ -842,6 +856,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "access-privesc",
+    reference: "https://portswigger.net/web-security/access-control",
     name: "Privilege Escalation",
     emoji: "⬆️",
     items: [
@@ -893,6 +908,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "access-traversal",
+    reference: "https://portswigger.net/web-security/file-path-traversal",
     name: "Path Traversal & File Access",
     emoji: "🗂️",
     items: [
@@ -948,6 +964,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── INJECTION ───────────────────────────
   {
     id: "inject-sqli",
+    reference: "https://portswigger.net/web-security/sql-injection",
     name: "SQL Injection",
     emoji: "💉",
     items: [
@@ -1023,6 +1040,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-xss",
+    reference: "https://portswigger.net/web-security/cross-site-scripting",
     name: "Cross-Site Scripting (XSS)",
     emoji: "⚡",
     items: [
@@ -1097,6 +1115,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-ssrf",
+    reference: "https://portswigger.net/web-security/ssrf",
     name: "Server-Side Request Forgery (SSRF)",
     emoji: "🎯",
     items: [
@@ -1156,6 +1175,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-ssti",
+    reference: "https://portswigger.net/web-security/server-side-template-injection",
     name: "Server-Side Template Injection (SSTI)",
     emoji: "🧬",
     items: [
@@ -1196,6 +1216,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-cmd",
+    reference: "https://portswigger.net/web-security/os-command-injection",
     name: "OS Command Injection",
     emoji: "🖥️",
     items: [
@@ -1244,6 +1265,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-nosql",
+    reference: "https://portswigger.net/web-security/nosql-injection",
     name: "NoSQL Injection",
     emoji: "🍃",
     items: [
@@ -1291,6 +1313,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-ldap",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "LDAP Injection",
     emoji: "📇",
     items: [
@@ -1330,6 +1353,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-xxe",
+    reference: "https://portswigger.net/web-security/xxe",
     name: "XML Injection & XXE",
     emoji: "📄",
     items: [
@@ -1381,6 +1405,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-crlf",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "CRLF Injection",
     emoji: "↵",
     items: [
@@ -1420,6 +1445,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-redirect",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/11-Client-side_Testing/README",
     name: "Open Redirect",
     emoji: "↗️",
     items: [
@@ -1454,6 +1480,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-protopoll",
+    reference: "https://portswigger.net/web-security/prototype-pollution",
     name: "Prototype Pollution",
     emoji: "🧪",
     items: [
@@ -1487,6 +1514,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-hpp",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "HTTP Parameter Pollution",
     emoji: "🧷",
     items: [
@@ -1520,6 +1548,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "inject-mail",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "IMAP/SMTP Injection",
     emoji: "📬",
     items: [
@@ -1555,6 +1584,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── BUSINESS LOGIC / REQUEST-LEVEL ───────────────────────────
   {
     id: "biz-logic",
+    reference: "https://portswigger.net/web-security/logic-flaws",
     name: "Business Logic Vulnerabilities",
     emoji: "🧠",
     items: [
@@ -1611,6 +1641,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "biz-race",
+    reference: "https://portswigger.net/web-security/race-conditions",
     name: "Race Conditions",
     emoji: "🏁",
     items: [
@@ -1654,6 +1685,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "req-csrf",
+    reference: "https://portswigger.net/web-security/csrf",
     name: "CSRF (Cross-Site Request Forgery)",
     emoji: "🔄",
     items: [
@@ -1697,6 +1729,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "req-cors",
+    reference: "https://portswigger.net/web-security/cors",
     name: "CORS Misconfiguration",
     emoji: "🌍",
     items: [
@@ -1736,6 +1769,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "req-clickjacking",
+    reference: "https://portswigger.net/web-security/clickjacking",
     name: "Clickjacking",
     emoji: "🖱️",
     items: [
@@ -1769,6 +1803,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "req-postmessage",
+    reference: "https://portswigger.net/web-security/dom-based",
     name: "PostMessage Security",
     emoji: "📨",
     items: [
@@ -1800,6 +1835,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "client-storage",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/11-Client-side_Testing/README",
     name: "Client-Side Storage & Caching",
     emoji: "🗄️",
     items: [
@@ -1837,6 +1873,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "client-resource",
+    reference: "https://portswigger.net/web-security/dom-based",
     name: "Client-Side Resource Security",
     emoji: "🧩",
     items: [
@@ -1872,6 +1909,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── FILE HANDLING ───────────────────────────
   {
     id: "file-upload",
+    reference: "https://portswigger.net/web-security/file-upload",
     name: "File Upload Vulnerabilities",
     emoji: "📤",
     items: [
@@ -1933,6 +1971,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "file-download",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/README",
     name: "File Download & Access",
     emoji: "📥",
     items: [
@@ -1973,6 +2012,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── CRYPTO / CONFIG ───────────────────────────
   {
     id: "crypto-tls",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/09-Testing_for_Weak_Cryptography/README",
     name: "TLS/SSL Configuration",
     emoji: "🔒",
     items: [
@@ -2011,6 +2051,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "crypto-impl",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/09-Testing_for_Weak_Cryptography/README",
     name: "Cryptographic Implementation",
     emoji: "🧮",
     items: [
@@ -2054,6 +2095,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "config-server",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/README",
     name: "Server Misconfiguration",
     emoji: "⚙️",
     items: [
@@ -2112,6 +2154,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "config-cloud",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/README",
     name: "Cloud & Container Security",
     emoji: "☁️",
     items: [
@@ -2158,6 +2201,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "data-exposure",
+    reference: "https://portswigger.net/web-security/information-disclosure",
     name: "Data Exposure",
     emoji: "🗃️",
     items: [
@@ -2207,6 +2251,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "error-handling",
+    reference: "https://portswigger.net/web-security/information-disclosure",
     name: "Error Handling",
     emoji: "🐛",
     items: [
@@ -2250,6 +2295,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "waf-bypass",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "WAF Bypass Techniques",
     emoji: "🛡️",
     items: [
@@ -2299,6 +2345,7 @@ export const webCategories: ChecklistCategory[] = [
   // ─────────────────────────── ADVANCED / MISC ───────────────────────────
   {
     id: "adv-smuggling",
+    reference: "https://portswigger.net/web-security/request-smuggling",
     name: "HTTP Request Smuggling",
     emoji: "🚬",
     items: [
@@ -2337,6 +2384,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-cache",
+    reference: "https://portswigger.net/web-security/web-cache-poisoning",
     name: "Web Cache Poisoning & Deception",
     emoji: "🧊",
     items: [
@@ -2369,6 +2417,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-deserialization",
+    reference: "https://portswigger.net/web-security/deserialization",
     name: "Deserialization Attacks",
     emoji: "📦",
     items: [
@@ -2406,6 +2455,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-jwt",
+    reference: "https://portswigger.net/web-security/jwt",
     name: "JWT Security Deep Testing",
     emoji: "🎫",
     items: [
@@ -2456,6 +2506,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-microservices",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/12-API_Testing/README",
     name: "Microservices & API Gateway",
     emoji: "🧩",
     items: [
@@ -2494,6 +2545,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-ssi",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
     name: "Server-Side Include (SSI) Injection",
     emoji: "🧾",
     items: [
@@ -2528,6 +2580,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-websocket",
+    reference: "https://portswigger.net/web-security/websockets",
     name: "WebSocket Deep Testing",
     emoji: "🔌",
     items: [
@@ -2571,6 +2624,7 @@ export const webCategories: ChecklistCategory[] = [
   },
   {
     id: "adv-graphql",
+    reference: "https://portswigger.net/web-security/graphql",
     name: "GraphQL Deep Testing",
     emoji: "◈",
     items: [

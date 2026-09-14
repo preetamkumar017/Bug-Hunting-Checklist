@@ -6,6 +6,7 @@ import type { ChecklistCategory } from "../types/checklist";
 export const apiCategories: ChecklistCategory[] = [
   {
     id: "api-recon",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "API Discovery & Recon",
     emoji: "🗺️",
     items: [
@@ -59,6 +60,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-auth",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "API Authentication & Authorization",
     emoji: "🔑",
     items: [
@@ -120,6 +122,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-injection",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "API Injection & Manipulation",
     emoji: "💉",
     items: [
@@ -177,6 +180,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-ratelimit",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "Rate Limiting & Resource Consumption",
     emoji: "🚦",
     items: [
@@ -223,6 +227,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-rest",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "REST API Specific",
     emoji: "🔁",
     items: [
@@ -266,6 +271,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-soap",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/12-API_Testing/README",
     name: "SOAP & XML API",
     emoji: "🧼",
     items: [
@@ -305,6 +311,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-grpc",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/12-API_Testing/README",
     name: "gRPC API",
     emoji: "📡",
     items: [
@@ -343,6 +350,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-webhook",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/12-API_Testing/README",
     name: "Webhook & Integration Security",
     emoji: "🪝",
     items: [
@@ -374,6 +382,7 @@ export const apiCategories: ChecklistCategory[] = [
   },
   {
     id: "api-misconfig",
+    reference: "https://api-security.owasp.org/editions/2023/en/0x00-header",
     name: "API Misconfiguration & Info Disclosure",
     emoji: "⚙️",
     items: [

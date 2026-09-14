@@ -26,6 +26,8 @@ export interface ChecklistCategory {
   name: string;
   emoji?: string;
   description?: string;
+  /** Fallback reference link used by items in this category that don't set their own. */
+  reference?: string;
   items: ChecklistItem[];
 }
 

@@ -6,6 +6,7 @@ import type { ChecklistCategory } from "../types/checklist";
 export const web3Categories: ChecklistCategory[] = [
   {
     id: "web3-contract",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "Smart Contract Vulnerabilities",
     emoji: "⛓️",
     items: [
@@ -85,6 +86,7 @@ export const web3Categories: ChecklistCategory[] = [
   },
   {
     id: "web3-access",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "Access Control & Governance",
     emoji: "🗝️",
     items: [
@@ -122,6 +124,7 @@ export const web3Categories: ChecklistCategory[] = [
   },
   {
     id: "web3-defi",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "DeFi & Economic Logic",
     emoji: "💰",
     items: [
@@ -171,6 +174,7 @@ export const web3Categories: ChecklistCategory[] = [
   },
   {
     id: "web3-wallet",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "Wallet & Signature Security",
     emoji: "✍️",
     items: [
@@ -208,6 +212,7 @@ export const web3Categories: ChecklistCategory[] = [
   },
   {
     id: "web3-bridge",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "Bridge & Cross-Chain Security",
     emoji: "🌉",
     items: [
@@ -239,6 +244,7 @@ export const web3Categories: ChecklistCategory[] = [
   },
   {
     id: "web3-frontend",
+    reference: "https://owasp.org/www-project-smart-contract-top-10/",
     name: "dApp Frontend & Integration Security",
     emoji: "🖥️",
     items: [

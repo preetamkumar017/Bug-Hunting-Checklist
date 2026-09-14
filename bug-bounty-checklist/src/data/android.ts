@@ -5,6 +5,7 @@ import type { ChecklistCategory } from "../types/checklist";
 export const androidCategories: ChecklistCategory[] = [
   {
     id: "android-static",
+    reference: "https://mas.owasp.org/MASTG/0x05b-Android-Security-Testing/",
     name: "Static Analysis",
     emoji: "📱",
     items: [
@@ -86,6 +87,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-dynamic",
+    reference: "https://mas.owasp.org/MASTG/0x05b-Android-Security-Testing/",
     name: "Dynamic Analysis",
     emoji: "⚙️",
     items: [
@@ -144,6 +146,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-storage",
+    reference: "https://mas.owasp.org/MASTG/0x05d-Testing-Data-Storage/",
     name: "Data Storage",
     emoji: "💾",
     items: [
@@ -194,6 +197,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-crypto",
+    reference: "https://mas.owasp.org/MASTG/0x05e-Testing-Cryptography/",
     name: "Cryptography",
     emoji: "🔐",
     items: [
@@ -237,6 +241,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-network",
+    reference: "https://mas.owasp.org/MASTG/0x05g-Testing-Network-Communication/",
     name: "Network Communication",
     emoji: "📡",
     items: [
@@ -274,6 +279,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-ipc",
+    reference: "https://mas.owasp.org/MASTG/0x05h-Testing-Platform-Interaction/",
     name: "IPC Security",
     emoji: "🔀",
     items: [
@@ -331,6 +337,7 @@ export const androidCategories: ChecklistCategory[] = [
   },
   {
     id: "android-reverse",
+    reference: "https://mas.owasp.org/MASTG/0x05j-Testing-Resiliency-Against-Reverse-Engineering/",
     name: "Reverse Engineering Protection",
     emoji: "🛡️",
     items: [

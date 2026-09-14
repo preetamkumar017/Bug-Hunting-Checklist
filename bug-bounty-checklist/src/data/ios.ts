@@ -5,6 +5,7 @@ import type { ChecklistCategory } from "../types/checklist";
 export const iosCategories: ChecklistCategory[] = [
   {
     id: "ios-static",
+    reference: "https://mas.owasp.org/MASTG/0x06b-iOS-Security-Testing/",
     name: "Static Analysis",
     emoji: "🍏",
     items: [
@@ -60,6 +61,7 @@ export const iosCategories: ChecklistCategory[] = [
   },
   {
     id: "ios-dynamic",
+    reference: "https://mas.owasp.org/MASTG/0x06b-iOS-Security-Testing/",
     name: "Dynamic Analysis",
     emoji: "⚙️",
     items: [
@@ -109,6 +111,7 @@ export const iosCategories: ChecklistCategory[] = [
   },
   {
     id: "ios-storage",
+    reference: "https://mas.owasp.org/MASTG/0x06d-Testing-Data-Storage/",
     name: "Data Storage",
     emoji: "💾",
     items: [
@@ -152,6 +155,7 @@ export const iosCategories: ChecklistCategory[] = [
   },
   {
     id: "ios-network",
+    reference: "https://mas.owasp.org/MASTG/0x06g-Testing-Network-Communication/",
     name: "Network Communication",
     emoji: "📡",
     items: [
@@ -183,6 +187,7 @@ export const iosCategories: ChecklistCategory[] = [
   },
   {
     id: "ios-crypto",
+    reference: "https://mas.owasp.org/MASTG/0x06e-Testing-Cryptography/",
     name: "Cryptography",
     emoji: "🔐",
     items: [
@@ -214,6 +219,7 @@ export const iosCategories: ChecklistCategory[] = [
   },
   {
     id: "ios-jailbreak",
+    reference: "https://mas.owasp.org/MASTG/0x06j-Testing-Resiliency-Against-Reverse-Engineering/",
     name: "Jailbreak Detection & Anti-Tampering",
     emoji: "🛡️",
     items: [
