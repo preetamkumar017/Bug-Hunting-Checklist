@@ -193,6 +193,49 @@ export const androidCategories: ChecklistCategory[] = [
     ],
   },
   {
+    id: "android-crypto",
+    name: "Cryptography",
+    emoji: "🔐",
+    items: [
+      {
+        id: "android-crypto-1",
+        text: "Check Android Keystore usage for cryptographic key storage",
+        how: "Verify sensitive keys are generated/stored in the hardware-backed Android Keystore rather than derived and kept in app-private files.",
+        severity: "high",
+      },
+      {
+        id: "android-crypto-2",
+        text: "Check for use of deprecated/weak crypto algorithms",
+        how: "Search decompiled code for MD5/SHA1/DES/ECB-mode usage in local data protection instead of modern recommended primitives (AES-GCM, SHA-256+).",
+        severity: "medium",
+      },
+      {
+        id: "android-crypto-3",
+        text: "Check for hardcoded IVs or key reuse in AES encryption",
+        how: "Review encryption routines for a static IV or key reused across multiple encrypt calls, which weakens confidentiality guarantees.",
+        severity: "high",
+      },
+      {
+        id: "android-crypto-4",
+        text: "Test for predictable random values (weak PRNG) in security-sensitive contexts",
+        how: "Check if tokens/keys are derived from java.util.Random (seeded, predictable) instead of SecureRandom.",
+        severity: "high",
+      },
+      {
+        id: "android-crypto-5",
+        text: "Check certificate/public-key pinning implementation strength",
+        how: "Verify TLS pinning is implemented via a supported mechanism (Network Security Config / OkHttp CertificatePinner) covering all HTTP clients used, not just the main one.",
+        severity: "medium",
+      },
+      {
+        id: "android-crypto-6",
+        text: "Test padding oracle vulnerability in custom crypto implementations",
+        how: "If the app implements custom encryption/decryption with padding, tamper with ciphertext and check for observable padding-error differences.",
+        severity: "high",
+      },
+    ],
+  },
+  {
     id: "android-network",
     name: "Network Communication",
     emoji: "📡",
@@ -270,6 +313,18 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-ipc-6",
         text: "Test PendingIntent mutability for hijacking",
         how: "Check if PendingIntents are created without FLAG_IMMUTABLE, allowing a malicious app to modify the underlying intent.",
+        severity: "high",
+      },
+      {
+        id: "android-ipc-7",
+        text: "Test custom permission protection levels on exported components",
+        how: "Review custom permissions declared by the app — if defined with protectionLevel=\"normal\" instead of \"signature\", any other app can request and use them to access protected components.",
+        severity: "high",
+      },
+      {
+        id: "android-ipc-8",
+        text: "Test Parcelable/Bundle deserialization from IPC for object injection",
+        how: "Check if data received via Intent extras/Bundles is deserialized (readParcelable/readSerializable) without validating the actual class, allowing a malicious app to supply an unexpected object type.",
         severity: "high",
       },
     ],
