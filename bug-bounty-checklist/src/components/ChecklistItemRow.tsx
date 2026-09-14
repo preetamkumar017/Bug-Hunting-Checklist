@@ -103,7 +103,11 @@ export function ChecklistItemRow({
                 <textarea
                   defaultValue={state?.note ?? ""}
                   onBlur={(e) => setItemNote(item.id, e.target.value)}
-                  placeholder="Payload used, response observed, POC link..."
+                  placeholder={
+                    item.severity === "info"
+                      ? "Paste findings/output here (subdomain list, scan results, etc.)..."
+                      : "Payload used, response observed, POC link..."
+                  }
                   className="mt-1 w-full resize-y rounded border border-border/60 bg-transparent p-2 text-xs text-slate-300 outline-none focus:border-slate-500"
                   rows={2}
                 />
@@ -147,7 +151,7 @@ export function ChecklistItemRow({
 
         <div className="flex shrink-0 items-center gap-2">
           <SeverityBadge severity={item.severity} />
-          <StatusSelect value={status} onChange={handleStatusChange} />
+          <StatusSelect value={status} onChange={handleStatusChange} severity={item.severity} />
         </div>
       </div>
     </div>
