@@ -19,6 +19,11 @@ export const web3Categories: ChecklistCategory[] = [
           "forge test --match-test testReentrancy -vvvv",
           "slither . --detect reentrancy-eth,reentrancy-no-eth",
         ],
+        payloadNotes: [
+          "Defines an attacker contract whose fallback re-enters withdraw() before the vault updates its balance.",
+          "Runs the Foundry reentrancy test with maximum verbosity to trace the call sequence.",
+          "Runs Slither's reentrancy detectors to flag functions vulnerable to reentrant calls.",
+        ],
         expectedResponse: {
           vulnerable: "The attack contract's fallback re-enters withdraw() before the balance is zeroed, draining more ether than the attacker actually deposited (balance goes negative/underflows or the vault empties).",
           safe: "State is updated before the external call (checks-effects-interactions) or a reentrancy guard causes the re-entrant call to revert with 'ReentrancyGuard: reentrant call'.",
@@ -33,6 +38,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// balances[msg.sender] -= amount; underflows to ~2^256 if amount > balance on pragma <0.8.0\ntoken.transfer(victim, 0); token.transferFrom(victim, attacker, type(uint256).max)",
           "slither . --detect integer-overflow",
           "myth analyze Contract.sol --solv 0.7.6 -m ArithmeticModule",
+        ],
+        payloadNotes: [
+          "Calls transferFrom with the max uint256 value to try to underflow a balance subtraction on pre-0.8 Solidity.",
+          "Runs Slither's integer-overflow detector to flag unchecked arithmetic.",
+          "Runs Mythril's symbolic arithmetic analysis against a specific pinned Solidity version.",
         ],
         expectedResponse: {
           vulnerable: "transferFrom with type(uint256).max wraps a subtraction below zero into a near-max balance, letting the attacker mint or transfer tokens they never owned.",
@@ -49,6 +59,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// look for tx.origin == owner instead of msg.sender == owner, or a modifier that's declared but never applied\ngrep -n 'onlyOwner\\|onlyRole\\|require(msg.sender' *.sol",
           "slither . --detect suicidal,arbitrary-send-erc20,unprotected-upgrade",
         ],
+        payloadNotes: [
+          "Sends a setAdmin transaction from an arbitrary account to see if the access check can be bypassed.",
+          "Greps the source for the access-control modifiers to spot ones based on tx.origin or never applied.",
+          "Runs Slither's detectors for self-destructible, arbitrary-send, and unprotected-upgrade functions.",
+        ],
         expectedResponse: {
           vulnerable: "The setAdmin call from a non-owner account succeeds and $ATTACKER becomes admin, because the check uses tx.origin or an unapplied/missing modifier.",
           safe: "The transaction reverts with an ownership/role error (e.g. 'Ownable: caller is not the owner') for any caller besides the authorized address.",
@@ -62,6 +77,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// vulnerable: recipient.call{value: amount}(\"\"); with no check on the returned bool\nslither . --detect unchecked-lowlevel,unchecked-send,unchecked-transfer",
           "// PoC: deploy a contract with no receive()/fallback so the call silently fails while accounting still marks payout as sent",
+        ],
+        payloadNotes: [
+          "Runs Slither's detectors for unchecked low-level calls, sends, and transfers.",
+          "Deploys a contract that rejects ether so a real transfer failure can be observed against unchanged internal accounting.",
         ],
         expectedResponse: {
           vulnerable: "The low-level call fails (recipient has no receive/fallback) but execution continues and internal accounting still marks the transfer as successful, desyncing real balances from recorded state.",
@@ -78,6 +97,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $PROXY \"execute(address,bytes)\" $MALICIOUS_LIB $(cast calldata \"pwn()\") --private-key $PK",
           "slither . --detect controlled-delegatecall",
         ],
+        payloadNotes: [
+          "Defines a malicious contract that writes to storage slot 0 when reached via delegatecall.",
+          "Invokes the proxy's execute() function pointing at the malicious library to trigger the delegatecall.",
+          "Runs Slither's detector for delegatecall targets that are attacker-controllable.",
+        ],
         expectedResponse: {
           vulnerable: "The malicious library's code executes in the caller's storage context, overwriting slot 0 (often the owner variable) and giving the attacker control of the proxy.",
           safe: "delegatecall targets are restricted to a fixed, audited implementation address (e.g. via an immutable or a whitelist), so an attacker-supplied address is rejected or has no storage-layout impact.",
@@ -91,6 +115,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// e.g. `Voter storage v;` with no assignment aliases slot 0, letting a call overwrite owner/state\nslither . --detect uninitialized-storage,uninitialized-state",
           "myth analyze Contract.sol --solv 0.4.24",
+        ],
+        payloadNotes: [
+          "Runs Slither's detectors for uninitialized storage pointers and uninitialized state variables.",
+          "Runs Mythril's symbolic analysis against an old Solidity version known to allow this bug.",
         ],
         expectedResponse: {
           vulnerable: "An uninitialized storage struct/array pointer aliases slot 0, so a normal function call unexpectedly overwrites the owner or another critical state variable.",
@@ -107,6 +135,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// simulate front-run: attacker copies calldata, resubmits with higher gasPrice/priorityFee before victim's tx mines",
           "flashbots-cli bundle --tx <frontrun_tx> --tx <victim_tx> --block latest",
         ],
+        payloadNotes: [
+          "Subscribes to the pending-transaction mempool feed over a websocket RPC to spot the target function.",
+          "Describes copying a victim's pending calldata and resubmitting it with higher gas to land first.",
+          "Bundles a front-run transaction ahead of the victim's via Flashbots for guaranteed ordering.",
+        ],
         expectedResponse: {
           vulnerable: "The higher-gas front-run transaction mines first and captures the value (e.g. better price, claimed slot) that the victim's identical transaction intended to obtain.",
           safe: "The function uses commit-reveal, private mempool submission, or slippage/ordering-independent logic so a copied transaction submitted with higher gas provides the attacker no advantage.",
@@ -121,6 +154,10 @@ export const web3Categories: ChecklistCategory[] = [
           "for i in $(seq 1 5000); do cast send $CONTRACT \"register()\" --private-key $(cast wallet new | grep -o '0x[a-f0-9]*') --rpc-url $RPC; done  # grow the array",
           "forge test --match-test testUnboundedLoopDoS --gas-report",
         ],
+        payloadNotes: [
+          "Spawns thousands of new wallets and registers each one to grow the on-chain array.",
+          "Runs the DoS test with a gas report to show cost climbing as the array grows.",
+        ],
         expectedResponse: {
           vulnerable: "Once the array grows large enough, any function iterating over it exceeds the block gas limit and reverts every time, permanently bricking that functionality.",
           safe: "The gas cost stays bounded regardless of array size (pagination, pull-based patterns, or a capped array length), so the function keeps succeeding as the array grows.",
@@ -134,6 +171,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "contract Forcer { function force(address payable target) external payable { selfdestruct(target); } }",
           "// PoC: fund Forcer, call force(victimContract) to corrupt a balance-based invariant like `require(address(this).balance == totalDeposits)`",
+        ],
+        payloadNotes: [
+          "Defines a helper contract that self-destructs to force-send its ether balance to any target address.",
+          "Funds the Forcer contract then targets the victim to see if the forced ether breaks a balance invariant.",
         ],
         expectedResponse: {
           vulnerable: "The forced ether desyncs address(this).balance from the contract's internal accounting variable, causing an invariant check like balance == totalDeposits to permanently fail or be exploitable.",
@@ -150,6 +191,11 @@ export const web3Categories: ChecklistCategory[] = [
           "forge inspect ImplementationV2 storage-layout --pretty  # diff against V1 for reordered/retyped slots",
           "cast storage $PROXY 0 --rpc-url $RPC  # read raw slot before/after upgrade",
         ],
+        payloadNotes: [
+          "Dumps V1's storage layout (slot, type, variable name) in a readable format.",
+          "Dumps V2's storage layout so it can be diffed against V1 for reordered or retyped slots.",
+          "Reads the raw value of storage slot 0 on the live proxy to compare before and after upgrading.",
+        ],
         expectedResponse: {
           vulnerable: "The V2 storage-layout diff shows reordered, removed, or retyped variables, and reading a slot after upgrade returns a value that no longer matches the expected pre-upgrade variable (data corruption).",
           safe: "V2 only appends new variables after V1's existing layout (or uses namespaced/diamond storage), so every slot's value is unchanged and correctly interpreted after the upgrade.",
@@ -165,6 +211,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast call $IMPLEMENTATION \"owner()\" --rpc-url $RPC  # check if the logic contract itself was left uninitialized",
           "slither . --detect unprotected-upgrade,missing-initializer",
         ],
+        payloadNotes: [
+          "Attempts to call initialize() a second time on an already-deployed, live proxy.",
+          "Reads owner() directly on the implementation contract to check if it was ever initialized.",
+          "Runs Slither's detectors for unprotected upgrade functions and missing initializer guards.",
+        ],
         expectedResponse: {
           vulnerable: "initialize(address) succeeds on an already-live proxy (or on the uninitialized logic contract), letting the attacker set themselves as owner and take over the contract.",
           safe: "The call reverts with 'Initializable: contract is already initialized' and the logic contract itself has its initializers disabled in its constructor.",
@@ -179,6 +230,11 @@ export const web3Categories: ChecklistCategory[] = [
           "grep -n 'block.timestamp\\|blockhash\\|block.difficulty\\|block.prevrandao' *.sol",
           "// Foundry cheatcode PoC: vm.warp(block.timestamp + 1); to show outcome shifts with attacker-controlled timestamp",
           "slither . --detect weak-prng",
+        ],
+        payloadNotes: [
+          "Greps the source for randomness derived from block timestamp, hash, difficulty, or prevrandao.",
+          "Warps the test's block timestamp forward to show the 'random' outcome shifting predictably.",
+          "Runs Slither's weak-PRNG detector to flag manipulable randomness sources.",
         ],
         expectedResponse: {
           vulnerable: "Warping block.timestamp (or a chosen blockhash) changes the outcome of the 'random' logic in the attacker's favor, e.g. always winning a lottery or bypassing a time-lock check.",
@@ -203,6 +259,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $CONTRACT \"mint(address,uint256)\" $ATTACKER 1000000 --private-key $PK --rpc-url $RPC  # try calling directly, bypassing timelock",
           "cast call $MULTISIG \"getThreshold()\" --rpc-url $RPC && cast call $MULTISIG \"getOwners()\" --rpc-url $RPC",
         ],
+        payloadNotes: [
+          "Reads the timelock's configured minimum delay to check it isn't zero.",
+          "Attempts to mint tokens directly, bypassing the timelock/multisig flow entirely.",
+          "Reads the multisig's signer threshold and owner list to gauge how strict the approval requirement is.",
+        ],
         expectedResponse: {
           vulnerable: "The direct mint() call succeeds from a single EOA/PK without going through the timelock or multisig, or getMinDelay() returns 0, meaning the safeguard is decorative.",
           safe: "The direct call reverts because only the timelock/governor address is authorized, and getMinDelay() enforces a non-zero delay before execution.",
@@ -218,6 +279,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast call $GOVERNOR \"proposalVotes(uint256)\" $PROPOSAL_ID --rpc-url $RPC  # compare for/against/abstain vs quorum requirement",
           "cast send $GOVERNOR \"execute(uint256)\" $PROPOSAL_ID --private-key $PK --rpc-url $RPC  # attempt execute before/without quorum reached",
         ],
+        payloadNotes: [
+          "Reads the quorum requirement for votes cast at a given block.",
+          "Reads a proposal's for/against/abstain vote tallies to compare against the quorum threshold.",
+          "Attempts to execute the proposal to see if it succeeds despite insufficient votes.",
+        ],
         expectedResponse: {
           vulnerable: "execute() succeeds even though proposalVotes shows for-votes below the quorum() requirement, letting an under-supported proposal take effect.",
           safe: "execute() reverts with a quorum-not-reached error whenever for-votes are below the computed quorum threshold.",
@@ -231,6 +297,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// Aave-style flashloan governance attack pseudocode:\nfunction executeOperation(...) external { govToken.flashBorrow(HUGE_AMOUNT); governor.castVote(propId, FOR); govToken.repay(HUGE_AMOUNT); }",
           "cast call $GOVERNOR \"getVotes(address,uint256)\" $ATTACKER $SNAPSHOT_BLOCK --rpc-url $RPC  # confirm balance at vote-start block, not real-time, is used",
+        ],
+        payloadNotes: [
+          "Sketches a flash-loan callback that borrows governance tokens, casts a vote, then repays within one transaction.",
+          "Reads voting power at the proposal's snapshot block to confirm it isn't based on a real-time balance.",
         ],
         expectedResponse: {
           vulnerable: "getVotes reflects real-time/borrowed balance rather than a fixed snapshot block, so a flash-loaned balance held only for one transaction is enough to cast a decisive vote.",
@@ -246,6 +316,10 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $CONTRACT \"transferOwnership(address)\" 0x0000000000000000000000000000000000000000 --private-key $PK --rpc-url $RPC",
           "cast send $CONTRACT \"renounceOwnership()\" --private-key $PK --rpc-url $RPC",
         ],
+        payloadNotes: [
+          "Transfers ownership to the zero address to see if the contract allows permanently bricking admin control.",
+          "Calls renounceOwnership() to see if admin rights can be dropped with no safeguard.",
+        ],
         expectedResponse: {
           vulnerable: "Ownership transfers to the zero address or is renounced without a guard, permanently locking out any admin-only recovery/upgrade/pause function forever.",
           safe: "transferOwnership rejects address(0) and renounceOwnership either is disabled or is a deliberate, reversible two-step process with a clear warning.",
@@ -260,6 +334,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $CONTRACT \"pause()\" --private-key $ADMIN_PK --rpc-url $RPC",
           "cast send $CONTRACT \"withdraw(uint256)\" 1000000000000000000 --private-key $PK --rpc-url $RPC  # should revert with 'Pausable: paused' — check every fund path",
           "grep -n 'whenNotPaused' *.sol  # confirm modifier is applied to withdraw/transfer/redeem, not just mint/deposit",
+        ],
+        payloadNotes: [
+          "Pauses the contract using the admin key to activate the emergency stop.",
+          "Attempts a withdrawal while paused to check whether the fund-moving path actually respects the pause.",
+          "Greps the source to confirm the whenNotPaused modifier covers withdraw/transfer/redeem, not just deposit/mint.",
         ],
         expectedResponse: {
           vulnerable: "withdraw() still succeeds while the contract is paused because the whenNotPaused modifier was only applied to deposit/mint, not to the fund-moving path.",
@@ -284,6 +363,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// PoC: swap a large amount to skew reserves, then call the vulnerable function that reads getAmountOut/spot price in the same tx, then swap back",
           "grep -n 'getReserves\\|latestAnswer\\|TWAP\\|observe(' *.sol  # spot price vs Chainlink/TWAP",
         ],
+        payloadNotes: [
+          "Reads the pool's reserve balances to gauge how easily its spot price can be moved.",
+          "Describes swapping to skew reserves, exploiting the mispriced read, then swapping back in one transaction.",
+          "Greps the source to see whether pricing logic uses a manipulable spot read or a Chainlink/TWAP source.",
+        ],
         expectedResponse: {
           vulnerable: "Skewing the low-liquidity pool's reserves in the same transaction moves the spot price used for collateral/liquidation/pricing math, letting the attacker profit or trigger an unfair liquidation before swapping back.",
           safe: "Pricing relies on a Chainlink feed or a time-weighted average (TWAP) that a single-transaction reserve swing cannot meaningfully move.",
@@ -297,6 +381,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// Aave V3 flashLoan pseudocode\nPOOL.flashLoanSimple(address(this), USDC, 10_000_000e6, data, 0);\nfunction executeOperation(...) external { /* manipulate price/collateral, exploit target, repay */ }",
           "forge test --match-test testFlashLoanExploit --fork-url $MAINNET_RPC -vvvv",
+        ],
+        payloadNotes: [
+          "Sketches an Aave flash loan callback that borrows a large sum to manipulate protocol state before repaying.",
+          "Runs the flash-loan exploit test against a mainnet fork with maximum trace verbosity.",
         ],
         expectedResponse: {
           vulnerable: "The forge test shows the flash-borrowed balance temporarily satisfies a collateral/voting/price check within the same transaction, letting the attacker extract value before repaying the loan.",
@@ -313,6 +401,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// sandwich sim: front-run buy to raise price -> victim swap executes at worse rate -> back-run sell for profit",
           "cast call $ROUTER \"getAmountsOut(uint256,address[])\" 1000000000000000000 \"[$TOKEN_IN,$TOKEN_OUT]\" --rpc-url $RPC",
         ],
+        payloadNotes: [
+          "Greps the source for a slippage-protection parameter to check if it's missing or hardcoded to zero.",
+          "Describes a front-run/victim-swap/back-run sequence to show sandwich profit.",
+          "Reads the router's quoted output amount for a swap to see the price a sandwich could move.",
+        ],
         expectedResponse: {
           vulnerable: "amountOutMin is missing or hardcoded to 0, so the swap executes at whatever price exists at mine time, letting a sandwich attacker extract the difference.",
           safe: "The function requires a caller-supplied minimum-output parameter and reverts with 'INSUFFICIENT_OUTPUT_AMOUNT' if the sandwiched price would violate it.",
@@ -327,6 +420,10 @@ export const web3Categories: ChecklistCategory[] = [
           "// shares = (amount * totalSupply) / totalAssets — check rounding direction favors protocol on deposit and user on withdraw\nforge test --match-test testRoundingExploitLoop -vvvv",
           "for i in $(seq 1 1000); do cast send $VAULT \"deposit(uint256)\" 1 --private-key $PK --rpc-url $RPC; cast send $VAULT \"withdraw(uint256)\" 1 --private-key $PK --rpc-url $RPC; done",
         ],
+        payloadNotes: [
+          "Runs a Foundry test that loops tiny deposits/withdrawals to check which side rounding favors.",
+          "Repeatedly deposits and withdraws a minimal amount on-chain to accumulate rounding-error profit.",
+        ],
         expectedResponse: {
           vulnerable: "Repeating the tiny deposit/withdraw loop steadily increases the attacker's extracted assets beyond what was deposited, because rounding always favors the user instead of the protocol.",
           safe: "Share math consistently rounds in the protocol's favor (down on deposit, down on withdraw), so the loop yields no net gain and may even show a small loss to the attacker.",
@@ -340,6 +437,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// classic ERC-4626 inflation attack:\nvault.deposit(1, attacker); // mints 1 share\nasset.transfer(address(vault), 10000e18); // donate directly, inflating price-per-share\n// victim's deposit(10000e18) now rounds down to 0 shares",
           "forge test --match-test testERC4626InflationAttack -vvvv",
+        ],
+        payloadNotes: [
+          "Describes minting one share then donating tokens directly to inflate the share price before a victim deposits.",
+          "Runs the ERC-4626 inflation-attack test to confirm the victim's deposit rounds down to zero shares.",
         ],
         expectedResponse: {
           vulnerable: "After the donation, the victim's deposit computes to 0 shares due to rounding, so their assets are absorbed into the vault and effectively stolen by the first depositor.",
@@ -356,6 +457,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $LENDING_POOL \"liquidationCall(address,address,address,uint256,bool)\" $COLLATERAL $DEBT $VICTIM $DEBT_AMOUNT false --private-key $PK --rpc-url $RPC",
           "// self-liquidation PoC: open position near threshold, manipulate oracle down, liquidate own position for bonus",
         ],
+        payloadNotes: [
+          "Reads a borrower's account data, including health factor, to identify liquidation candidates.",
+          "Executes a liquidation call against a target position to claim the collateral and bonus.",
+          "Describes opening a position near the threshold, nudging the oracle, then self-liquidating for the bonus.",
+        ],
         expectedResponse: {
           vulnerable: "The attacker manipulates the oracle price down just enough to cross the health-factor threshold, then liquidates their own position and pockets the liquidation bonus at no real risk.",
           safe: "Liquidation uses a manipulation-resistant price source and the health factor cannot be crossed by a transient price move, so self-liquidation yields no bonus beyond genuine insolvency.",
@@ -369,6 +475,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// PoC: balanceBefore = token.balanceOf(address(this)); token.transferFrom(user, address(this), amount); actualReceived = token.balanceOf(address(this)) - balanceBefore; assert(actualReceived == amount); // fails for fee-on-transfer tokens",
           "forge test --match-test testFeeOnTransferAccounting -vvvv",
+        ],
+        payloadNotes: [
+          "Compares balanceOf before and after a transfer to reveal whether the actual amount received differs from what was requested.",
+          "Runs the fee-on-transfer accounting test to confirm whether the contract credits the nominal or the actual received amount.",
         ],
         expectedResponse: {
           vulnerable: "actualReceived is less than the requested amount for a fee-on-transfer/rebasing token, but the contract credits the user for the full nominal amount, creating an accounting shortfall that later withdrawals can exploit.",
@@ -392,6 +502,10 @@ export const web3Categories: ChecklistCategory[] = [
           "cast wallet sign --private-key $PK $(cast keccak \"transfer(address,uint256)\")  # inspect what's actually hashed/signed",
           "// replay PoC: capture (v,r,s) from chain A tx, resubmit identical calldata to same contract address deployed on chain B\ncast send $CONTRACT_CHAIN_B \"executeWithSig(bytes,uint8,bytes32,bytes32)\" $DATA $V $R $S --rpc-url $RPC_CHAIN_B",
         ],
+        payloadNotes: [
+          "Signs a message locally to inspect exactly what fields get hashed and signed.",
+          "Resubmits a signature captured on one chain to the identically-deployed contract on another chain.",
+        ],
         expectedResponse: {
           vulnerable: "The same signature captured on chain A is accepted verbatim by the identically-deployed contract on chain B, executing an action the signer never authorized on that chain.",
           safe: "The signed hash includes block.chainid and address(this), so replaying it on another chain or contract produces a hash mismatch and the signature check fails.",
@@ -405,6 +519,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// malleability: (v, r, s) and (v', r, n - s) both verify for the same message — check contract uses OpenZeppelin ECDSA.sol (rejects high-s) not raw ecrecover\ngrep -n 'ecrecover' *.sol",
           "python3 -c \"from ecdsa.util import sigdecode_string; n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141; s2 = n - s; print(hex(s2))\"",
+        ],
+        payloadNotes: [
+          "Greps the source for raw ecrecover usage instead of a malleability-safe wrapper.",
+          "Computes the malleable counterpart signature value (n - s) to produce a second valid signature.",
         ],
         expectedResponse: {
           vulnerable: "The derived (v, n-s) signature also passes ecrecover for the same message, letting an attacker mint a second valid signature hash that can bypass a used-signature/nonce check keyed on the signature itself.",
@@ -420,6 +538,10 @@ export const web3Categories: ChecklistCategory[] = [
           "// check wallet prompt: eth_sign / personal_sign on a raw hash shows unreadable hex, eth_signTypedData_v4 shows a structured, reviewable form\nweb3.eth.signTypedData(account, { domain, types, primaryType, message })",
           "cast wallet sign --data '{\"types\":{...},\"domain\":{...},\"message\":{...}}'  # confirm domain separator includes chainId + verifyingContract",
         ],
+        payloadNotes: [
+          "Requests an EIP-712 typed-data signature to see if the wallet renders a readable structured prompt.",
+          "Signs structured typed data via cast to confirm the domain separator binds chainId and the verifying contract.",
+        ],
         expectedResponse: {
           vulnerable: "The wallet prompt shows only an opaque hex hash (eth_sign/personal_sign on a raw hash) with no readable fields, making it easy to trick a user into signing an unintended action.",
           safe: "The wallet renders a structured EIP-712 prompt showing domain, types, and message fields in plain readable form, with the domain separator bound to chainId and verifyingContract.",
@@ -433,6 +555,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "cast call $TOKEN \"nonces(address)\" $OWNER --rpc-url $RPC  # confirm nonce increments and is checked",
           "// front-run PoC: observe victim's permit(owner, spender, value, deadline, v, r, s) in mempool, submit it yourself first with a manipulated spender-controlled follow-up tx\ncast send $TOKEN \"permit(address,address,uint256,uint256,uint8,bytes32,bytes32)\" $OWNER $SPENDER $VALUE $DEADLINE $V $R $S --rpc-url $RPC",
+        ],
+        payloadNotes: [
+          "Reads the owner's current nonce to confirm it increments and is enforced by permit().",
+          "Submits an intercepted permit signature ahead of the victim's own transaction to test front-run resilience.",
         ],
         expectedResponse: {
           vulnerable: "The permit signature can be resubmitted by anyone (front-run) to grant the approval before the victim's own transaction, or nonces() doesn't increment/get checked, letting the same signature be replayed.",
@@ -448,6 +574,11 @@ export const web3Categories: ChecklistCategory[] = [
           "// inspect the approve() call the dApp constructs in devtools/network tab\ntoken.approve(spender, '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')",
           "cast call $TOKEN \"allowance(address,address)\" $USER $SPENDER --rpc-url $RPC",
           "revoke.cash  # cross-check whether the app's granted allowances show as unlimited",
+        ],
+        payloadNotes: [
+          "Inspects the approve() call the dApp actually constructs to check if it requests max uint256.",
+          "Reads the on-chain allowance granted to the spender to see how large it is.",
+          "Cross-checks the wallet's granted allowances via revoke.cash to confirm whether any are unlimited.",
         ],
         expectedResponse: {
           vulnerable: "The devtools network/calldata shows approve() called with type(uint256).max, and revoke.cash confirms the granted allowance is unlimited, exposing the user's full token balance to any future spender-contract bug.",
@@ -471,6 +602,10 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $BRIDGE_DEST \"receiveMessage(bytes,bytes)\" $FORGED_MESSAGE $FORGED_PROOF --private-key $PK --rpc-url $RPC_DEST  # try spoofing sourceChainId/sender fields",
           "grep -n 'sourceChainId\\|trustedRemote\\|require(msg.sender == relayer' *.sol",
         ],
+        payloadNotes: [
+          "Submits a message with forged source-chain and sender fields to see if the destination contract accepts it.",
+          "Greps the source for the checks that should validate the message's origin chain and relayer.",
+        ],
         expectedResponse: {
           vulnerable: "The forged message with a spoofed sourceChainId/sender is accepted and processed, minting or releasing funds based on an origin that was never validated.",
           safe: "The call reverts because the destination contract checks the message against a trusted-remote/relayer allowlist and rejects any unrecognized source chain or sender.",
@@ -484,6 +619,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "cast call $BRIDGE \"processedNonces(bytes32)\" $MESSAGE_HASH --rpc-url $RPC  # confirm a nonce/hash is marked used before payout",
           "cast send $BRIDGE \"claim(bytes,bytes)\" $SAME_MESSAGE $SAME_PROOF --private-key $PK --rpc-url $RPC  # resubmit an already-claimed message",
+        ],
+        payloadNotes: [
+          "Checks whether a message hash is already marked as processed before a payout.",
+          "Resubmits the same message and proof that was already claimed once to test for a double payout.",
         ],
         expectedResponse: {
           vulnerable: "The second claim() call with the identical message/proof succeeds and pays out again, because processedNonces was never marked or checked before disbursing funds.",
@@ -499,6 +638,10 @@ export const web3Categories: ChecklistCategory[] = [
           "cast call $BRIDGE \"requiredSignatures()\" --rpc-url $RPC && cast call $BRIDGE \"validatorCount()\" --rpc-url $RPC  # check the m-of-n threshold",
           "// model: if threshold is e.g. 4-of-7, assess whether 4 validator keys are realistically obtainable (shared infra, same cloud account, leaked keys)",
         ],
+        payloadNotes: [
+          "Reads the bridge's required-signature threshold and total validator count to compute the m-of-n ratio.",
+          "Assesses whether the threshold's validator subset is realistically compromisable given shared infrastructure.",
+        ],
         expectedResponse: {
           vulnerable: "The threshold is low relative to validator count (or validators share infrastructure/cloud accounts), so compromising a small, realistically-obtainable subset of keys is enough to forge messages and mint/release funds arbitrarily.",
           safe: "The threshold requires a large, diverse, independently-operated majority of validators, making collusion or key compromise at that scale impractical.",
@@ -513,6 +656,11 @@ export const web3Categories: ChecklistCategory[] = [
           "cast call $WRAPPED_TOKEN \"totalSupply()\" --rpc-url $RPC_DEST",
           "cast call $LOCK_CONTRACT \"totalLocked()\" --rpc-url $RPC_SOURCE  # compare against wrapped totalSupply — should always be >=",
           "// stress edge cases: partial-fill deposits, reorg on source chain, and relayer double-processing during a failed/retried tx",
+        ],
+        payloadNotes: [
+          "Reads the wrapped token's total supply on the destination chain.",
+          "Reads the total locked collateral on the source chain to compare against the wrapped supply.",
+          "Stress-tests reorgs and retried relaying to see if supply can exceed backing collateral.",
         ],
         expectedResponse: {
           vulnerable: "Under a reorg or a retried/double-processed relay, totalSupply() on the destination chain exceeds totalLocked() on the source chain, meaning wrapped tokens exist without backing collateral.",
@@ -536,6 +684,10 @@ export const web3Categories: ChecklistCategory[] = [
           "curl -s https://app.example.com/config.json | jq '.contractAddress'  # remotely-fetched config is a supply-chain risk",
           "// diff bundled JS contract addresses against etherscan-verified official addresses\ncurl -s https://app.example.com/static/js/main.js | grep -oE '0x[a-fA-F0-9]{40}'",
         ],
+        payloadNotes: [
+          "Fetches the app's remote config file to check whether contract addresses come from a mutable source.",
+          "Extracts contract addresses embedded in the shipped JS bundle to diff against the official verified addresses.",
+        ],
         expectedResponse: {
           vulnerable: "config.json or the bundled JS is fetched from a mutable CDN/DNS-dependent source, and the contract address in it differs from the official Etherscan-verified address, meaning a compromised CDN could redirect user funds to an attacker contract.",
           safe: "Contract addresses are hardcoded/immutable in the shipped bundle (or pinned via subresource integrity) and match the official verified addresses exactly, so a CDN/DNS compromise can't silently swap the target contract.",
@@ -549,6 +701,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// malicious dApp calls setApprovalForAll(attacker, true) on an NFT contract while UI shows a fake 'Claim Airdrop' button\nnft.setApprovalForAll(attacker, true)",
           "// or requests Permit2/permit() signature disguised as a 'connect wallet' or 'verify ownership' prompt",
+        ],
+        payloadNotes: [
+          "Calls setApprovalForAll to grant blanket NFT approval while the UI displays a fake benign action.",
+          "Describes disguising a Permit2/permit() signature request as an innocuous connect/verify prompt.",
         ],
         expectedResponse: {
           vulnerable: "The wallet confirmation UI shows generic/truncated text so a setApprovalForAll or permit signature request is indistinguishable from a benign 'connect' or 'claim' action, letting users unknowingly grant a full drain approval.",
@@ -564,6 +720,10 @@ export const web3Categories: ChecklistCategory[] = [
           "<script>window.ethereum.request({method:'eth_sendTransaction',params:[{to:'0xATTACKER',value:'0xDE0B6B3A7640000',data:'0x'}]})</script>",
           "\"><img src=x onerror=\"window.ethereum.request({method:'wallet_requestPermissions',params:[{eth_accounts:{}}]})\">",
         ],
+        payloadNotes: [
+          "Injects a script tag that triggers an unsolicited eth_sendTransaction wallet prompt sending ether to the attacker.",
+          "Injects an onerror image handler that requests wallet account permissions without user intent.",
+        ],
         expectedResponse: {
           vulnerable: "The injected script executes and successfully triggers an unsolicited eth_sendTransaction/wallet_requestPermissions prompt in the victim's wallet, confirming stored/reflected XSS can hijack wallet interactions.",
           safe: "The payload is rendered as inert text/HTML-escaped and no wallet_request/eth_sendTransaction call fires, because input is sanitized/output-encoded and CSP blocks inline script execution.",
@@ -578,6 +738,10 @@ export const web3Categories: ChecklistCategory[] = [
         payloads: [
           "// point the dApp at a malicious RPC that returns a forged eth_call result / fake balance / stale nonce\ngeth --http --http.api eth,net,web3 --networkid 1  # spin up a local node serving manipulated responses",
           "mitmproxy -p 8080 --mode transparent  # intercept and rewrite JSON-RPC responses (eth_call, eth_getBalance) to the dApp",
+        ],
+        payloadNotes: [
+          "Spins up a local node to serve forged eth_call/balance/nonce responses as a malicious custom RPC.",
+          "Intercepts and rewrites the dApp's live JSON-RPC responses to simulate a man-in-the-middle RPC.",
         ],
         expectedResponse: {
           vulnerable: "The dApp accepts an arbitrary custom RPC URL with no warning, and it silently renders the manipulated balance/eth_call results from the malicious/MITM'd node as if they were trustworthy chain state.",

@@ -18,6 +18,11 @@ export const iosCategories: ChecklistCategory[] = [
           "strings -a Payload/App.app/App | grep -iE 'http|key|secret|token'",
           "class-dump -H Payload/App.app/App -o headers/",
         ],
+        payloadNotes: [
+          "Unzips the IPA package into a folder so the app bundle contents can be inspected.",
+          "Searches the compiled binary's readable strings for URLs, keys, or secret-related keywords.",
+          "Generates Objective-C header files from the binary to reveal class/method names.",
+        ],
         expectedResponse: {
           vulnerable: "strings/class-dump output reveals plaintext API keys, internal hostnames, or auth tokens embedded in the binary or symbol names.",
           safe: "No secrets or internal endpoints surface in the strings dump; only generic system/library strings and obfuscated or absent internal identifiers appear.",
@@ -31,6 +36,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "plutil -convert xml1 -o - Payload/App.app/Info.plist",
           "<key>NSAppTransportSecurity</key>\n<dict>\n  <key>NSAllowsArbitraryLoads</key>\n  <true/>\n</dict>",
+        ],
+        payloadNotes: [
+          "Converts the binary Info.plist to readable XML for inspection.",
+          "Example of an ATS override entry that disables secure-connection enforcement app-wide.",
         ],
         expectedResponse: {
           vulnerable: "Info.plist contains NSAllowsArbitraryLoads set to true (or per-domain exceptions allowing insecure loads), permitting cleartext/unpinned connections.",
@@ -46,6 +55,10 @@ export const iosCategories: ChecklistCategory[] = [
           "grep -R -iE 'api[_-]?key|secret|Bearer [A-Za-z0-9._-]+' Payload/App.app/",
           "strings Payload/App.app/App | grep -E 'AIza[0-9A-Za-z_-]{35}|AKIA[0-9A-Z]{16}'",
         ],
+        payloadNotes: [
+          "Recursively searches bundle files for common credential-like key/secret/token patterns.",
+          "Matches the binary's strings against known Google API key and AWS access key ID formats.",
+        ],
         expectedResponse: {
           vulnerable: "Grep matches return live-looking credentials such as an AWS access key (AKIA...) or Google API key (AIza...) embedded directly in the binary or resources.",
           safe: "No credential-shaped strings match; any keys present are clearly placeholders/test values or fetched dynamically rather than hardcoded.",
@@ -59,6 +72,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes' Info.plist",
           "xcrun simctl openurl booted 'myapp://login?redirect=https://evil.com'",
+        ],
+        payloadNotes: [
+          "Dumps the app's registered URL scheme/type declarations from Info.plist for review.",
+          "Opens the app via its custom URL scheme with an attacker-controlled redirect parameter on the simulator.",
         ],
         expectedResponse: {
           vulnerable: "The app follows the attacker-supplied redirect parameter or performs a sensitive action (e.g. login state change) without validating the URL's origin or parameters.",
@@ -74,6 +91,10 @@ export const iosCategories: ChecklistCategory[] = [
           "grep -R 'addScriptMessageHandler\\|WKScriptMessageHandler' Payload/App.app/",
           "window.webkit.messageHandlers.<handlerName>.postMessage({cmd:'exec', arg:'id'})",
         ],
+        payloadNotes: [
+          "Searches the bundle for code registering a WKWebView JavaScript-to-native message handler.",
+          "Sends a crafted message from loaded web content to the exposed native bridge handler to test for command execution.",
+        ],
         expectedResponse: {
           vulnerable: "The native handler executes the posted command (e.g. runs a native function, discloses data) even from content not loaded from a trusted first-party origin.",
           safe: "The handler validates the calling frame's origin and message schema, rejecting calls from untrusted or remotely loaded web content.",
@@ -87,6 +108,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "codesign -d --entitlements :- Payload/App.app/App",
           "ldid -e Payload/App.app/App",
+        ],
+        payloadNotes: [
+          "Extracts and prints the entitlements plist embedded in the binary's code signature.",
+          "Reads the entitlements blob from an unsigned/jailbroken-tooling binary via ldid.",
         ],
         expectedResponse: {
           vulnerable: "Entitlements include broad capabilities (e.g. wide keychain-access-groups, unrestricted associated-domains, extra iCloud containers) not required by the app's actual features.",
@@ -102,6 +127,10 @@ export const iosCategories: ChecklistCategory[] = [
           "ls Payload/App.app/Frameworks/",
           "plutil -p Payload/App.app/Frameworks/*/Info.plist | grep CFBundleShortVersionString",
         ],
+        payloadNotes: [
+          "Lists all bundled third-party frameworks packaged inside the app.",
+          "Extracts each framework's version string for cross-referencing against CVE databases.",
+        ],
         expectedResponse: {
           vulnerable: "A bundled framework's version matches a publicly disclosed CVE (e.g. an outdated networking or crash-reporting SDK with known RCE/info-leak issues).",
           safe: "All bundled frameworks are on current versions with no matching entries in CVE databases for the identified version.",
@@ -115,6 +144,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "otool -hv Payload/App.app/App | grep PIE",
           "otool -Iv Payload/App.app/App | grep stack_chk",
+        ],
+        payloadNotes: [
+          "Inspects the Mach-O header to check whether the Position Independent Executable flag is set.",
+          "Checks the binary's imported symbols for stack canary (stack_chk) protection functions.",
         ],
         expectedResponse: {
           vulnerable: "otool output shows the PIE flag absent or no stack_chk (stack canary) symbols present, indicating the release build lacks standard exploit mitigations.",
@@ -138,6 +171,10 @@ export const iosCategories: ChecklistCategory[] = [
           "objection --gadget com.target.app explore --startup-command 'ios sslpinning disable'",
           "frida -U -f com.target.app -l ios-ssl-bypass.js --no-pause",
         ],
+        payloadNotes: [
+          "Attaches objection to the app via a Frida gadget and disables SSL pinning at runtime.",
+          "Launches the app under Frida and injects a script that patches out certificate pinning checks.",
+        ],
         expectedResponse: {
           vulnerable: "Frida attaches without crashing and the pinning bypass succeeds, revealing plaintext decrypted API traffic in Burp's proxy history.",
           safe: "The app detects the injected script or hook and force-closes, or pinning holds and Burp shows only failed TLS handshakes with no decrypted traffic.",
@@ -151,6 +188,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "xcrun simctl openurl booted 'myapp://action?cmd=delete&id=1 OR 1=1'",
           "xcrun simctl openurl booted \"myapp://open?url=javascript:alert(1)\"",
+        ],
+        payloadNotes: [
+          "Triggers the custom scheme with a SQL-injection-style payload in a parameter to test backend query handling.",
+          "Triggers the custom scheme with a javascript: URI to test whether it gets executed inside a WebView.",
         ],
         expectedResponse: {
           vulnerable: "The crafted parameter triggers unintended behavior, such as executing a destructive action, an injected SQL-like query taking effect, or a javascript: URL running in a WebView.",
@@ -166,6 +207,10 @@ export const iosCategories: ChecklistCategory[] = [
           "frida -U -f com.target.app -l memory-scan.js",
           "Process.enumerateRanges('r--').forEach(r => Memory.scan(r.base, r.size, '70 61 73 73 77 6f 72 64', {onMatch(a){console.log('hit', a)}}))",
         ],
+        payloadNotes: [
+          "Runs a Frida script that scans process memory for residual sensitive data.",
+          "Scans readable memory regions for the hex-encoded string 'password' and logs any matches found.",
+        ],
         expectedResponse: {
           vulnerable: "The memory scan finds plaintext passwords/tokens/keys still resident well after the auth/crypto operation completes.",
           safe: "No plaintext secrets are found in scanned memory ranges; sensitive buffers appear zeroed or absent shortly after use.",
@@ -179,6 +224,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "objection --gadget com.target.app explore --startup-command 'ios pasteboard monitor'",
           "[[UIPasteboard generalPasteboard] string]",
+        ],
+        payloadNotes: [
+          "Uses objection to watch and log values written to the general pasteboard in real time.",
+          "Objective-C call that directly reads the current contents of the shared system pasteboard.",
         ],
         expectedResponse: {
           vulnerable: "Querying UIPasteboard.generalPasteboard.string after an OTP/token action returns the sensitive plaintext value, readable by any other installed app.",
@@ -194,6 +243,10 @@ export const iosCategories: ChecklistCategory[] = [
           "objection --gadget com.target.app explore --startup-command 'ios ui biometrics_bypass'",
           "Interceptor.attach(ObjC.classes.LAContext['- evaluatePolicy:localizedReason:reply:'].implementation, { onEnter(args){ /* force reply(true, nil) */ } })",
         ],
+        payloadNotes: [
+          "Runs objection's built-in module that automatically forces biometric evaluation to always succeed.",
+          "Manually hooks LAContext's evaluatePolicy method to force its completion callback to report success.",
+        ],
         expectedResponse: {
           vulnerable: "Hooking the reply callback to force success (true, nil) grants access to the protected screen/feature without a real biometric match.",
           safe: "The app re-validates the LAContext evaluation result server-side or via a keychain item bound to biometrics, so the forced client-side success is rejected.",
@@ -208,6 +261,10 @@ export const iosCategories: ChecklistCategory[] = [
           "xcrun simctl io booted screenshot after_background.png",
           "find ~/Library/Developer/CoreSimulator/Devices -iname 'Snapshot*.png'",
         ],
+        payloadNotes: [
+          "Captures a screenshot of the simulator after backgrounding the app to inspect the app-switcher snapshot.",
+          "Locates the app-switcher snapshot image files saved on disk by the simulator.",
+        ],
         expectedResponse: {
           vulnerable: "The background snapshot PNG shows unmasked sensitive content (balances, PII, auth screens) visible in the app switcher.",
           safe: "The snapshot shows a blank/branded splash overlay in place of the sensitive screen, indicating the app masks itself on backgrounding.",
@@ -221,6 +278,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "objection --gadget com.target.app explore --startup-command 'ios sslpinning disable'",
           "curl -k -X POST https://api.target.com/v1/user/1 -H 'Authorization: Bearer <token>' -d '{\"id\":2}'",
+        ],
+        payloadNotes: [
+          "Disables SSL pinning so the app's API traffic can be intercepted and analyzed.",
+          "Sends an authenticated request as one user while requesting another user's id to test for IDOR.",
         ],
         expectedResponse: {
           vulnerable: "The backend returns another user's data (e.g. user 2's profile) despite the request being authenticated as user 1, confirming an IDOR/broken authorization on the API.",
@@ -244,6 +305,10 @@ export const iosCategories: ChecklistCategory[] = [
           "objection --gadget com.target.app explore --startup-command 'ios keychain dump'",
           "find /var/mobile/Containers/Data/Application/<GUID>/Library/Preferences -name '*.plist' -exec plutil -p {} \\;",
         ],
+        payloadNotes: [
+          "Uses objection to dump all Keychain items accessible to the running app.",
+          "Locates the app's preference plist files and prints their contents for inspection.",
+        ],
         expectedResponse: {
           vulnerable: "The Keychain dump or plist output contains plaintext passwords, session tokens, or PII stored without additional encryption.",
           safe: "Keychain entries and plist values are absent for sensitive data, or the values are encrypted/tokenized rather than plaintext.",
@@ -257,6 +322,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "grep -R 'kSecAttrAccessible' Payload/App.app/",
           "kSecAttrAccessibleWhenUnlockedThisDeviceOnly  // expected, flag kSecAttrAccessibleAlways",
+        ],
+        payloadNotes: [
+          "Searches the binary for the Keychain accessibility constant used when storing items.",
+          "Reference constant showing the restrictive value expected versus the permissive value to flag.",
         ],
         expectedResponse: {
           vulnerable: "Sensitive Keychain items are stored with kSecAttrAccessibleAlways (or a *ThisDeviceOnly-less* variant that syncs to backups), letting them be read even when locked or restored to another device.",
@@ -272,6 +341,10 @@ export const iosCategories: ChecklistCategory[] = [
           "find /var/mobile/Containers/Data/Application/<GUID> -iname '*.sqlite*'",
           "sqlite3 app.sqlite '.tables' && sqlite3 app.sqlite 'SELECT * FROM ZUSER;'",
         ],
+        payloadNotes: [
+          "Locates the app's local SQLite/Core Data database files on the filesystem.",
+          "Lists database tables and queries the user table directly to check for plaintext sensitive fields.",
+        ],
         expectedResponse: {
           vulnerable: "The SELECT query returns plaintext sensitive fields (passwords, tokens, financial or health data) directly from the unencrypted SQLite/Core Data file.",
           safe: "The database file is encrypted (e.g. SQLCipher) so the query fails or returns ciphertext, or the sensitive columns are absent/tokenized.",
@@ -285,6 +358,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "idevicebackup2 backup --full ./backup",
           "grep -R 'NSURLIsExcludedFromBackupKey' Payload/App.app/",
+        ],
+        payloadNotes: [
+          "Creates a full unencrypted backup of the device to inspect what app data gets included.",
+          "Searches the binary for usage of the API that excludes files from backups.",
         ],
         expectedResponse: {
           vulnerable: "The restored iTunes/iCloud backup contains sensitive files in plaintext, and no NSURLIsExcludedFromBackupKey usage is found for those paths.",
@@ -300,6 +377,10 @@ export const iosCategories: ChecklistCategory[] = [
           "find /var/mobile/Containers/Data/Application/<GUID>/Library/WebKit -iname '*.db' -o -iname 'LocalStorage*'",
           "sqlite3 WebsiteData.db 'SELECT * FROM ItemTable;'",
         ],
+        payloadNotes: [
+          "Locates WebKit's local storage and cache database files stored by the app's WebView.",
+          "Queries the WebView's local storage table for cached values, checking for sensitive content.",
+        ],
         expectedResponse: {
           vulnerable: "WebKit's local storage/cache database retains authenticated page content, tokens, or personal data after logout in plaintext.",
           safe: "The WebView storage is cleared on logout or contains no sensitive authenticated content, only non-sensitive cached assets.",
@@ -313,6 +394,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "idevicesyslog | grep -iE 'password|token|authorization'",
           "find /var/mobile/Library/Logs/CrashReporter -iname 'App*.ips' -exec grep -iE 'token|password' {} \\;",
+        ],
+        payloadNotes: [
+          "Streams the device syslog live and filters for lines mentioning credentials or auth headers.",
+          "Searches saved crash report files for leaked tokens or passwords in the crash context.",
         ],
         expectedResponse: {
           vulnerable: "Syslog output or crash report files contain plaintext tokens, passwords, or PII logged during normal operation or a crash.",
@@ -336,6 +421,10 @@ export const iosCategories: ChecklistCategory[] = [
           "frida -U -f com.target.app -l ios-ssl-bypass.js --no-pause",
           "objection --gadget com.target.app explore --startup-command 'ios sslpinning disable'",
         ],
+        payloadNotes: [
+          "Launches the app under Frida and injects a generic script to defeat certificate pinning.",
+          "Attaches objection to the app and runs its built-in SSL pinning disable module.",
+        ],
         expectedResponse: {
           vulnerable: "Pinning is bypassed on the first attempt via a generic script, and every networking code path (including background/WebView requests) proxies through Burp.",
           safe: "Pinning resists the generic bypass script across all networking code paths, or additional non-standard checks (e.g. custom TrustKit config) block interception even after the bypass.",
@@ -349,6 +438,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "<key>NSExceptionDomains</key>\n<dict>\n  <key>internal.example.com</key>\n  <dict>\n    <key>NSExceptionAllowsInsecureHTTPLoads</key><true/>\n  </dict>\n</dict>",
           "/usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity' Info.plist",
+        ],
+        payloadNotes: [
+          "Example Info.plist entry allowing insecure HTTP loads to a specific exception domain.",
+          "Prints the app's full ATS configuration block from Info.plist for review.",
         ],
         expectedResponse: {
           vulnerable: "An ATS exception allows insecure HTTP loads or weak TLS to a domain that handles sensitive traffic, not just a narrowly scoped legacy/internal endpoint.",
@@ -364,6 +457,10 @@ export const iosCategories: ChecklistCategory[] = [
           "mitmproxy --mode transparent -p 8080",
           "tcpdump -i any -A 'tcp port 80' | grep -iE 'password|token'",
         ],
+        payloadNotes: [
+          "Runs a transparent proxy to passively capture all app network traffic for review.",
+          "Captures raw port-80 packets and filters for credential-related keywords to find cleartext leaks.",
+        ],
         expectedResponse: {
           vulnerable: "tcpdump/mitmproxy captures plaintext HTTP requests containing credentials, tokens, or PII in the request/response body or headers.",
           safe: "All observed traffic on port 80 is redirected to HTTPS or carries no sensitive data; sensitive endpoints are never called over plain HTTP.",
@@ -377,6 +474,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "grep -R 'URLSession:didReceiveChallenge' Payload/App.app/",
           "openssl s_client -connect api.target.com:443 -cert selfsigned.pem  # see if app still accepts it",
+        ],
+        payloadNotes: [
+          "Searches the binary for custom URLSession delegate methods that handle TLS challenges.",
+          "Connects to the API host presenting a self-signed cert to see if the app's TLS validation still accepts it.",
         ],
         expectedResponse: {
           vulnerable: "The app completes requests successfully against a self-signed/MITM certificate, indicating the URLSession delegate accepts any server certificate.",
@@ -400,6 +501,10 @@ export const iosCategories: ChecklistCategory[] = [
           "strings Payload/App.app/App | grep -E '^[A-Fa-f0-9]{32,64}$'",
           "grep -R -iE 'kCCAlgorithmAES|CCCrypt' Payload/App.app/",
         ],
+        payloadNotes: [
+          "Extracts hex-looking strings of key/hash length from the binary's strings table.",
+          "Searches the bundle for calls to CommonCrypto's AES/CCCrypt functions to locate encryption code.",
+        ],
         expectedResponse: {
           vulnerable: "A fixed-looking hex string near CCCrypt/AES usage in the binary matches a static key used for local encryption/decryption, reusable by anyone who extracts the binary.",
           safe: "No static key material is found near crypto calls; keys are derived at runtime (e.g. from Secure Enclave, Keychain, or a KDF with per-device/per-user input).",
@@ -413,6 +518,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "grep -R -iE 'CC_MD5|CC_SHA1|kCCAlgorithmDES|kCCOptionECBMode' Payload/App.app/",
           "nm -a Payload/App.app/App | grep -iE 'md5|sha1|des'",
+        ],
+        payloadNotes: [
+          "Searches the bundle for calls to deprecated hashing/encryption functions and ECB mode usage.",
+          "Lists the binary's symbol table filtered for weak-crypto-related function names.",
         ],
         expectedResponse: {
           vulnerable: "The binary imports/calls CC_MD5, CC_SHA1, DES, or ECB-mode AES for security-relevant hashing or encryption of sensitive data.",
@@ -428,6 +537,10 @@ export const iosCategories: ChecklistCategory[] = [
           "grep -R 'NSFileProtectionComplete\\|NSFileProtectionKey' Payload/App.app/",
           "class-dump -H Payload/App.app/App | grep -i 'FileProtection'",
         ],
+        payloadNotes: [
+          "Searches the bundle for references to iOS Data Protection file-protection constants.",
+          "Generates headers and filters for file-protection-related class/method names.",
+        ],
         expectedResponse: {
           vulnerable: "No references to NSFileProtection* are found, or files are written with NSFileProtectionNone, indicating the app rolled its own file encryption instead of using the platform API.",
           safe: "Sensitive files are written with NSFileProtectionComplete (or CompleteUnlessOpen) confirmed via class-dump/grep, showing reliance on the platform's Data Protection API.",
@@ -441,6 +554,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "grep -R -iE 'arc4random|srand\\(|rand\\(\\)' Payload/App.app/",
           "grep -R 'SecRandomCopyBytes' Payload/App.app/  # confirm it's actually used",
+        ],
+        payloadNotes: [
+          "Searches the bundle for calls to weak, non-cryptographic random number generators.",
+          "Confirms whether the secure CSPRNG API is actually used anywhere in the binary.",
         ],
         expectedResponse: {
           vulnerable: "The binary references arc4random/srand/rand for generating tokens, nonces, or session identifiers, with no SecRandomCopyBytes usage in that path, making values predictable.",
@@ -464,6 +581,10 @@ export const iosCategories: ChecklistCategory[] = [
           "objection --gadget com.target.app explore --startup-command 'ios jailbreak disable'",
           "frida -U -f com.target.app -l jb-bypass.js --no-pause",
         ],
+        payloadNotes: [
+          "Attaches objection to the app and runs its built-in jailbreak-detection disable module.",
+          "Launches the app under Frida and injects a generic script that patches out jailbreak checks.",
+        ],
         expectedResponse: {
           vulnerable: "A generic bypass script defeats all jailbreak checks and the app continues to function normally on a jailbroken device with reduced security guarantees.",
           safe: "The app performs layered/obfuscated jailbreak checks that survive the generic bypass, or it degrades functionality (e.g. blocks sensitive features) when jailbreak indicators remain.",
@@ -477,6 +598,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "Interceptor.replace(Module.findExportByName(null, 'ptrace'), new NativeCallback(() => 0, 'int', ['int','int','int','int']))",
           "nm Payload/App.app/App | grep ptrace",
+        ],
+        payloadNotes: [
+          "Replaces the ptrace function with a no-op stub so PT_DENY_ATTACH can no longer block debuggers.",
+          "Lists the binary's symbols filtered for ptrace usage to confirm the anti-debug call is present.",
         ],
         expectedResponse: {
           vulnerable: "Hooking/neutralizing the ptrace call allows a debugger (e.g. lldb) to attach and set breakpoints without the app terminating or detecting tampering.",
@@ -492,6 +617,10 @@ export const iosCategories: ChecklistCategory[] = [
           "codesign -f -s 'iPhone Developer' --entitlements ent.plist Payload/App.app",
           "ldid -S Payload/App.app/App",
         ],
+        payloadNotes: [
+          "Re-signs the modified app bundle with a development certificate so it can be reinstalled and run.",
+          "Applies a fake/ad-hoc signature to the tampered binary using the jailbreak tool ldid.",
+        ],
         expectedResponse: {
           vulnerable: "The re-signed/modified binary launches and runs normally with no runtime integrity check flagging the altered code signature or binary hash.",
           safe: "The app detects the signature/hash mismatch at launch or during runtime and refuses to run or disables sensitive functionality.",
@@ -505,6 +634,10 @@ export const iosCategories: ChecklistCategory[] = [
         payloads: [
           "frida -U -f com.target.app -l frida-detection-bypass.js --no-pause",
           "grep -R -iE 'frida|gum-js-loop|d-pipe' Payload/App.app/",
+        ],
+        payloadNotes: [
+          "Launches the app under Frida with a script that hides common Frida detection artifacts.",
+          "Searches the bundle for strings related to Frida's runtime artifacts, to see if detection logic exists.",
         ],
         expectedResponse: {
           vulnerable: "The app runs unaffected while Frida is attached, with no detection of the frida-server port, gum-js-loop threads, or named pipes it creates.",

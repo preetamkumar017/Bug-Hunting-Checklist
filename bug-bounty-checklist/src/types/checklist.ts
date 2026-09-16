@@ -22,6 +22,7 @@ export interface ChecklistItem {
   text: string; // what to test (short)
   how: string; // step-by-step method
   payloads?: string[]; // ready-to-use payloads / commands
+  payloadNotes?: string[]; // one explanation per payloads[] entry (same order/length) — what that command/payload does
   expectedResponse?: ExpectedResponse; // how to read the result: vulnerable vs safe
   reference?: string; // external cheatsheet/article URL
   severity: Severity;

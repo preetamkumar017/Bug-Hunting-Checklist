@@ -81,12 +81,15 @@ export function ChecklistItemRow({
               {item.payloads && item.payloads.length > 0 && (
                 <div>
                   <span className="font-semibold text-slate-300">Payloads / Commands:</span>
-                  <ul className="mt-1 space-y-1">
+                  <ul className="mt-1 space-y-1.5">
                     {item.payloads.map((p, i) => (
                       <li key={i}>
-                        <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
+                        <code className="block whitespace-pre-wrap rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
                           {p}
                         </code>
+                        {item.payloadNotes?.[i] && (
+                          <p className="mt-0.5 text-[11px] text-slate-500">{item.payloadNotes[i]}</p>
+                        )}
                       </li>
                     ))}
                   </ul>
