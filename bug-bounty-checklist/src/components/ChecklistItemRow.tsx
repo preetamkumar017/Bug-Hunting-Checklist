@@ -92,6 +92,19 @@ export function ChecklistItemRow({
                   </ul>
                 </div>
               )}
+              {item.expectedResponse && (
+                <div className="space-y-1.5 rounded border border-border/60 p-2">
+                  <p className="font-semibold text-slate-300">Reading the result:</p>
+                  <p>
+                    <span className="font-medium text-red-400">🔴 Vulnerable if: </span>
+                    {item.expectedResponse.vulnerable}
+                  </p>
+                  <p>
+                    <span className="font-medium text-emerald-400">🟢 Safe if: </span>
+                    {item.expectedResponse.safe}
+                  </p>
+                </div>
+              )}
               {(item.reference ?? category.reference) && (
                 <a
                   href={item.reference ?? category.reference}
