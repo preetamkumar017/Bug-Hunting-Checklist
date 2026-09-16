@@ -6,7 +6,7 @@ Unlike a plain checklist, every check comes with an actual testing guide, ready-
 
 ## Features
 
-- **6 domains, 83 categories, 500+ checks** — Web, API, Android, iOS, Thick Client, and Web3/Smart Contracts, ordered to follow a real methodology flow (recon → auth → access control → injection → business logic → advanced) rather than a random list.
+- **6 domains, 90 categories, 570+ checks** — Web, API, Android, iOS, Thick Client, and Web3/Smart Contracts, ordered to follow a real methodology flow (recon → auth → access control → injection → business logic → advanced) rather than a random list.
 - **Guided checks** — every item expands into a *How* (step-by-step method), copy-ready payloads/commands, and a reference link.
 - **Result tracking, not just checkboxes** — `Not Tested / Clean / Vulnerable / Blocked-N/A`, with a free-text note per item for payloads used and observations.
 - **Findings tracker** — marking an item Vulnerable opens a finding form; saved findings live in their own tab and export as a Markdown report.
