@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink, HelpCircle } from "lucide-react";
 import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus } from "../types/checklist";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusSelect } from "./StatusSelect";
+import { CommandHelpModal } from "./CommandHelpModal";
+import { findReferencedCommands } from "../lib/commandRef";
 import { useChecklistStore, useActiveProfile } from "../store/useChecklistStore";
 
 export function ChecklistItemRow({
@@ -18,6 +20,7 @@ export function ChecklistItemRow({
   const [showFindingForm, setShowFindingForm] = useState(false);
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDesc, setFindingDesc] = useState("");
+  const [helpCommands, setHelpCommands] = useState<string[] | null>(null);
 
   const profile = useActiveProfile();
   const setItemStatus = useChecklistStore((s) => s.setItemStatus);
@@ -52,6 +55,8 @@ export function ChecklistItemRow({
   }
 
   return (
+    <>
+    {helpCommands && <CommandHelpModal commands={helpCommands} onClose={() => setHelpCommands(null)} />}
     <div className="border-b border-border/60 last:border-b-0">
       <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
         <button
@@ -82,16 +87,31 @@ export function ChecklistItemRow({
                 <div>
                   <span className="font-semibold text-slate-300">Payloads / Commands:</span>
                   <ul className="mt-1 space-y-1.5">
-                    {item.payloads.map((p, i) => (
-                      <li key={i}>
-                        <code className="block whitespace-pre-wrap rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
-                          {p}
-                        </code>
-                        {item.payloadNotes?.[i] && (
-                          <p className="mt-0.5 text-[11px] text-slate-500">{item.payloadNotes[i]}</p>
-                        )}
-                      </li>
-                    ))}
+                    {item.payloads.map((p, i) => {
+                      const refs = findReferencedCommands(p);
+                      return (
+                        <li key={i}>
+                          <div className="flex items-start gap-1.5">
+                            <code className="block flex-1 whitespace-pre-wrap rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
+                              {p}
+                            </code>
+                            {refs.length > 0 && (
+                              <button
+                                onClick={() => setHelpCommands(refs)}
+                                className="mt-0.5 shrink-0 text-slate-500 hover:text-slate-300"
+                                title={`Command reference: ${refs.join(", ")}`}
+                                aria-label="Show command reference"
+                              >
+                                <HelpCircle className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          {item.payloadNotes?.[i] && (
+                            <p className="mt-0.5 text-[11px] text-slate-500">{item.payloadNotes[i]}</p>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -176,5 +196,6 @@ export function ChecklistItemRow({
         </div>
       </div>
     </div>
+    </>
   );
 }

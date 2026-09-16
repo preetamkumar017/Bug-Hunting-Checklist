@@ -477,8 +477,8 @@ export const web3Categories: ChecklistCategory[] = [
           "forge test --match-test testFeeOnTransferAccounting -vvvv",
         ],
         payloadNotes: [
-          "Compares balanceOf before and after a transfer to reveal whether the actual amount received differs from what was requested.",
-          "Runs the fee-on-transfer accounting test to confirm whether the contract credits the nominal or the actual received amount.",
+          "Records balanceOf(address(this)) before the transfer as balanceBefore, calls transferFrom(user, address(this), amount) to pull the requested amount, then re-reads balanceOf and subtracts balanceBefore to get actualReceived, asserting it equals amount — an assertion that fails whenever the token deducts a transfer fee or rebases.",
+          "forge test runs Foundry's tests, --match-test testFeeOnTransferAccounting selects the fee-on-transfer accounting test, and -vvvv sets maximum trace verbosity to show the nominal-versus-actual amount mismatch.",
         ],
         expectedResponse: {
           vulnerable: "actualReceived is less than the requested amount for a fee-on-transfer/rebasing token, but the contract credits the user for the full nominal amount, creating an accounting shortfall that later withdrawals can exploit.",
@@ -503,8 +503,8 @@ export const web3Categories: ChecklistCategory[] = [
           "// replay PoC: capture (v,r,s) from chain A tx, resubmit identical calldata to same contract address deployed on chain B\ncast send $CONTRACT_CHAIN_B \"executeWithSig(bytes,uint8,bytes32,bytes32)\" $DATA $V $R $S --rpc-url $RPC_CHAIN_B",
         ],
         payloadNotes: [
-          "Signs a message locally to inspect exactly what fields get hashed and signed.",
-          "Resubmits a signature captured on one chain to the identically-deployed contract on another chain.",
+          "cast wallet sign produces an ECDSA signature over a hash, --private-key $PK is the signing key, and the argument is the keccak256 hash of the string \"transfer(address,uint256)\" (computed inline via cast keccak) used to inspect exactly what byte content gets signed.",
+          "Describes capturing the (v,r,s) signature components from a transaction on chain A, then cast send calls executeWithSig(bytes,uint8,bytes32,bytes32) on $CONTRACT_CHAIN_B with the same $DATA, $V, $R, $S values against --rpc-url $RPC_CHAIN_B, to see if the identical signature is accepted on a different chain.",
         ],
         expectedResponse: {
           vulnerable: "The same signature captured on chain A is accepted verbatim by the identically-deployed contract on chain B, executing an action the signer never authorized on that chain.",
@@ -521,8 +521,8 @@ export const web3Categories: ChecklistCategory[] = [
           "python3 -c \"from ecdsa.util import sigdecode_string; n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141; s2 = n - s; print(hex(s2))\"",
         ],
         payloadNotes: [
-          "Greps the source for raw ecrecover usage instead of a malleability-safe wrapper.",
-          "Computes the malleable counterpart signature value (n - s) to produce a second valid signature.",
+          "The comment explains that both (v, r, s) and (v', r, n-s) verify for the same message under raw ecrecover; grep -n prints matching lines with line numbers, the pattern ecrecover finds direct low-level signature checks, and *.sol scans every Solidity file for contracts that skip OpenZeppelin's malleability-safe wrapper.",
+          "A one-off python3 -c script imports sigdecode_string, defines n as the secp256k1 curve order, computes s2 = n - s to derive the malleable counterpart of a known s value, and prints it in hex as the second valid signature.",
         ],
         expectedResponse: {
           vulnerable: "The derived (v, n-s) signature also passes ecrecover for the same message, letting an attacker mint a second valid signature hash that can bypass a used-signature/nonce check keyed on the signature itself.",
@@ -539,8 +539,8 @@ export const web3Categories: ChecklistCategory[] = [
           "cast wallet sign --data '{\"types\":{...},\"domain\":{...},\"message\":{...}}'  # confirm domain separator includes chainId + verifyingContract",
         ],
         payloadNotes: [
-          "Requests an EIP-712 typed-data signature to see if the wallet renders a readable structured prompt.",
-          "Signs structured typed data via cast to confirm the domain separator binds chainId and the verifying contract.",
+          "web3.eth.signTypedData requests an EIP-712 signature for account, with domain identifying the app/contract/chain, types defining the structured data schema, primaryType naming the top-level struct, and message holding the actual values to sign, so the wallet can render a readable prompt instead of a raw hash.",
+          "cast wallet sign --data takes a JSON object containing types, domain, and message fields (the EIP-712 payload) to produce a typed-data signature, used here to confirm the domain object binds both the chain ID and the verifying contract address.",
         ],
         expectedResponse: {
           vulnerable: "The wallet prompt shows only an opaque hex hash (eth_sign/personal_sign on a raw hash) with no readable fields, making it easy to trick a user into signing an unintended action.",
@@ -557,8 +557,8 @@ export const web3Categories: ChecklistCategory[] = [
           "// front-run PoC: observe victim's permit(owner, spender, value, deadline, v, r, s) in mempool, submit it yourself first with a manipulated spender-controlled follow-up tx\ncast send $TOKEN \"permit(address,address,uint256,uint256,uint8,bytes32,bytes32)\" $OWNER $SPENDER $VALUE $DEADLINE $V $R $S --rpc-url $RPC",
         ],
         payloadNotes: [
-          "Reads the owner's current nonce to confirm it increments and is enforced by permit().",
-          "Submits an intercepted permit signature ahead of the victim's own transaction to test front-run resilience.",
+          "cast call reads nonces(address) on $TOKEN for $OWNER via --rpc-url $RPC, to confirm the permit nonce is tracked and increments after use.",
+          "Describes spotting a victim's pending permit() call in the mempool and resubmitting it first; the actual cast send calls permit(address,address,uint256,uint256,uint8,bytes32,bytes32) on $TOKEN with $OWNER, $SPENDER, $VALUE, $DEADLINE, and the signature components $V, $R, $S copied verbatim from the victim's transaction, via --rpc-url $RPC.",
         ],
         expectedResponse: {
           vulnerable: "The permit signature can be resubmitted by anyone (front-run) to grant the approval before the victim's own transaction, or nonces() doesn't increment/get checked, letting the same signature be replayed.",
@@ -576,9 +576,9 @@ export const web3Categories: ChecklistCategory[] = [
           "revoke.cash  # cross-check whether the app's granted allowances show as unlimited",
         ],
         payloadNotes: [
-          "Inspects the approve() call the dApp actually constructs to check if it requests max uint256.",
-          "Reads the on-chain allowance granted to the spender to see how large it is.",
-          "Cross-checks the wallet's granted allowances via revoke.cash to confirm whether any are unlimited.",
+          "token.approve(spender, ...) is the call to inspect in devtools; the second argument 0xfff...fff is type(uint256).max expressed in hex, the value the dApp uses when requesting an unlimited allowance instead of the exact amount needed.",
+          "cast call reads allowance(address,address) on $TOKEN for owner $USER and spender $SPENDER via --rpc-url $RPC, returning the currently granted allowance amount.",
+          "revoke.cash is a third-party web tool used to look up and cross-check all of a wallet's granted token allowances, confirming whether any show as unlimited (max uint256).",
         ],
         expectedResponse: {
           vulnerable: "The devtools network/calldata shows approve() called with type(uint256).max, and revoke.cash confirms the granted allowance is unlimited, exposing the user's full token balance to any future spender-contract bug.",
@@ -603,8 +603,8 @@ export const web3Categories: ChecklistCategory[] = [
           "grep -n 'sourceChainId\\|trustedRemote\\|require(msg.sender == relayer' *.sol",
         ],
         payloadNotes: [
-          "Submits a message with forged source-chain and sender fields to see if the destination contract accepts it.",
-          "Greps the source for the checks that should validate the message's origin chain and relayer.",
+          "cast send calls receiveMessage(bytes,bytes) on $BRIDGE_DEST with $FORGED_MESSAGE (containing spoofed sourceChainId/sender fields) and $FORGED_PROOF as arguments, signed via --private-key $PK against --rpc-url $RPC_DEST, to test whether the destination contract validates the claimed origin.",
+          "grep -n prints matching lines with line numbers, the pattern matches sourceChainId, trustedRemote, or require(msg.sender == relayer checks, and *.sol scans every Solidity file for the logic that's supposed to validate a message's origin chain and relayer.",
         ],
         expectedResponse: {
           vulnerable: "The forged message with a spoofed sourceChainId/sender is accepted and processed, minting or releasing funds based on an origin that was never validated.",
@@ -621,8 +621,8 @@ export const web3Categories: ChecklistCategory[] = [
           "cast send $BRIDGE \"claim(bytes,bytes)\" $SAME_MESSAGE $SAME_PROOF --private-key $PK --rpc-url $RPC  # resubmit an already-claimed message",
         ],
         payloadNotes: [
-          "Checks whether a message hash is already marked as processed before a payout.",
-          "Resubmits the same message and proof that was already claimed once to test for a double payout.",
+          "cast call reads processedNonces(bytes32) on $BRIDGE for $MESSAGE_HASH via --rpc-url $RPC, to confirm whether that message hash is already marked as spent before any payout.",
+          "cast send calls claim(bytes,bytes) on $BRIDGE with the identical $SAME_MESSAGE and $SAME_PROOF used in a prior, already-successful claim, signed via --private-key $PK against --rpc-url $RPC, to test whether resubmitting pays out again.",
         ],
         expectedResponse: {
           vulnerable: "The second claim() call with the identical message/proof succeeds and pays out again, because processedNonces was never marked or checked before disbursing funds.",
@@ -639,8 +639,8 @@ export const web3Categories: ChecklistCategory[] = [
           "// model: if threshold is e.g. 4-of-7, assess whether 4 validator keys are realistically obtainable (shared infra, same cloud account, leaked keys)",
         ],
         payloadNotes: [
-          "Reads the bridge's required-signature threshold and total validator count to compute the m-of-n ratio.",
-          "Assesses whether the threshold's validator subset is realistically compromisable given shared infrastructure.",
+          "Two chained cast call reads against --rpc-url $RPC: requiredSignatures() returns the m threshold of signatures needed, and validatorCount() returns the total n validators, together giving the bridge's m-of-n security ratio.",
+          "Describes reasoning about a concrete threshold, such as 4-of-7, and judging whether obtaining that many validator keys is realistic given shared hosting infrastructure, a common cloud account, or prior key leaks.",
         ],
         expectedResponse: {
           vulnerable: "The threshold is low relative to validator count (or validators share infrastructure/cloud accounts), so compromising a small, realistically-obtainable subset of keys is enough to forge messages and mint/release funds arbitrarily.",
@@ -658,9 +658,9 @@ export const web3Categories: ChecklistCategory[] = [
           "// stress edge cases: partial-fill deposits, reorg on source chain, and relayer double-processing during a failed/retried tx",
         ],
         payloadNotes: [
-          "Reads the wrapped token's total supply on the destination chain.",
-          "Reads the total locked collateral on the source chain to compare against the wrapped supply.",
-          "Stress-tests reorgs and retried relaying to see if supply can exceed backing collateral.",
+          "cast call reads totalSupply() on $WRAPPED_TOKEN via --rpc-url $RPC_DEST, giving the total wrapped tokens minted on the destination chain.",
+          "cast call reads totalLocked() on $LOCK_CONTRACT via --rpc-url $RPC_SOURCE, giving the total collateral locked on the source chain, which should always be greater than or equal to the wrapped supply.",
+          "Describes stress-testing three edge cases — deposits that only partially fill, a chain reorg on the source chain after a message was relayed, and a relayer double-processing the same event during a failed or retried transaction — to see if any lets minted supply exceed locked collateral.",
         ],
         expectedResponse: {
           vulnerable: "Under a reorg or a retried/double-processed relay, totalSupply() on the destination chain exceeds totalLocked() on the source chain, meaning wrapped tokens exist without backing collateral.",
@@ -685,8 +685,8 @@ export const web3Categories: ChecklistCategory[] = [
           "// diff bundled JS contract addresses against etherscan-verified official addresses\ncurl -s https://app.example.com/static/js/main.js | grep -oE '0x[a-fA-F0-9]{40}'",
         ],
         payloadNotes: [
-          "Fetches the app's remote config file to check whether contract addresses come from a mutable source.",
-          "Extracts contract addresses embedded in the shipped JS bundle to diff against the official verified addresses.",
+          "curl -s silently fetches the app's remote config.json, and piping it through jq '.contractAddress' extracts just the contract-address field, to check whether that value comes from a source someone else could tamper with.",
+          "curl -s silently fetches the shipped main.js bundle, and piping it through grep -oE '0x[a-fA-F0-9]{40}' extracts every 40-hex-character Ethereum address embedded in the code, to diff against the officially verified addresses on Etherscan.",
         ],
         expectedResponse: {
           vulnerable: "config.json or the bundled JS is fetched from a mutable CDN/DNS-dependent source, and the contract address in it differs from the official Etherscan-verified address, meaning a compromised CDN could redirect user funds to an attacker contract.",
@@ -703,8 +703,8 @@ export const web3Categories: ChecklistCategory[] = [
           "// or requests Permit2/permit() signature disguised as a 'connect wallet' or 'verify ownership' prompt",
         ],
         payloadNotes: [
-          "Calls setApprovalForAll to grant blanket NFT approval while the UI displays a fake benign action.",
-          "Describes disguising a Permit2/permit() signature request as an innocuous connect/verify prompt.",
+          "nft.setApprovalForAll(attacker, true) grants the attacker address blanket approval to transfer every NFT the caller owns in that collection, the true flag meaning the approval is unlimited and not per-token, while the UI disguises this as an unrelated 'Claim Airdrop' button.",
+          "Describes a variant where the site requests a Permit2 or ERC-2612 permit() signature — which would grant a token spending allowance — but labels the wallet prompt as an innocuous 'connect wallet' or 'verify ownership' step.",
         ],
         expectedResponse: {
           vulnerable: "The wallet confirmation UI shows generic/truncated text so a setApprovalForAll or permit signature request is indistinguishable from a benign 'connect' or 'claim' action, letting users unknowingly grant a full drain approval.",
@@ -721,8 +721,8 @@ export const web3Categories: ChecklistCategory[] = [
           "\"><img src=x onerror=\"window.ethereum.request({method:'wallet_requestPermissions',params:[{eth_accounts:{}}]})\">",
         ],
         payloadNotes: [
-          "Injects a script tag that triggers an unsolicited eth_sendTransaction wallet prompt sending ether to the attacker.",
-          "Injects an onerror image handler that requests wallet account permissions without user intent.",
+          "A <script> tag calls window.ethereum.request with method 'eth_sendTransaction' and params specifying to: '0xATTACKER' as the recipient, value: '0xDE0B6B3A7640000' as 1 ether in hex wei, and data: '0x' for an empty payload, triggering an unsolicited wallet transaction prompt to send ether to the attacker.",
+          "\"> breaks out of an HTML attribute, and the injected <img src=x onerror=...> fires its onerror handler (since src=x fails to load) to call window.ethereum.request with method 'wallet_requestPermissions' and params requesting the eth_accounts permission, prompting the wallet to expose the user's accounts without their intent.",
         ],
         expectedResponse: {
           vulnerable: "The injected script executes and successfully triggers an unsolicited eth_sendTransaction/wallet_requestPermissions prompt in the victim's wallet, confirming stored/reflected XSS can hijack wallet interactions.",
@@ -740,8 +740,8 @@ export const web3Categories: ChecklistCategory[] = [
           "mitmproxy -p 8080 --mode transparent  # intercept and rewrite JSON-RPC responses (eth_call, eth_getBalance) to the dApp",
         ],
         payloadNotes: [
-          "Spins up a local node to serve forged eth_call/balance/nonce responses as a malicious custom RPC.",
-          "Intercepts and rewrites the dApp's live JSON-RPC responses to simulate a man-in-the-middle RPC.",
+          "geth starts a local Ethereum node, --http enables its JSON-RPC HTTP server, --http.api eth,net,web3 exposes those three API namespaces, and --networkid 1 makes it masquerade as mainnet, so it can be configured as a custom RPC that returns forged eth_call/balance/nonce responses.",
+          "mitmproxy launches an intercepting proxy, -p 8080 sets the listening port, and --mode transparent runs it transparently so it can capture and rewrite the dApp's JSON-RPC responses such as eth_call and eth_getBalance in flight.",
         ],
         expectedResponse: {
           vulnerable: "The dApp accepts an arbitrary custom RPC URL with no warning, and it silently renders the manipulated balance/eth_call results from the malicious/MITM'd node as if they were trustworthy chain state.",

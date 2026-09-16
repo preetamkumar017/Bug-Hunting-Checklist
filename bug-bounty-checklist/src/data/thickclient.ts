@@ -704,9 +704,9 @@ export const thickClientCategories: ChecklistCategory[] = [
           "icacls \"C:\\Program Files\\MyApp\\service.exe\"",
         ],
         payloadNotes: [
-          "Lists what write access Authenticated Users have across the filesystem/registry via accesschk.",
-          "Queries the service's configuration, including its binary path and start type.",
-          "Lists the NTFS ACLs on the service's executable file.",
+          "Runs accesschk with -u (suppress errors), -w (write access only), -c (target is a service), -q (omit banner), and -v (verbose) for the principal \"Authenticated Users\" against all (*) services, listing every service that group can modify.",
+          "Runs sc qc (query config) against MyAppService to display its configuration, including the BINARY_PATH_NAME and START_TYPE.",
+          "Runs icacls with no extra flags against the service's executable path to list its NTFS ACL entries.",
         ],
         expectedResponse: {
           vulnerable: "Authenticated Users have Write/Modify access to the service binary or its config, allowing replacement with a malicious executable that runs as SYSTEM on next start/reboot.",
@@ -724,9 +724,9 @@ export const thickClientCategories: ChecklistCategory[] = [
           "copy calc.exe \"C:\\Program Files\\My.exe\"   # PoC if path is C:\\Program Files\\My App\\service.exe",
         ],
         payloadNotes: [
-          "Lists all services with their binary paths, filtering out ones already quoted or under C:\\Windows.",
-          "Queries a specific service's config to check whether its binary path is left unquoted.",
-          "Places a proof-of-concept executable at the ambiguous unquoted path segment to test hijack execution.",
+          "Runs wmic service get to list name, displayname, pathname, and startmode for every service, then chains two findstr /i /v (case-insensitive, inverted match) filters to drop lines containing a quote character and lines under C:\\Windows, leaving only unquoted, non-system service paths.",
+          "Runs sc qc against MyAppService and, per the comment, inspects the BINARY_PATH_NAME field for a path containing spaces with no surrounding quotation marks.",
+          "Copies calc.exe to C:\\Program Files\\My.exe as a proof-of-concept planted executable, exploiting the ambiguous unquoted path C:\\Program Files\\My App\\service.exe so Windows tries My.exe as an earlier path segment.",
         ],
         expectedResponse: {
           vulnerable: "The service BINARY_PATH_NAME is unquoted and contains spaces (e.g. C:\\Program Files\\My App\\service.exe), and a planted executable at an earlier path segment is launched with SYSTEM privileges on service start.",
@@ -744,9 +744,9 @@ export const thickClientCategories: ChecklistCategory[] = [
           "echo test > \"C:\\Program Files\\MyApp\\writetest.txt\" && del \"C:\\Program Files\\MyApp\\writetest.txt\"",
         ],
         payloadNotes: [
-          "Lists the NTFS ACLs on the app's install directory.",
-          "Lists which users/groups can write, delete, or take ownership within the install directory.",
-          "Attempts to write and then delete a test file in the install directory as a low-privileged user.",
+          "Runs icacls with no extra flags against the install directory to list its NTFS ACL entries.",
+          "Runs accesschk with -w (write access only), -v (verbose), -u (suppress errors), and -d (directories only) against the install directory to enumerate who can modify the folder itself.",
+          "Writes the text 'test' into a new writetest.txt file inside the install directory and then deletes it, directly proving whether the current low-privileged user has write access.",
         ],
         expectedResponse: {
           vulnerable: "A standard user can write/delete files in the install directory (write test file succeeds), allowing replacement of the main binary or a loaded DLL for privilege escalation.",
@@ -764,9 +764,9 @@ export const thickClientCategories: ChecklistCategory[] = [
           "crontab -l -u <service-account>   # Linux/macOS equivalent",
         ],
         payloadNotes: [
-          "Lists scheduled tasks and their details, filtered to the app's own tasks.",
-          "Lists the NTFS ACLs on a script file invoked by a scheduled task.",
-          "Lists the cron jobs configured for a given service account on Linux/macOS.",
+          "Runs schtasks /query with /v for verbose details and /fo LIST to format output as a list, piping through findstr /i (case-insensitive) to filter down to only the app's own scheduled tasks.",
+          "Runs icacls against the updater.ps1 script path invoked by a scheduled task to list its NTFS ACL entries.",
+          "Runs crontab -l to list cron jobs, using -u <service-account> to view the crontab belonging to a specific (often privileged) service account.",
         ],
         expectedResponse: {
           vulnerable: "A scheduled task/cron job runs a script that a standard user can modify (weak ACL), letting that user's injected code run with the task's elevated privileges.",
@@ -784,9 +784,9 @@ export const thickClientCategories: ChecklistCategory[] = [
           "echo COMMAND | powershell -c \"$p=New-Object System.IO.Pipes.NamedPipeClientStream('.','MyAppPipe','InOut'); $p.Connect(); $w=New-Object System.IO.StreamWriter($p); $w.WriteLine('whoami'); $w.Flush()\"",
         ],
         payloadNotes: [
-          "Enumerates all active named pipes and their access-control lists on the system.",
-          "Checks the write access permissions on the app's specific named pipe.",
-          "Connects to the named pipe as an unprivileged client and sends a 'whoami' command to test if it's accepted.",
+          "Runs Sysinternals PipeList.exe with no extra flags to enumerate every active named pipe on the system along with its DACL.",
+          "Runs accesschk with -w (write access only) against \\\\pipe\\\\MyAppPipe to check specifically who can write to that named pipe.",
+          "Pipes a placeholder COMMAND into a PowerShell -c inline script that constructs a NamedPipeClientStream connecting to the local ('.') MyAppPipe in InOut mode, then writes and flushes the literal string 'whoami' to test whether the privileged listener executes unprivileged client input.",
         ],
         expectedResponse: {
           vulnerable: "The named pipe has a weak/null DACL and an unprivileged client's command (e.g. 'whoami') is accepted and executed by the privileged listening process.",

