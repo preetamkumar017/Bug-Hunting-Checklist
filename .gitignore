@@ -1,0 +1,6 @@
+# Per-engagement bug bounty data — contains test-account credentials, decompiled apps,
+# evidence, and other client-confidential material. Must never be pushed to the public
+# Bug-Hunting-Checklist repo.
+targets/
+
+.DS_Store

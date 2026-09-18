@@ -1,0 +1,193 @@
+{
+  "lastUpdated": "2026-09-18T11:55:00Z",
+  "entries": [
+    {
+      "id": "log-1",
+      "timestamp": "2026-09-17T04:06:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Recon / Headers",
+      "item": "Liveness + header/tech recon on all primary hosts",
+      "method": "curl (manual, low-rate)",
+      "result": "clean",
+      "summary": "www.etoro.com (Next.js/Cloudflare), etoropartners.com (WordPress/WP Engine), etorox.com (redirects to www.etoro.com), public-api.etoro.com (Swagger portal) all fingerprinted. No version/stack leaks worth reporting."
+    },
+    {
+      "id": "log-2",
+      "timestamp": "2026-09-17T04:09:00Z",
+      "target": "eToro",
+      "domain": "api",
+      "category": "API Discovery & Recon",
+      "item": "Public Swagger spec review + embedded demo-credential verification",
+      "method": "curl",
+      "result": "clean",
+      "summary": "163-endpoint public API spec found at public-api.etoro.com/swagger/swagger.json (intentional product feature). \"Demo\" x-api-key/x-user-key values in the docs tested against /api/v1/me -- returned 401, confirmed non-functional placeholders, not a real leak."
+    },
+    {
+      "id": "log-3",
+      "timestamp": "2026-09-17T04:18:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Recon",
+      "item": "delta.app browser-based check (Cloudflare bot-challenge bypass via real Chrome)",
+      "method": "Playwright + local Chrome",
+      "result": "clean",
+      "summary": "delta.app apex is a Webflow-hosted marketing site, not the ReactJS app scope.md implies. Found web.delta.app (real app) is an unlisted subdomain -- confirmed with user to avoid testing it (out of scope)."
+    },
+    {
+      "id": "log-4",
+      "timestamp": "2026-09-17T09:45:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Subdomain Enumeration",
+      "item": "DNS resolution of 189 in-scope *.etoro.com hosts from CT logs",
+      "method": "dig",
+      "result": "clean",
+      "summary": "Filtered 226 CT-log candidates down to 189 valid *.etoro.com hosts (excluded etoro.com.cn as a different domain). Resolved CNAME/A records for all; most point to Cloudflare/Akamai/Azure-owned infra as expected."
+    },
+    {
+      "id": "log-5",
+      "timestamp": "2026-09-17T09:50:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Subdomain Enumeration",
+      "item": "Check for subdomain takeover on dangling CNAMEs",
+      "method": "dig (multiple resolvers) + curl",
+      "result": "found",
+      "summary": "cn.etoro.com CNAME chain dead-ends at a third-party Chinese CDN vendor (ccgslb.com -> lxcvc.com) with no DNS record anywhere -- confirmed via two independent resolvers including the vendor's own authoritative NS. curl to https://cn.etoro.com/ returns HTTP 000 (no connection possible).",
+      "reportRef": "Bugcrowd submission c69fc55f-63e3-4996-9226-df1dabcdebe7 (submitted 2026-09-18, CVSS 7.2 High) -- see evidence/subdomain-takeover-cn/REPORT.md"
+    },
+    {
+      "id": "log-6",
+      "timestamp": "2026-09-17T09:55:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Subdomain Enumeration",
+      "item": "Dev/staging subdomain exposure check",
+      "method": "curl",
+      "result": "clean",
+      "summary": "www.dev.etoro.com and www.stg.etoro.com are live but both return 403 (properly access-restricted)."
+    },
+    {
+      "id": "log-7",
+      "timestamp": "2026-09-17T10:00:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Port Scanning & Service Enumeration",
+      "item": "Evaluated whether this category could be tested",
+      "method": "analysis (no requests sent)",
+      "result": "blocked",
+      "summary": "Decided not to test -- scope.md forbids mass automated tooling, and all resolved *.etoro.com hosts sit behind shared CDN edge IPs (Cloudflare/Akamai/Azure), so port-scanning would hit third-party shared infra, not eToro's origin."
+    },
+    {
+      "id": "log-8",
+      "timestamp": "2026-09-17T10:05:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Technology Fingerprinting",
+      "item": ".git/.svn exposure, error-page fingerprinting, JS library versions, sourcemaps, TLS cert SANs, OPTIONS methods, Next.js build manifest",
+      "method": "curl + openssl s_client",
+      "result": "clean",
+      "summary": "No exposed version-control dirs, no verbose error pages, no outdated JS library banners found (bundle is minified), no exposed .js.map files, TLS cert SAN is just the standard etoro.com/*.etoro.com wildcard, TRACE/OPTIONS give no useful gateway fingerprint. Confirmed marketing.etorostatic.com assets are backed by an S3 bucket (infra note only, domain out of listed scope so not probed further)."
+    },
+    {
+      "id": "log-9",
+      "timestamp": "2026-09-17T10:15:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Content & URL Discovery",
+      "item": "Config/env files, CI/CD files, backup files, swagger docs, directory listing checks",
+      "method": "curl",
+      "result": "clean",
+      "summary": "All common sensitive-file paths (.env, web.config, Dockerfile, Jenkinsfile, docker-compose.yml, backup extensions, directory listings) return 403/404 or resolve to the generic Next.js catch-all 404 page. Wayback Machine query attempted but archive.org itself was down at test time."
+    },
+    {
+      "id": "log-10",
+      "timestamp": "2026-09-17T10:25:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Link & Parameter Discovery",
+      "item": "Extracted API/host references from previously-decompiled mobile app sources",
+      "method": "grep over decompiled APK sources",
+      "result": "found",
+      "summary": "Found 10 in-scope *.etoro.com hosts not present in the CT-log list (embed, offlinemode, pages, partners, por, referfriends, site, userstatsapi, go2, billing-pci). Three (embed/referfriends/site) resolve directly to a raw Azure IP with no CDN in front -- verified via TLS cert (valid *.etoro.com DigiCert cert) and IP ownership (Microsoft/Azure) that this is legitimate eToro infra, just a simple redirect service to www.etoro.com. No vulnerability, but expanded the known attack-surface list."
+    },
+    {
+      "id": "log-11",
+      "timestamp": "2026-09-17T10:35:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Link & Parameter Discovery",
+      "item": "Debug/test query parameter probing (?debug=true, ?test=1, ?admin=1)",
+      "method": "curl",
+      "result": "clean",
+      "summary": "No behavioral difference from baseline homepage response for any of the three params."
+    },
+    {
+      "id": "log-12",
+      "timestamp": "2026-09-17T10:45:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "JavaScript Analysis",
+      "item": "Downloaded and analyzed all 18 JS chunks loaded by www.etoro.com homepage",
+      "method": "curl + grep",
+      "result": "clean",
+      "summary": "No hardcoded secrets/API keys, no TODO/FIXME comments, no feature-flag objects, no exposed sourcemaps, no service worker, webpack chunk names are hash-based (no leaked route names). Production build is well-minified."
+    },
+    {
+      "id": "log-13",
+      "timestamp": "2026-09-17T11:00:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Google Dorking & OSINT",
+      "item": "Search-engine dorks for exposed docs/.env/log files, leaked credentials on GitHub, bug bounty writeups, exposed Confluence/Jira",
+      "method": "web search",
+      "result": "clean",
+      "summary": "Only legitimate public documents indexed (customer agreements, investor reports). No leaked secrets, no indexed .env/log/config files, no public writeups for this specific Bugcrowd program, no indexed internal wiki/Jira. Confirmed builders.etoro.com / api-portal.etoro.com are the official developer portal (matches the public Swagger already found)."
+    },
+    {
+      "id": "log-14",
+      "timestamp": "2026-09-17T11:10:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "Email Security Testing",
+      "item": "SPF / DKIM / DMARC records + subdomain-takeover-to-email-trust cross-check",
+      "method": "dig TXT",
+      "result": "clean",
+      "summary": "DMARC is strict (p=reject). DKIM selectors (M365, Google Workspace, SendGrid) all valid. SPF uses ~all (soft-fail) but DMARC covers enforcement. Confirmed the cn.etoro.com takeover finding is NOT included in the SPF trust chain, so it can't be used to amplify email spoofing."
+    },
+    {
+      "id": "log-15",
+      "timestamp": "2026-09-17T11:20:00Z",
+      "target": "eToro",
+      "domain": "web",
+      "category": "DNS Security Testing",
+      "item": "AXFR zone transfer, DNSSEC, wildcard DNS, NS delegation, CAA record checks",
+      "method": "dig",
+      "result": "found",
+      "summary": "AXFR properly refused on all 4 Akamai nameservers. DNSSEC not implemented and no CAA record set (both low-severity, likely covered by scope.md's TLS-best-practice exclusion). Confirmed *.etoro.com has a wildcard A record (128.251.126.175) that safely redirects any random subdomain to www.etoro.com -- no security impact, informational only."
+    },
+    {
+      "id": "log-16",
+      "timestamp": "2026-09-18T09:30:00Z",
+      "target": "eToro",
+      "domain": "api",
+      "category": "API Discovery & Recon",
+      "item": "API version enumeration, GraphQL probe, gateway/WAF fingerprint, changelog exposure",
+      "method": "curl",
+      "result": "clean",
+      "summary": "public-api.etoro.com returns a blanket 401 on every unauthenticated path except /swagger (explicitly whitelisted). TRACE method disabled (405). No GraphQL endpoint found. No changelog/release-notes exposed."
+    },
+    {
+      "id": "log-17",
+      "timestamp": "2026-09-18T09:40:00Z",
+      "target": "eToro",
+      "domain": "api",
+      "category": "API Authentication & Authorization",
+      "item": "Missing/invalid API key handling + auth bypass via alternate endpoint paths",
+      "method": "curl",
+      "result": "clean",
+      "summary": "No key / invalid key / malformed bearer all consistently 401. Path manipulation (internal/ prefix, double-slash, trailing-slash, case variation, URL-encoded space) does not bypass the auth gate."
+    }
+  ]
+}

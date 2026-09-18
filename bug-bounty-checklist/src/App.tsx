@@ -7,10 +7,11 @@ import { CategorySection } from "./components/CategorySection";
 import { SuggestionsPanel } from "./components/SuggestionsPanel";
 import { FindingsView } from "./components/FindingsView";
 import { ChecklistItemRow } from "./components/ChecklistItemRow";
+import { ClaudeLogView } from "./components/ClaudeLogView";
 
 export default function App() {
   const [activeDomain, setActiveDomain] = useState<Domain>("web");
-  const [view, setView] = useState<"checklist" | "findings">("checklist");
+  const [view, setView] = useState<"checklist" | "findings" | "claude-log">("checklist");
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -80,6 +81,8 @@ export default function App() {
 
           {view === "findings" ? (
             <FindingsView />
+          ) : view === "claude-log" ? (
+            <ClaudeLogView />
           ) : searchResults ? (
             <div>
               <p className="mb-3 text-xs text-slate-500">{searchResults.length} result(s)</p>

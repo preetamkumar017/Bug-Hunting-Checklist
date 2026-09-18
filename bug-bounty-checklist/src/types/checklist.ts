@@ -63,6 +63,8 @@ export interface Finding {
   title: string;
   description: string;
   createdAt: number;
+  cvss?: { vector: string; score: number };
+  screenshots?: string[]; // base64 data URLs, stored locally
 }
 
 /** A target/program profile — isolates progress + findings per bug bounty target. */

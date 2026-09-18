@@ -1,21 +1,35 @@
-import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Trash2, Copy, Check } from "lucide-react";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
 import { SeverityBadge } from "./SeverityBadge";
+import { cvssSeverityLabel } from "../lib/cvss";
+import type { Finding } from "../types/checklist";
+
+function findingToReport(f: Finding): string {
+  const lines = [
+    `## ${f.title}`,
+    "",
+    `**Severity:** ${f.severity}${f.cvss ? ` — CVSS ${f.cvss.score.toFixed(1)} (${cvssSeverityLabel(f.cvss.score)})` : ""}`,
+    f.cvss ? `**CVSS Vector:** \`${f.cvss.vector}\`` : "",
+    `**Domain / Category:** ${f.domain} / ${f.categoryName}`,
+    `**Check:** ${f.itemText}`,
+    "",
+    "### Description / Steps to Reproduce",
+    f.description || "_(no description provided)_",
+    "",
+    f.screenshots && f.screenshots.length > 0 ? `_${f.screenshots.length} screenshot(s) attached in-app — export/copy manually if needed for this submission._` : "",
+  ];
+  return lines.filter((l) => l !== "").join("\n");
+}
 
 export function FindingsView() {
   const profile = useActiveProfile();
   const removeFinding = useChecklistStore((s) => s.removeFinding);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function exportMarkdown() {
     if (!profile || profile.findings.length === 0) return;
-    const md = [
-      `# Findings — ${profile.name}`,
-      "",
-      ...profile.findings.map(
-        (f) =>
-          `## ${f.title}\n\n- **Severity:** ${f.severity}\n- **Domain:** ${f.domain}\n- **Category:** ${f.categoryName}\n- **Check:** ${f.itemText}\n\n${f.description}\n`
-      ),
-    ].join("\n");
+    const md = [`# Findings — ${profile.name}`, "", ...profile.findings.map(findingToReport)].join("\n\n");
     const blob = new Blob([md], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -23,6 +37,12 @@ export function FindingsView() {
     a.download = `${profile.name.replace(/\s+/g, "_")}_findings.md`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function copyFinding(f: Finding) {
+    await navigator.clipboard.writeText(findingToReport(f));
+    setCopiedId(f.id);
+    setTimeout(() => setCopiedId((id) => (id === f.id ? null : id)), 1500);
   }
 
   if (!profile) return null;
@@ -52,7 +72,20 @@ export function FindingsView() {
               <div className="mb-1 flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold text-slate-100">{f.title}</h3>
                 <div className="flex items-center gap-2">
+                  {f.cvss && (
+                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[11px] text-amber-400">
+                      CVSS {f.cvss.score.toFixed(1)}
+                    </span>
+                  )}
                   <SeverityBadge severity={f.severity} />
+                  <button
+                    onClick={() => copyFinding(f)}
+                    className="text-slate-500 hover:text-slate-200"
+                    aria-label="Copy finding as report text"
+                    title="Copy as report"
+                  >
+                    {copiedId === f.id ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
                   <button
                     onClick={() => removeFinding(f.id)}
                     className="text-slate-500 hover:text-red-400"
@@ -66,6 +99,15 @@ export function FindingsView() {
                 {f.domain} · {f.categoryName} · {f.itemText}
               </p>
               {f.description && <p className="text-xs text-slate-400">{f.description}</p>}
+              {f.screenshots && f.screenshots.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {f.screenshots.map((src, i) => (
+                    <a key={i} href={src} target="_blank" rel="noreferrer">
+                      <img src={src} alt={`Screenshot ${i + 1}`} className="h-16 w-16 rounded border border-border/60 object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

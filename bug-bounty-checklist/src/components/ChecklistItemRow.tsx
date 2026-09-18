@@ -1,11 +1,22 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink, HelpCircle } from "lucide-react";
+import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X } from "lucide-react";
 import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus } from "../types/checklist";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusSelect } from "./StatusSelect";
 import { CommandHelpModal } from "./CommandHelpModal";
+import { CvssPicker } from "./CvssPicker";
 import { findReferencedCommands } from "../lib/commandRef";
+import { DEFAULT_CVSS, calcCvss, type CvssMetrics } from "../lib/cvss";
 import { useChecklistStore, useActiveProfile } from "../store/useChecklistStore";
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export function ChecklistItemRow({
   item,
@@ -20,6 +31,8 @@ export function ChecklistItemRow({
   const [showFindingForm, setShowFindingForm] = useState(false);
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDesc, setFindingDesc] = useState("");
+  const [findingCvss, setFindingCvss] = useState<CvssMetrics>(DEFAULT_CVSS);
+  const [findingScreenshots, setFindingScreenshots] = useState<string[]>([]);
   const [helpCommands, setHelpCommands] = useState<string[] | null>(null);
 
   const profile = useActiveProfile();
@@ -33,6 +46,8 @@ export function ChecklistItemRow({
   function handleStatusChange(next: ItemStatus) {
     setItemStatus(item.id, next);
     if (next === "vulnerable") {
+      setFindingTitle((t) => t || item.text);
+      setFindingDesc((d) => d || state?.note?.trim() || "");
       setShowFindingForm(true);
       setOpen(true);
     }
@@ -40,6 +55,7 @@ export function ChecklistItemRow({
 
   function saveFinding() {
     if (!findingTitle.trim()) return;
+    const { score, vector } = calcCvss(findingCvss);
     addFinding({
       itemId: item.id,
       itemText: item.text,
@@ -48,10 +64,20 @@ export function ChecklistItemRow({
       severity: item.severity,
       title: findingTitle.trim(),
       description: findingDesc.trim(),
+      cvss: score > 0 ? { score, vector } : undefined,
+      screenshots: findingScreenshots.length > 0 ? findingScreenshots : undefined,
     });
     setFindingTitle("");
     setFindingDesc("");
+    setFindingCvss(DEFAULT_CVSS);
+    setFindingScreenshots([]);
     setShowFindingForm(false);
+  }
+
+  async function handleScreenshotUpload(files: FileList | null) {
+    if (!files) return;
+    const urls = await Promise.all(Array.from(files).map(readFileAsDataUrl));
+    setFindingScreenshots((s) => [...s, ...urls]);
   }
 
   return (
@@ -170,6 +196,39 @@ export function ChecklistItemRow({
                     rows={3}
                     className="w-full resize-y rounded border border-border/60 bg-transparent px-2 py-1 text-xs text-slate-200 outline-none"
                   />
+
+                  <CvssPicker value={findingCvss} onChange={setFindingCvss} />
+
+                  <div>
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-border/60 px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200">
+                      <Paperclip className="h-3 w-3" />
+                      Attach screenshot(s)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleScreenshotUpload(e.target.files)}
+                        className="hidden"
+                      />
+                    </label>
+                    {findingScreenshots.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {findingScreenshots.map((src, i) => (
+                          <div key={i} className="group relative">
+                            <img src={src} alt={`Screenshot ${i + 1}`} className="h-14 w-14 rounded border border-border/60 object-cover" />
+                            <button
+                              onClick={() => setFindingScreenshots((s) => s.filter((_, idx) => idx !== i))}
+                              className="absolute -right-1 -top-1 rounded-full bg-black/80 p-0.5 text-slate-300 opacity-0 group-hover:opacity-100"
+                              aria-label="Remove screenshot"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={saveFinding}

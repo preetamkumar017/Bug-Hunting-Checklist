@@ -15,8 +15,8 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "findings";
-  onSelectView: (v: "checklist" | "findings") => void;
+  view: "checklist" | "findings" | "claude-log";
+  onSelectView: (v: "checklist" | "findings" | "claude-log") => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -117,6 +117,17 @@ export function Sidebar({
           }`}
         >
           🐞 Findings ({profile?.findings.length ?? 0})
+        </button>
+        <button
+          onClick={() => {
+            onSelectView("claude-log");
+            onClose();
+          }}
+          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
+            view === "claude-log" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
+          }`}
+        >
+          🤖 Claude Log
         </button>
       </nav>
 
