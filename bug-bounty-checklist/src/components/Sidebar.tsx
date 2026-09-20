@@ -1,4 +1,4 @@
-import { Bug, Download, Upload, RotateCcw, X } from "lucide-react";
+import { Bug, Download, Upload, RotateCcw, Trash2, X } from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
 import { domainProgress } from "../lib/progress";
@@ -15,14 +15,29 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "findings" | "claude-log";
-  onSelectView: (v: "checklist" | "findings" | "claude-log") => void;
+  view: "checklist" | "findings";
+  onSelectView: (v: "checklist" | "findings") => void;
   open: boolean;
   onClose: () => void;
 }) {
   const profile = useActiveProfile();
   const resetActiveProfile = useChecklistStore((s) => s.resetActiveProfile);
+  const deleteProfile = useChecklistStore((s) => s.deleteProfile);
   const profiles = useChecklistStore((s) => s.profiles);
+
+  function handleDeleteProfile() {
+    if (!profile) return;
+    const confirmed = confirm(
+      `Delete target profile "${profile.name}"?\n\nThis permanently removes its checklist progress and findings from this browser (localStorage). This does NOT delete anything on disk (targets/ folder, claude-log.json, etc.) — those need to be deleted separately.\n\nType OK to confirm.`
+    );
+    if (!confirmed) return;
+    // Second confirmation, deliberately more friction than "Reset profile"
+    if (prompt(`Type the profile name ("${profile.name}") to confirm deletion:`) === profile.name) {
+      deleteProfile(profile.id);
+    } else {
+      alert("Name didn't match — profile not deleted.");
+    }
+  }
 
   const totalDone = profile
     ? Object.values(profile.itemStates).filter(
@@ -118,17 +133,6 @@ export function Sidebar({
         >
           🐞 Findings ({profile?.findings.length ?? 0})
         </button>
-        <button
-          onClick={() => {
-            onSelectView("claude-log");
-            onClose();
-          }}
-          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
-            view === "claude-log" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          🤖 Claude Log
-        </button>
       </nav>
 
       <div className="my-1 h-px bg-border" />
@@ -182,6 +186,13 @@ export function Sidebar({
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-400/80 hover:bg-red-950/30"
         >
           <RotateCcw className="h-3.5 w-3.5" /> Reset profile
+        </button>
+        <button
+          onClick={handleDeleteProfile}
+          disabled={!profile}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-500 hover:bg-red-950/40 disabled:opacity-40"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Delete profile permanently
         </button>
       </div>
       <p className="mt-3 text-center text-[10px] text-slate-600">
