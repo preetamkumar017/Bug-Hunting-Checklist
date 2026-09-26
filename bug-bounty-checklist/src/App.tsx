@@ -4,7 +4,6 @@ import { domains } from "./data/domains";
 import type { Domain, ItemStatus } from "./types/checklist";
 import { Sidebar } from "./components/Sidebar";
 import { CategorySection } from "./components/CategorySection";
-import { SuggestionsPanel } from "./components/SuggestionsPanel";
 import { FindingsView } from "./components/FindingsView";
 import { ScopeView } from "./components/ScopeView";
 import { DashboardView } from "./components/DashboardView";
@@ -301,10 +300,6 @@ export default function App() {
                   </button>
                 ))}
               </div>
-
-              {statusFilter === "all" && (
-                <SuggestionsPanel onJumpToCategory={jumpToCategory} />
-              )}
 
               {filteredCategories.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-slate-400">
