@@ -8,6 +8,8 @@ import {
   Target,
   Wrench,
   FolderPlus,
+  LayoutDashboard,
+  Zap,
 } from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
@@ -21,15 +23,17 @@ export function Sidebar({
   view,
   onSelectView,
   onOpenTools,
+  onOpenAnalyzer,
   onOpenAddCategory,
   open,
   onClose,
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "findings" | "scope";
-  onSelectView: (v: "checklist" | "findings" | "scope") => void;
+  view: "checklist" | "dashboard" | "findings" | "scope";
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope") => void;
   onOpenTools: () => void;
+  onOpenAnalyzer?: () => void;
   onOpenAddCategory: () => void;
   open: boolean;
   onClose: () => void;
@@ -129,6 +133,19 @@ export function Sidebar({
         <nav className="mb-3 space-y-1">
           <button
             onClick={() => {
+              onSelectView("dashboard");
+              onClose();
+            }}
+            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+              view === "dashboard"
+                ? "bg-emerald-500/10 text-emerald-400 font-semibold"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4" /> 📊 Dashboard
+          </button>
+          <button
+            onClick={() => {
               onSelectView("checklist");
               onClose();
             }}
@@ -164,8 +181,19 @@ export function Sidebar({
                 : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
             }`}
           >
-            <Target className="h-4 w-4" /> Scope & Policy
+            <Target className="h-4 w-4" /> Scope &amp; Assets
           </button>
+          {onOpenAnalyzer && (
+            <button
+              onClick={() => {
+                onOpenAnalyzer();
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-emerald-400 transition"
+            >
+              <Zap className="h-4 w-4 text-emerald-400" /> HTTP Analyzer ⚡
+            </button>
+          )}
           <button
             onClick={() => {
               onOpenTools();

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Menu, Search, Filter, X, FolderPlus, Wrench } from "lucide-react";
+import { Menu, Search, Filter, X, FolderPlus, Wrench, Zap } from "lucide-react";
 import { domains } from "./data/domains";
 import type { Domain, ItemStatus } from "./types/checklist";
 import { Sidebar } from "./components/Sidebar";
@@ -7,8 +7,10 @@ import { CategorySection } from "./components/CategorySection";
 import { SuggestionsPanel } from "./components/SuggestionsPanel";
 import { FindingsView } from "./components/FindingsView";
 import { ScopeView } from "./components/ScopeView";
+import { DashboardView } from "./components/DashboardView";
 import { ChecklistItemRow } from "./components/ChecklistItemRow";
 import { HackerToolsModal } from "./components/HackerToolsModal";
+import { HttpAnalyzerModal } from "./components/HttpAnalyzerModal";
 import { AddCustomCategoryModal } from "./components/AddCustomCategoryModal";
 import { useActiveProfile } from "./store/useChecklistStore";
 
@@ -16,10 +18,11 @@ type StatusFilter = "all" | ItemStatus | "critical_high";
 
 export default function App() {
   const [activeDomain, setActiveDomain] = useState<Domain>("web");
-  const [view, setView] = useState<"checklist" | "findings" | "scope">("checklist");
+  const [view, setView] = useState<"checklist" | "dashboard" | "findings" | "scope">("checklist");
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [analyzerOpen, setAnalyzerOpen] = useState(false);
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -151,6 +154,7 @@ export default function App() {
         view={view}
         onSelectView={setView}
         onOpenTools={() => setToolsOpen(true)}
+        onOpenAnalyzer={() => setAnalyzerOpen(true)}
         onOpenAddCategory={() => setAddCatOpen(true)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -170,12 +174,21 @@ export default function App() {
           </p>
         </div>
 
-        <button
-          onClick={() => setToolsOpen(true)}
-          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-amber-300 hover:bg-slate-700"
-        >
-          <Wrench className="h-3 w-3" /> Tools
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setAnalyzerOpen(true)}
+            title="Open Raw HTTP Request Analyzer"
+            className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-emerald-300 hover:bg-slate-700"
+          >
+            <Zap className="h-3 w-3" /> Analyzer
+          </button>
+          <button
+            onClick={() => setToolsOpen(true)}
+            className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-amber-300 hover:bg-slate-700"
+          >
+            <Wrench className="h-3 w-3" /> Tools
+          </button>
+        </div>
       </header>
 
       <main className="min-w-0 flex-1 overflow-y-auto">
@@ -202,6 +215,15 @@ export default function App() {
             </div>
 
             <button
+              onClick={() => setAnalyzerOpen(true)}
+              title="Open Raw HTTP Request & Vulnerability Analyzer"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-900/30 hover:text-emerald-200"
+            >
+              <Zap className="h-3.5 w-3.5 text-emerald-400" />
+              <span>HTTP Analyzer</span>
+            </button>
+
+            <button
               onClick={() => setToolsOpen(true)}
               title="Open Swiss Army Knife Tools"
               className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-emerald-400"
@@ -211,7 +233,9 @@ export default function App() {
             </button>
           </div>
 
-          {view === "findings" ? (
+          {view === "dashboard" ? (
+            <DashboardView onSelectDomain={setActiveDomain} onSelectView={setView} />
+          ) : view === "findings" ? (
             <FindingsView />
           ) : view === "scope" ? (
             <ScopeView />
@@ -304,6 +328,13 @@ export default function App() {
 
       {/* Swiss Army Knife Modal */}
       <HackerToolsModal open={toolsOpen} onClose={() => setToolsOpen(false)} />
+
+      {/* Raw HTTP Request & Attack Vector Analyzer */}
+      <HttpAnalyzerModal
+        open={analyzerOpen}
+        onClose={() => setAnalyzerOpen(false)}
+        onNavigateToCategory={jumpToCategory}
+      />
 
       {/* Add Custom Category Modal */}
       <AddCustomCategoryModal

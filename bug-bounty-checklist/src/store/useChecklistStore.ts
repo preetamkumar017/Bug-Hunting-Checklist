@@ -6,6 +6,7 @@ import type {
   ChecklistItem,
   Finding,
   ItemStatus,
+  TargetAsset,
   TargetProfile,
   TargetScope,
 } from "../types/checklist";
@@ -23,6 +24,8 @@ function newProfile(name: string): TargetProfile {
       programPolicy: "",
       bountyTier: "",
     },
+    scratchpad: "",
+    assets: [],
     customCategories: [],
   };
 }
@@ -38,6 +41,12 @@ interface ChecklistStore extends AppState {
   markCategoryStatus: (itemIds: string[], status: ItemStatus) => void;
 
   setScope: (scope: TargetScope) => void;
+  setScratchpad: (scratchpad: string) => void;
+
+  addAsset: (asset: Omit<TargetAsset, "id" | "updatedAt">) => void;
+  updateAsset: (id: string, asset: Partial<TargetAsset>) => void;
+  deleteAsset: (id: string) => void;
+  bulkAddAssets: (hosts: string[]) => void;
 
   addCustomCategory: (category: Omit<ChecklistCategory, "id">) => void;
   deleteCustomCategory: (categoryId: string) => void;
@@ -153,6 +162,106 @@ export const useChecklistStore = create<ChecklistStore>()(
             profiles: {
               ...s.profiles,
               [activeId]: { ...profile, scope },
+            },
+          };
+        });
+      },
+
+      setScratchpad: (scratchpad) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, scratchpad },
+            },
+          };
+        });
+      },
+
+      addAsset: (asset) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const newAsset: TargetAsset = {
+            ...asset,
+            id: `asset-${crypto.randomUUID()}`,
+            updatedAt: Date.now(),
+          };
+          const assets = [...(profile.assets || []), newAsset];
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, assets },
+            },
+          };
+        });
+      },
+
+      updateAsset: (id, partial) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const assets = (profile.assets || []).map((a) =>
+            a.id === id ? { ...a, ...partial, updatedAt: Date.now() } : a
+          );
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, assets },
+            },
+          };
+        });
+      },
+
+      deleteAsset: (id) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const assets = (profile.assets || []).filter((a) => a.id !== id);
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, assets },
+            },
+          };
+        });
+      },
+
+      bulkAddAssets: (hosts) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const now = Date.now();
+          const existing = new Set((profile.assets || []).map((a) => a.host.toLowerCase()));
+          const newAssets: TargetAsset[] = [];
+
+          for (const raw of hosts) {
+            const clean = raw.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+            if (clean && !existing.has(clean.toLowerCase())) {
+              existing.add(clean.toLowerCase());
+              newAssets.push({
+                id: `asset-${crypto.randomUUID()}`,
+                host: clean,
+                status: "200 OK",
+                updatedAt: now,
+              });
+            }
+          }
+
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: {
+                ...profile,
+                assets: [...(profile.assets || []), ...newAssets],
+              },
             },
           };
         });
@@ -287,7 +396,13 @@ export const useChecklistStore = create<ChecklistStore>()(
           return {
             profiles: {
               ...s.profiles,
-              [activeId]: { ...profile, itemStates: {}, findings: [] },
+              [activeId]: {
+                ...profile,
+                itemStates: {},
+                findings: [],
+                assets: [],
+                scratchpad: "",
+              },
             },
           };
         });

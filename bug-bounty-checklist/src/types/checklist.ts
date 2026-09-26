@@ -34,6 +34,17 @@ export interface UseCaseScenario {
   impactExample?: string; // Realistic impact description
 }
 
+export interface TargetAsset {
+  id: string;
+  host: string; // e.g. "api.target.com"
+  type?: "domain" | "subdomain" | "ip" | "api" | "mobile_app" | "repo";
+  status?: string; // e.g. "200 OK", "403 Forbidden", "Takeover Risk", "Unresolved"
+  tech?: string[]; // e.g. ["Cloudflare", "Next.js", "AWS"]
+  ports?: string; // e.g. "80, 443, 8443"
+  notes?: string;
+  updatedAt: number;
+}
+
 export interface ChecklistItem {
   id: string;
   text: string; // what to test (short)
@@ -47,6 +58,11 @@ export interface ChecklistItem {
   isCustom?: boolean;
   methods?: TestingMethod[]; // Multiple testing methods
   useCases?: UseCaseScenario[]; // Real-world use cases & attack scenarios
+  cweId?: string; // e.g. "CWE-79", "CWE-639", "CWE-918"
+  owaspCategory?: string; // e.g. "A01:2021-Broken Access Control"
+  remediation?: string; // Secure coding patch & fix advice
+  recommendedTools?: string[]; // e.g. ["Burp Suite", "Autorize", "Turbo Intruder"]
+  bountyPotential?: "critical" | "high" | "medium" | "low";
 }
 
 export interface ChecklistCategory {
@@ -72,6 +88,7 @@ export interface ChecklistDomain {
 export interface ItemState {
   status: ItemStatus;
   note?: string;
+  bookmarked?: boolean;
   updatedAt?: number;
 }
 
@@ -87,6 +104,9 @@ export interface Finding {
   createdAt: number;
   cvss?: { vector: string; score: number };
   screenshots?: string[]; // base64 data URLs, stored locally
+  cweId?: string;
+  owaspCategory?: string;
+  remediation?: string;
 }
 
 export interface TargetScope {
@@ -104,6 +124,8 @@ export interface TargetProfile {
   itemStates: Record<string, ItemState>; // itemId -> state
   findings: Finding[];
   scope?: TargetScope;
+  scratchpad?: string; // Persistent markdown notes, credentials, and test scratchpad
+  assets?: TargetAsset[]; // Subdomain & asset inventory
   customCategories?: ChecklistCategory[];
 }
 
@@ -111,4 +133,5 @@ export interface AppState {
   profiles: Record<string, TargetProfile>;
   activeProfileId: string | null;
 }
+
 
