@@ -1,28 +1,58 @@
 # Bug Bounty Checklist
 
-An interactive, guided bug bounty / security testing checklist — built for personal use during real engagements, not just a static reference list.
+An interactive, guided bug bounty & security testing checklist application — built for security researchers, penetration testers, and bug hunters during real engagements.
 
-Unlike a plain checklist, every check comes with an actual testing guide, ready-to-use payloads, and a status you can act on (not just tick/untick). Mark something vulnerable and it turns into a findings entry; mark a category clean and it nudges you toward the next thing worth testing.
+Unlike static lists, every check comes with an actual testing guide, copy-ready payloads with command explanations, expected responses (vulnerable vs safe), CVSS calculator, and integrated finding reporting.
+
+---
 
 ## Features
 
-- **6 domains, 90 categories, 570+ checks** — Web, API, Android, iOS, Thick Client, and Web3/Smart Contracts, ordered to follow a real methodology flow (recon → auth → access control → injection → business logic → advanced) rather than a random list.
-- **Guided checks** — every item expands into a *How* (step-by-step method), copy-ready payloads/commands, and a reference link.
-- **Result tracking, not just checkboxes** — `Not Tested / Clean / Vulnerable / Blocked-N/A`, with a free-text note per item for payloads used and observations.
-- **Findings tracker** — marking an item Vulnerable opens a finding form; saved findings live in their own tab and export as a Markdown report.
-- **Smart suggestions** — a rule-based engine that recommends the next category in the flow, related deep-dive checks when something is found vulnerable, and WAF-bypass techniques when checks get blocked.
-- **Target profiles** — track multiple bug bounty targets independently, each with its own progress and findings.
-- **Search** across every check's title and testing guide.
-- **Export / Import** progress as JSON for backup or moving between devices.
-- **Local-first** — everything is stored in the browser via `localStorage`. No backend, no account, no data leaves your machine.
+- **8 Domains, 111 Categories, 615+ Guided Checks**:
+  - 🌐 **Web**: Recon, Auth, Injection, Next.js / React Server Components (RSC), HTTP/2 & HTTP/3 Rapid Reset & Smuggling, Web Cache Deception, Server-Side Prototype Pollution (SSPP) to RCE, Modern Auth / Passkeys / WebAuthn & DPoP.
+  - 🔌 **API**: REST, GraphQL Deep Testing (Circular Query DoS, Alias rate limit bypass, Clairvoyance), BOPLA (Broken Object Property Level Authorization), gRPC, Webhooks & SSRF.
+  - ☁️ **Cloud & CI/CD**: AWS IMDSv1/v2, GCP & Azure Metadata credential extraction, S3/Blob takeovers, GitHub Actions `pull_request_target` pwn-requests, Docker socket escape & Kubernetes ServiceAccount token theft.
+  - 🤖 **AI & LLM Security** (OWASP Top 10 for LLM): Direct & Indirect Prompt Injection, Insecure Output Handling (XSS/SSRF via LLM), System Prompt & RAG Tenant Data Leakage, Excessive Agency & Tool Calling Exploitation, Model Denial of Service.
+  - 📱 **Android**: Static/Dynamic analysis, Flutter Dart AOT reversing (`blutter`, `reFlutter`), React Native Hermes bytecode decompilation (`hbctool`), BiometricPrompt bypasses, App Links & `assetlinks.json`.
+  - 🍏 **iOS**: Universal Links (`apple-app-site-association`), Shared App Groups data leaks, Keychain sharing, ATS exceptions, and rootless instrumentation.
+  - 🖥️ **Thick Client**: Memory corruption, DLL hijacking, Tauri IPC command injection, Electron custom protocol handlers (`myapp://`) argument injection to RCE, `shell.openExternal` abuse.
+  - ⛓️ **Web3 / Smart Contracts**: Reentrancy, Oracle manipulation, Flash loans, ERC-4337 Account Abstraction (paymaster drain), EIP-712 signature replay, and cross-chain bridge validation.
+- 🛠️ **In-App Hacker Swiss Army Knife**:
+  - **CVSS v4.0 & v3.1 Matrix Calculator**: Full interactive scoring with live vector generation and copy functionality.
+  - **Multi-Format Encoder / Decoder**: URL, Double URL, Base64 (Unicode safe), Hex, and HTML entities.
+  - **JWT Inspector**: Parse headers & claims, colorized JSON viewer, and token expiration countdown verification.
+  - **WAF Bypass Payload Mutator**: Automated generation of 8+ evasion variants (inline comments `/**/`, case alternation, null bytes, unicode fullwidth, hex bytes).
+- 🎯 **Target Scope & Policy Manager**:
+  - Track in-scope assets/wildcards, out-of-scope targets, bounty reward tiers, and program rules of engagement per target profile.
+- 📋 **Custom Checklist Items & Categories**:
+  - Add your own custom categories and private checklist items with custom payloads directly in the browser; saved per profile.
+- ⚡ **Status Filters & Bulk Category Actions**:
+  - Filter checklist items by: `All`, `Untested`, `Clean`, `Vulnerable`, `Blocked`, or `Critical / High`.
+  - Category bulk buttons: *"Mark all Clean"* and *"Reset category"*.
+- 🐞 **Findings Tracker with Platform Templates**:
+  - Export findings directly to:
+    - **Standard Markdown** report
+    - **HackerOne Report Format** (Summary, Asset, Steps to Reproduce, Impact)
+    - **Bugcrowd Submission Format** (Classification, Replication Steps, Business Impact)
+- ⌨️ **Keyboard Navigation**:
+  - Press `/` from anywhere to focus search.
+  - Press `Esc` to clear search or dismiss modals.
+- 🔒 **Local-First & Private**:
+  - All data stays inside your browser (`localStorage`). No backend, no accounts, zero telemetry.
+  - Single-click **JSON Export & Import** for backups and cross-device synchronization.
+
+---
 
 ## Tech Stack
 
-- [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- [Vite](https://vite.dev/) — build tooling
-- [Tailwind CSS v4](https://tailwindcss.com/) — styling
-- [Zustand](https://github.com/pmndrs/zustand) — state management with `localStorage` persistence
-- [lucide-react](https://lucide.dev/) — icons
+- **React 19** + **TypeScript**
+- **Vite 8** — build tooling
+- **Tailwind CSS v4** — styling & dark mode design
+- **Zustand** — persistent client state management
+- **Lucide React** — iconography
+- **Oxlint** — ultra-fast linting
+
+---
 
 ## Getting Started
 
@@ -31,62 +61,18 @@ npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:5173`.
+App will run at `http://localhost:5173`.
 
-### Other commands
+### Production Build & Linting
 
 ```bash
 npm run build      # type-check and build for production
-npm run preview    # preview the production build locally
+npm run lint       # run oxlint
+npm run preview    # preview production build locally
 ```
 
-## Project Structure
-
-```
-src/
-  types/checklist.ts   # core data model (domains, categories, items, findings, profiles)
-  data/                # checklist content, one file per domain
-    web.ts
-    api.ts
-    android.ts
-    ios.ts
-    thickclient.ts
-    web3.ts
-    domains.ts         # registry that ties all domains together
-  store/                # Zustand store — target profiles, item status/notes, findings
-  lib/
-    progress.ts         # progress calculations
-    suggestions.ts       # rule-based "what to test next" engine
-  components/           # UI: sidebar, category/item rows, findings view, suggestions panel
-```
-
-## Adding or Editing Checklist Content
-
-Each domain's checks live in its own file under `src/data/`. A checklist item looks like:
-
-```ts
-{
-  id: "web-inject-xss-1",
-  text: "Reflected XSS in URL parameters",
-  how: "Inject a basic script payload into every reflected parameter and check if it executes unescaped.",
-  payloads: ["<script>alert(1)</script>", "\"><svg onload=alert(1)>"],
-  severity: "high",
-  tags: { relatedItemIds: ["web-inject-xss-2"] }, // optional, drives the suggestion engine
-}
-```
-
-Item `id`s must stay unique across the whole app (they're the key for saved progress, so avoid renaming an existing id once you've used it).
-
-## Data & Privacy
-
-All progress, notes, and findings are stored locally in your browser (`localStorage`) under a single `bbc-store` key. Nothing is sent to a server. Use **Export progress (JSON)** in the sidebar to back up or move data between browsers/devices, and **Import progress** to restore it.
-
-## Roadmap
-
-- [ ] AI-assisted suggestions and finding-report generation (requires a small backend to keep API keys server-side)
-- [ ] Optional cloud sync (Supabase) for multi-device use
-- [ ] Custom/user-added checklist items
+---
 
 ## Disclaimer
 
-This checklist is for authorized security testing only — use it strictly within the scope and rules of engagement of a bug bounty program or an explicitly authorized penetration test.
+This checklist is intended strictly for authorized security testing, penetration testing engagements, and bug bounty programs within defined rules of engagement.

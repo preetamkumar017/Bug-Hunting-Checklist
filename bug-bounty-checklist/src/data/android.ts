@@ -810,4 +810,94 @@ export const androidCategories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "android-hybrid",
+    reference: "https://mas.owasp.org/MASTG/0x05c-Reverse-Engineering-and-Tampering-Android/",
+    name: "Flutter & React Native Security",
+    emoji: "⚡",
+    description: "Reverse engineering modern hybrid frameworks: Dart AOT snapshots and Hermes bytecode.",
+    items: [
+      {
+        id: "android-flutter-1",
+        text: "Flutter Dart AOT Snapshot Decompilation (blutter / reFlutter)",
+        how: "Extract libapp.so from APK and analyze Dart AOT snapshot symbols, strings, and class definitions to find hidden APIs and encryption keys.",
+        payloads: [
+          "python3 blutter.py /path/to/lib/arm64-v8a/ out_dir/",
+          "reflutter app.apk # Patch SSL pinning and enable Burp Suite proxying"
+        ],
+        payloadNotes: [
+          "blutter analysis: extracts Dart classes, method offsets, strings, and internal symbols from libapp.so and libflutter.so.",
+          "reFlutter engine patching: modifies the compiled Flutter engine binary to redirect all HTTPS traffic to a local proxy, bypassing BoringSSL custom pinning."
+        ],
+        expectedResponse: {
+          vulnerable: "Dart symbols and internal HTTP endpoint URLs/API tokens are extracted in plaintext, or SSL traffic is successfully intercepted through reFlutter.",
+          safe: "App employs code obfuscation (--obfuscate --split-debug-info) and server enforces mutual TLS or non-bypassable backend verification."
+        },
+        severity: "high"
+      },
+      {
+        id: "android-hermes-1",
+        text: "React Native Hermes Bytecode Extraction & Decompilation",
+        how: "Extract index.android.bundle from assets/ and decompile Hermes bytecode using hbctool or hermes-dec to recover JS source code.",
+        payloads: [
+          "hbctool disasm index.android.bundle output_dir",
+          "strings assets/index.android.bundle | grep -E '(api_key|secret|firebase|token)'"
+        ],
+        payloadNotes: [
+          "Hermes bytecode disassembly: converts compiled Hermes HBC bytecode into human-readable Hermes assembly (HASM) or JavaScript.",
+          "Strings extraction: searches for uncompiled static strings, hardcoded JWTs, and internal environment configurations embedded in JS bundle."
+        ],
+        expectedResponse: {
+          vulnerable: "Complete frontend business logic, private endpoints, hardcoded credentials, and authentication logic are exposed in decompiled bundle.",
+          safe: "Secrets are kept strictly on the backend; the mobile app bundle contains no API secrets or sensitive business rules."
+        },
+        severity: "high"
+      }
+    ]
+  },
+  {
+    id: "android-modern-auth",
+    reference: "https://developer.android.com/training/sign-in/biometric-auth",
+    name: "Modern Biometrics & Deep Links",
+    emoji: "👆",
+    description: "BiometricPrompt authentication bypasses, Android App Links, and assetlinks.json flaws.",
+    items: [
+      {
+        id: "android-bio-bypass-1",
+        text: "BiometricPrompt Callback Hooking Bypass",
+        how: "Hook BiometricPrompt.AuthenticationCallback to force onAuthenticationSucceeded() when CryptoObject is not backed by hardware Keystore keys.",
+        payloads: [
+          "frida -U -f <package> -l biometric-hook.js --no-pause",
+          "Java.use('android.hardware.biometrics.BiometricPrompt$AuthenticationCallback').onAuthenticationSucceeded.implementation = function() { ... };"
+        ],
+        payloadNotes: [
+          "Biometric callback hook: if the app only checks whether authentication succeeded without validating cryptographic signature from Android Keystore, hook unlocks app.",
+          "Check for CryptoObject: examine if cipher/signature initialized inside Keystore is passed to authenticate()."
+        ],
+        expectedResponse: {
+          vulnerable: "The application unlocks without presenting fingerprint or biometric interaction, granting full session access.",
+          safe: "The app relies on a Keystore-backed CryptoObject that requires biometric authentication to decrypt user master key (cannot be bypassed by callback hook)."
+        },
+        severity: "high"
+      },
+      {
+        id: "android-applink-1",
+        text: "Android App Links & assetlinks.json Validation Flaws",
+        how: "Check if AndroidManifest.xml defines intent-filters with autoVerify=true and verify the hosting domain's /.well-known/assetlinks.json.",
+        payloads: [
+          "curl -s https://example.com/.well-known/assetlinks.json",
+          "adb shell am start -a android.intent.action.VIEW -d \"https://example.com/reset?token=xyz\" <package>"
+        ],
+        payloadNotes: [
+          "Verify assetlinks: confirms package_name and sha256_cert_fingerprints match target app.",
+          "Intent spoofing: tests if arbitrary tokens or deep link actions can be passed via command line or malicious third-party app."
+        ],
+        expectedResponse: {
+          vulnerable: "Missing assetlinks or unverified deep link parameters allow an attacker app to claim target URLs and intercept sensitive reset tokens.",
+          safe: "Strict digital asset links verification is configured and deep link handlers validate incoming tokens server-side."
+        },
+        severity: "high"
+      }
+    ]
+  }
 ];

@@ -1,4 +1,14 @@
-import { Bug, Download, Upload, RotateCcw, Trash2, X } from "lucide-react";
+import {
+  Bug,
+  Download,
+  Upload,
+  RotateCcw,
+  Trash2,
+  X,
+  Target,
+  Wrench,
+  FolderPlus,
+} from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
 import { domainProgress } from "../lib/progress";
@@ -10,13 +20,17 @@ export function Sidebar({
   onSelectDomain,
   view,
   onSelectView,
+  onOpenTools,
+  onOpenAddCategory,
   open,
   onClose,
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "findings";
-  onSelectView: (v: "checklist" | "findings") => void;
+  view: "checklist" | "findings" | "scope";
+  onSelectView: (v: "checklist" | "findings" | "scope") => void;
+  onOpenTools: () => void;
+  onOpenAddCategory: () => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -28,10 +42,9 @@ export function Sidebar({
   function handleDeleteProfile() {
     if (!profile) return;
     const confirmed = confirm(
-      `Delete target profile "${profile.name}"?\n\nThis permanently removes its checklist progress and findings from this browser (localStorage). This does NOT delete anything on disk (targets/ folder, claude-log.json, etc.) — those need to be deleted separately.\n\nType OK to confirm.`
+      `Delete target profile "${profile.name}"?\n\nThis permanently removes its checklist progress, scope, and findings from this browser (localStorage).\n\nType OK to confirm.`
     );
     if (!confirmed) return;
-    // Second confirmation, deliberately more friction than "Reset profile"
     if (prompt(`Type the profile name ("${profile.name}") to confirm deletion:`) === profile.name) {
       deleteProfile(profile.id);
     } else {
@@ -39,12 +52,15 @@ export function Sidebar({
     }
   }
 
+  const customItemsCount = (profile?.customCategories || []).flatMap((c) => c.items).length;
+  const totalStandardItems = domains.flatMap((d) => d.categories.flatMap((c) => c.items)).length;
+  const totalItems = totalStandardItems + customItemsCount;
+
   const totalDone = profile
     ? Object.values(profile.itemStates).filter(
         (st) => st.status === "clean" || st.status === "vulnerable" || st.status === "blocked"
       ).length
     : 0;
-  const totalItems = domains.flatMap((d) => d.categories.flatMap((c) => c.items)).length;
 
   function exportJson() {
     if (!profile) return;
@@ -87,117 +103,153 @@ export function Sidebar({
           open ? "translate-x-0" : ""
         }`}
       >
-      <div className="mb-4 flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-md bg-foreground text-background">
-          <Bug className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold leading-tight">Bug Bounty Checklist</p>
-          <p className="text-[11px] text-slate-500">
-            {totalDone} / {totalItems} completed
-          </p>
+        <div className="mb-4 flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+            <Bug className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold leading-tight text-slate-100">Bug Bounty Checklist</p>
+            <p className="text-[11px] text-slate-400">
+              {totalDone} / {totalItems} completed
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="shrink-0 rounded-md p-1 text-slate-400 hover:text-slate-200 lg:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="shrink-0 rounded-md p-1 text-slate-400 hover:text-slate-200 lg:hidden"
-          aria-label="Close menu"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
 
-      <ProfileSwitcher />
+        <ProfileSwitcher />
 
-      <div className="my-3 h-px bg-border" />
+        <div className="my-3 h-px bg-border" />
 
-      <nav className="mb-3 space-y-1">
-        <button
-          onClick={() => {
-            onSelectView("checklist");
-            onClose();
-          }}
-          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
-            view === "checklist" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          ✅ Checklist
-        </button>
-        <button
-          onClick={() => {
-            onSelectView("findings");
-            onClose();
-          }}
-          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
-            view === "findings" ? "bg-white/10 text-slate-100" : "text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          🐞 Findings ({profile?.findings.length ?? 0})
-        </button>
-      </nav>
+        <nav className="mb-3 space-y-1">
+          <button
+            onClick={() => {
+              onSelectView("checklist");
+              onClose();
+            }}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+              view === "checklist"
+                ? "bg-emerald-500/10 text-emerald-400 font-semibold"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            ✅ Checklist
+          </button>
+          <button
+            onClick={() => {
+              onSelectView("findings");
+              onClose();
+            }}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+              view === "findings"
+                ? "bg-emerald-500/10 text-emerald-400 font-semibold"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            🐞 Findings ({profile?.findings.length ?? 0})
+          </button>
+          <button
+            onClick={() => {
+              onSelectView("scope");
+              onClose();
+            }}
+            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+              view === "scope"
+                ? "bg-emerald-500/10 text-emerald-400 font-semibold"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            <Target className="h-4 w-4" /> Scope & Policy
+          </button>
+          <button
+            onClick={() => {
+              onOpenTools();
+              onClose();
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200 transition"
+          >
+            <Wrench className="h-4 w-4 text-amber-400" /> Swiss Army Knife 🛠️
+          </button>
+        </nav>
 
-      <div className="my-1 h-px bg-border" />
+        <div className="my-1 h-px bg-border" />
 
-      <p className="mb-2 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        Domains
-      </p>
-      <div className="space-y-1">
-        {domains.map((d) => {
-          const { done, total } = profile ? domainProgress(d, profile) : { done: 0, total: 0 };
-          return (
-            <button
-              key={d.id}
-              onClick={() => {
-                onSelectView("checklist");
-                onSelectDomain(d.id);
-                onClose();
-              }}
-              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
-                view === "checklist" && activeDomain === d.id
-                  ? "bg-white/10 text-slate-100"
-                  : "text-slate-400 hover:bg-white/5"
-              }`}
-            >
-              <span>
-                {d.emoji} {d.label}
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {done}/{total}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <div className="mb-2 mt-3 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Domains ({domains.length})
+          </p>
+          <button
+            onClick={onOpenAddCategory}
+            title="Create Custom Category"
+            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300"
+          >
+            <FolderPlus className="h-3 w-3" /> + Custom
+          </button>
+        </div>
 
-      <div className="mt-auto space-y-1 pt-4">
-        <button
-          onClick={exportJson}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-400 hover:bg-white/5"
-        >
-          <Download className="h-3.5 w-3.5" /> Export progress (JSON)
-        </button>
-        <label className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-400 hover:bg-white/5">
-          <Upload className="h-3.5 w-3.5" /> Import progress
-          <input type="file" accept="application/json" onChange={importJson} className="hidden" />
-        </label>
-        <button
-          onClick={() => {
-            if (confirm("Reset all progress for this profile?")) resetActiveProfile();
-          }}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-400/80 hover:bg-red-950/30"
-        >
-          <RotateCcw className="h-3.5 w-3.5" /> Reset profile
-        </button>
-        <button
-          onClick={handleDeleteProfile}
-          disabled={!profile}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-500 hover:bg-red-950/40 disabled:opacity-40"
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Delete profile permanently
-        </button>
-      </div>
-      <p className="mt-3 text-center text-[10px] text-slate-600">
-        {Object.keys(profiles).length} profile(s) · data stored locally
-      </p>
+        <div className="space-y-1">
+          {domains.map((d) => {
+            const { done, total } = profile ? domainProgress(d, profile) : { done: 0, total: 0 };
+            return (
+              <button
+                key={d.id}
+                onClick={() => {
+                  onSelectView("checklist");
+                  onSelectDomain(d.id);
+                  onClose();
+                }}
+                className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
+                  view === "checklist" && activeDomain === d.id
+                    ? "bg-white/10 text-slate-100 font-medium"
+                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                }`}
+              >
+                <span>
+                  {d.emoji} {d.label}
+                </span>
+                <span className="text-[11px] font-mono text-slate-500">
+                  {done}/{total}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-auto space-y-1 pt-4">
+          <button
+            onClick={exportJson}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200"
+          >
+            <Download className="h-3.5 w-3.5" /> Export profile (JSON)
+          </button>
+          <label className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200">
+            <Upload className="h-3.5 w-3.5" /> Import profile
+            <input type="file" accept="application/json" onChange={importJson} className="hidden" />
+          </label>
+          <button
+            onClick={() => {
+              if (confirm("Reset all progress for this profile?")) resetActiveProfile();
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-400/80 hover:bg-red-950/30"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Reset profile
+          </button>
+          <button
+            onClick={handleDeleteProfile}
+            disabled={!profile}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-red-500 hover:bg-red-950/40 disabled:opacity-40"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete profile permanently
+          </button>
+        </div>
+        <p className="mt-3 text-center text-[10px] text-slate-600">
+          {Object.keys(profiles).length} profile(s) · offline &amp; encrypted locally
+        </p>
       </aside>
     </>
   );

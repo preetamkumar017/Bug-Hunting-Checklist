@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AppState, Finding, ItemStatus, TargetProfile } from "../types/checklist";
+import type {
+  AppState,
+  ChecklistCategory,
+  ChecklistItem,
+  Finding,
+  ItemStatus,
+  TargetProfile,
+  TargetScope,
+} from "../types/checklist";
 
 function newProfile(name: string): TargetProfile {
   return {
@@ -9,6 +17,13 @@ function newProfile(name: string): TargetProfile {
     createdAt: Date.now(),
     itemStates: {},
     findings: [],
+    scope: {
+      inScope: "",
+      outOfScope: "",
+      programPolicy: "",
+      bountyTier: "",
+    },
+    customCategories: [],
   };
 }
 
@@ -20,6 +35,14 @@ interface ChecklistStore extends AppState {
 
   setItemStatus: (itemId: string, status: ItemStatus) => void;
   setItemNote: (itemId: string, note: string) => void;
+  markCategoryStatus: (itemIds: string[], status: ItemStatus) => void;
+
+  setScope: (scope: TargetScope) => void;
+
+  addCustomCategory: (category: Omit<ChecklistCategory, "id">) => void;
+  deleteCustomCategory: (categoryId: string) => void;
+  addCustomItem: (categoryId: string, item: Omit<ChecklistItem, "id">) => void;
+  deleteCustomItem: (categoryId: string, itemId: string) => void;
 
   addFinding: (finding: Omit<Finding, "id" | "createdAt">) => void;
   removeFinding: (findingId: string) => void;
@@ -97,6 +120,125 @@ export const useChecklistStore = create<ChecklistStore>()(
           };
           return {
             profiles: { ...s.profiles, [activeId]: { ...profile, itemStates } },
+          };
+        });
+      },
+
+      markCategoryStatus: (itemIds, status) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const itemStates = { ...profile.itemStates };
+          const now = Date.now();
+          for (const id of itemIds) {
+            itemStates[id] = {
+              status,
+              note: itemStates[id]?.note,
+              updatedAt: now,
+            };
+          }
+          return {
+            profiles: { ...s.profiles, [activeId]: { ...profile, itemStates } },
+          };
+        });
+      },
+
+      setScope: (scope) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, scope },
+            },
+          };
+        });
+      },
+
+      addCustomCategory: (category) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const newCat: ChecklistCategory = {
+            ...category,
+            id: `custom-cat-${crypto.randomUUID()}`,
+            isCustom: true,
+          };
+          const customCategories = [...(profile.customCategories || []), newCat];
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, customCategories },
+            },
+          };
+        });
+      },
+
+      deleteCustomCategory: (categoryId) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const customCategories = (profile.customCategories || []).filter(
+            (c) => c.id !== categoryId
+          );
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, customCategories },
+            },
+          };
+        });
+      },
+
+      addCustomItem: (categoryId, item) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const newItem: ChecklistItem = {
+            ...item,
+            id: `custom-item-${crypto.randomUUID()}`,
+            isCustom: true,
+          };
+          const customCategories = (profile.customCategories || []).map((cat) => {
+            if (cat.id === categoryId) {
+              return { ...cat, items: [...cat.items, newItem] };
+            }
+            return cat;
+          });
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, customCategories },
+            },
+          };
+        });
+      },
+
+      deleteCustomItem: (categoryId, itemId) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const customCategories = (profile.customCategories || []).map((cat) => {
+            if (cat.id === categoryId) {
+              return {
+                ...cat,
+                items: cat.items.filter((i) => i.id !== itemId),
+              };
+            }
+            return cat;
+          });
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: { ...profile, customCategories },
+            },
           };
         });
       },

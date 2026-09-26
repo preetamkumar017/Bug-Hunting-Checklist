@@ -796,4 +796,76 @@ export const thickClientCategories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "tc-tauri",
+    reference: "https://tauri.app/security/",
+    name: "Tauri Application Security",
+    emoji: "🦀",
+    description: "Rust backend IPC command injection, capabilities configuration, and Webview2 isolation.",
+    items: [
+      {
+        id: "tc-tauri-1",
+        text: "Tauri IPC Command & Shell Scope Bypass",
+        how: "Test if the frontend can invoke privileged Rust commands (@tauri-apps/api/core) or execute arbitrary shell binaries via shell scope bypass.",
+        payloads: [
+          "window.__TAURI__.core.invoke('execute_command', { cmd: 'calc.exe' })",
+          "window.__TAURI_INTERNALS__.invoke('plugin:shell|execute', { program: 'cmd.exe', args: ['/c', 'whoami'] })"
+        ],
+        payloadNotes: [
+          "Invoke custom Rust commands: tests if custom #[tauri::command] handlers validate arguments or lack authorization.",
+          "Shell plugin scope bypass: tests if tauri.conf.json shell allowlist permits arbitrary program arguments or wildcard executions."
+        ],
+        expectedResponse: {
+          vulnerable: "The Rust backend executes arbitrary shell binaries or dangerous system commands invoked from the JavaScript webview.",
+          safe: "Tauri capabilities allowlist strictly scopes allowed commands and programs; arbitrary invocations error with 'Command not allowed'."
+        },
+        severity: "critical"
+      }
+    ]
+  },
+  {
+    id: "tc-proto-rce",
+    reference: "https://portswigger.net/research/hunting-for-electron-rce",
+    name: "Custom Protocol Handler & Browser RCE",
+    emoji: "🌐",
+    description: "Abusing app://, myapp:// custom URI schemes to execute command-line argument injection or launch arbitrary URLs.",
+    items: [
+      {
+        id: "tc-proto-1",
+        text: "Electron Custom Protocol Flag Injection to RCE",
+        how: "Test if clicking a browser link formatted with the app's custom protocol (myapp://) passes unescaped arguments to the app executable.",
+        payloads: [
+          "<a href=\"myapp://?--gpu-launcher=cmd.exe /c calc.exe\">Click to open</a>",
+          "myapp://test/\" --renderer-cmd-prefix=\"cmd.exe /c calc.exe\""
+        ],
+        payloadNotes: [
+          "Chromium flag injection: on Windows, shells pass URLs to the registered handler; unquoted URL strings allow injecting Chromium flags like --gpu-launcher.",
+          "Arbitrary code execution: --renderer-cmd-prefix or --gpu-launcher causes Chromium sub-processes to launch an attacker-chosen executable."
+        ],
+        expectedResponse: {
+          vulnerable: "Clicking the link from Chrome or Edge spawns calc.exe or executes an attacker-specified command line.",
+          safe: "The app registers protocol handlers with quotes and filters command-line flags, or uses app.setAsDefaultProtocolClient without allowing argument injection."
+        },
+        severity: "critical"
+      },
+      {
+        id: "tc-shell-open",
+        text: "shell.openExternal() Protocol & File Handler Abuse",
+        how: "Identify where the desktop app passes user-controllable URLs or paths to electron's shell.openExternal().",
+        payloads: [
+          "shell.openExternal('file:///C:/Windows/System32/cmd.exe')",
+          "shell.openExternal('ms-msdt:/id PCWDiagnostic /skip force /param \"IT_RebrowseForFile=? IT_LaunchMethod=ContextMenu IT_SelectFile=calc.exe\"')"
+        ],
+        payloadNotes: [
+          "Dangerous URL schemes: file://, ms-msdt:, jar:, or custom protocol schemes passed to shell.openExternal can trigger arbitrary file execution.",
+          "Windows search-ms protocol: can be abused to mount remote SMB shares and display deceptive executable files."
+        ],
+        expectedResponse: {
+          vulnerable: "The application passes non-http/https protocols to the OS shell, launching local binaries or triggering protocol handler exploits.",
+          safe: "The application validates that URLs strictly begin with 'https://' before passing to shell.openExternal()."
+        },
+        severity: "high"
+      }
+    ]
+  }
 ];

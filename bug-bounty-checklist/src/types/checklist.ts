@@ -2,7 +2,7 @@ export type Severity = "critical" | "high" | "medium" | "low" | "info";
 
 export type ItemStatus = "not_tested" | "clean" | "vulnerable" | "blocked";
 
-export type Domain = "web" | "api" | "android" | "ios" | "thick_client" | "web3";
+export type Domain = "web" | "api" | "cloud" | "ai" | "android" | "ios" | "thick_client" | "web3";
 
 /** Tags used by the suggestion engine to link items to detected tech / related deep-dive checks. */
 export interface ItemTags {
@@ -27,6 +27,7 @@ export interface ChecklistItem {
   reference?: string; // external cheatsheet/article URL
   severity: Severity;
   tags?: ItemTags;
+  isCustom?: boolean;
 }
 
 export interface ChecklistCategory {
@@ -37,6 +38,8 @@ export interface ChecklistCategory {
   /** Fallback reference link used by items in this category that don't set their own. */
   reference?: string;
   items: ChecklistItem[];
+  domainId?: Domain;
+  isCustom?: boolean;
 }
 
 export interface ChecklistDomain {
@@ -67,6 +70,13 @@ export interface Finding {
   screenshots?: string[]; // base64 data URLs, stored locally
 }
 
+export interface TargetScope {
+  inScope: string;
+  outOfScope: string;
+  programPolicy: string;
+  bountyTier?: string;
+}
+
 /** A target/program profile — isolates progress + findings per bug bounty target. */
 export interface TargetProfile {
   id: string;
@@ -74,9 +84,12 @@ export interface TargetProfile {
   createdAt: number;
   itemStates: Record<string, ItemState>; // itemId -> state
   findings: Finding[];
+  scope?: TargetScope;
+  customCategories?: ChecklistCategory[];
 }
 
 export interface AppState {
   profiles: Record<string, TargetProfile>;
   activeProfileId: string | null;
 }
+

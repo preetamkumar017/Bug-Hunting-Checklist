@@ -751,4 +751,49 @@ export const web3Categories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "web3-erc4337",
+    reference: "https://eips.ethereum.org/EIPS/eip-4337",
+    name: "ERC-4337 Account Abstraction & Modern Contracts",
+    emoji: "🔐",
+    description: "Bundler frontrunning, paymaster drainage, and UserOperation signature replay flaws.",
+    items: [
+      {
+        id: "web3-aa-paymaster",
+        text: "Paymaster Gas Drainage & Griefing Attacks",
+        how: "Send UserOperations that pass validatePaymasterUserOp but intentionally fail or consume excessive gas during the postOp execution phase.",
+        payloads: [
+          "// Construct UserOperation with gas limits tuned to revert in postOp() after paymaster has pledged gas coverage\nentryPoint.handleOps([userOpWithFailingPostOp], beneficiary)",
+          "// Replay UserOperation with identical paymasterAndData across forked chains"
+        ],
+        payloadNotes: [
+          "Paymaster griefing: if validatePaymasterUserOp approves payment but execution reverts, the paymaster still pays gas to the bundler, rapidly draining sponsorship funds.",
+          "Missing signature expiry: test if paymaster signatures include validUntil and validAfter timestamps."
+        ],
+        expectedResponse: {
+          vulnerable: "The sponsor's paymaster contract can be systematically drained of ETH/tokens through failing or replayed UserOperations.",
+          safe: "Paymaster enforces strict signature timestamps, validates sender reputation, and uses off-chain rate-limiting before signing gas sponsorships."
+        },
+        severity: "high"
+      },
+      {
+        id: "web3-eip712-replay",
+        text: "EIP-712 Signature Replay & Domain Separator Flaws",
+        how: "Inspect signature verification code to check if DOMAIN_SEPARATOR includes chainId and verifyingContract address.",
+        payloads: [
+          "keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, keccak256(bytes(\"MyApp\")), keccak256(bytes(\"1\")))) // missing chainId and address(this)",
+          "// Replay signature obtained on Arbitrum onto Ethereum Mainnet or BSC"
+        ],
+        payloadNotes: [
+          "Missing chainId: signatures collected on testnets or L2 chains can be replayed on mainnet or fork chains.",
+          "Missing verifyingContract: signatures intended for a staging deployment can be submitted to production contracts."
+        ],
+        expectedResponse: {
+          vulnerable: "A signature authorized for one contract or network can be replayed successfully on a different deployment.",
+          safe: "Domain separator dynamically computes block.chainid and address(this), preventing cross-contract and cross-chain replay."
+        },
+        severity: "critical"
+      }
+    ]
+  }
 ];

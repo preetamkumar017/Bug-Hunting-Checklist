@@ -1,6 +1,8 @@
 import type { ChecklistDomain } from "../types/checklist";
 import { webCategories } from "./web";
 import { apiCategories } from "./api";
+import { cloudCategories } from "./cloud";
+import { aiCategories } from "./ai";
 import { androidCategories } from "./android";
 import { iosCategories } from "./ios";
 import { thickClientCategories } from "./thickclient";
@@ -9,7 +11,9 @@ import { web3Categories } from "./web3";
 export const domains: ChecklistDomain[] = [
   { id: "web", label: "Web", emoji: "🌐", categories: webCategories },
   { id: "api", label: "API", emoji: "🔌", categories: apiCategories },
-  { id: "android", label: "Android", emoji: "🤖", categories: androidCategories },
+  { id: "cloud", label: "Cloud & CI/CD", emoji: "☁️", categories: cloudCategories },
+  { id: "ai", label: "AI & LLM", emoji: "🤖", categories: aiCategories },
+  { id: "android", label: "Android", emoji: "📱", categories: androidCategories },
   { id: "ios", label: "iOS", emoji: "🍏", categories: iosCategories },
   { id: "thick_client", label: "Thick Client", emoji: "🖥️", categories: thickClientCategories },
   { id: "web3", label: "Web3", emoji: "⛓️", categories: web3Categories },

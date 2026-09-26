@@ -4743,4 +4743,163 @@ export const webCategories: ChecklistCategory[] = [
       },
     ],
   },
+  // ─────────────────────────── MODERN WEB & NEXT.JS ───────────────────────────
+  {
+    id: "web-nextjs-rsc",
+    name: "Next.js & React Server Components (RSC)",
+    emoji: "⚛️",
+    description: "Modern SSR, Server Actions, React Server Components boundaries, and hydration flaws.",
+    reference: "https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations#security",
+    items: [
+      {
+        id: "web-nextjs-1",
+        text: "Unauthenticated Server Action Direct Invocations",
+        how: "Identify Next.js Server Actions (indicated by 'Next-Action' HTTP header) and replay POST requests directly without frontend state or session auth.",
+        payloads: [
+          "POST /path HTTP/1.1\nHost: example.com\nNext-Action: c4b1979b0bf881d713a0774a3bd5144b6c3d9bca\nContent-Type: application/json\n\n[\"param1\", {\"admin\": true}]",
+          "curl -X POST https://example.com/ -H \"Next-Action: <action_id>\" -H \"Content-Type: text/plain;charset=UTF-8\" -d '[\"attacker@evil.com\"]'"
+        ],
+        payloadNotes: [
+          "Next-Action header: Next.js exposes Server Actions as public POST endpoints addressable by their hash ID. If the action function does not verify session/auth internally, anyone can invoke it.",
+          "Direct payload passing: test if server action arguments can be manipulated to update unauthorized user fields or trigger administrative routines."
+        ],
+        expectedResponse: {
+          vulnerable: "The server action executes successfully, modifying database records, sending emails, or returning private data without validating session authorization.",
+          safe: "The action checks session authentication at the start of the function and returns an Unauthorized error (401/403) or redirects to login."
+        },
+        severity: "high"
+      },
+      {
+        id: "web-nextjs-2",
+        text: "Server Secrets Leak in React Server Components (RSC) Flight Payloads",
+        how: "Inspect Next.js RSC Flight response streams (?_rsc=... or initial HTML payload) for server-side object properties inadvertently sent to the client.",
+        payloads: [
+          "GET /dashboard?_rsc=19z1a HTTP/1.1\nAccept: text/x-component",
+          "Search in source: 'process.env', 'private_key', 'api_key', 'stripe_secret', 'password_hash'"
+        ],
+        payloadNotes: [
+          "RSC Flight component stream: React Server Components serialize component props into a special streaming format sent to the client.",
+          "Over-fetching in RSC: when an entire DB model object (e.g., user) is passed as prop to a Client Component, all fields (including password hashes and secret tokens) are serialized into the client payload."
+        ],
+        expectedResponse: {
+          vulnerable: "The Flight data stream contains sensitive database fields, internal API tokens, or server configuration not visible in the rendered UI.",
+          safe: "Server components explicitly destructure only public fields before passing props across the 'use client' boundary, or use 'server-only' package."
+        },
+        severity: "high"
+      },
+      {
+        id: "web-nextjs-3",
+        text: "Next.js Middleware Path Matching & Normalization Bypass",
+        how: "Test if route protection middleware can be bypassed using case changes, encoded slashes, or trailing dot/slash characters.",
+        payloads: [
+          "/admin/%2e%2e/dashboard",
+          "/Admin/settings",
+          "/admin/.json",
+          "/admin;foo=bar"
+        ],
+        payloadNotes: [
+          "Encoded path traversal: tests if Next.js middleware regex matcher checks raw URL while the underlying Node server normalizes decoded path.",
+          "Case sensitivity mismatch: if middleware matcher regex is case-sensitive (/admin/*) but routing engine is case-insensitive, request bypasses check.",
+          "Path parameter delimiter: semicolon or dot extensions can confuse middleware path matching rules."
+        ],
+        expectedResponse: {
+          vulnerable: "The request bypasses authentication middleware and serves the protected page or server action response.",
+          safe: "The middleware normalizes the path before matching and returns 401/403 redirecting to authentication."
+        },
+        severity: "critical"
+      }
+    ]
+  },
+  // ─────────────────────────── HTTP/2 & HTTP/3 ───────────────────────────
+  {
+    id: "web-http2-http3",
+    name: "HTTP/2 & HTTP/3 (QUIC) Attacks",
+    emoji: "⚡",
+    description: "Request smuggling, stream multiplexing vulnerabilities, and Rapid Reset denial of service.",
+    reference: "https://portswigger.net/research/http2",
+    items: [
+      {
+        id: "web-h2-1",
+        text: "HTTP/2 Request Smuggling (H2.CL / H2.TE Downgrade)",
+        how: "Send requests over HTTP/2 with injected Content-Length or Transfer-Encoding headers where the front-end proxies down to HTTP/1.1 backend.",
+        payloads: [
+          ":method: POST\n:path: /\ncontent-length: 0\n\nGET /admin HTTP/1.1\nHost: example.com\n\n",
+          ":method: POST\n:path: /\ntransfer-encoding: chunked\n\n0\n\nSMUGGLED"
+        ],
+        payloadNotes: [
+          "H2.CL desync: In HTTP/2 length is framed in frames, but when downgraded to HTTP/1.1, the front-end injects or retains the fraudulent content-length: 0.",
+          "H2.TE header injection: Tests if the frontend gateway allows transfer-encoding header in HTTP/2 requests and passes it verbatim to an HTTP/1.1 backend."
+        ],
+        expectedResponse: {
+          vulnerable: "The backend server processes the second smuggled request or prepends it to the next incoming user request (request hijacking).",
+          safe: "Front-end rejects HTTP/2 requests with transfer-encoding or conflicting content-length, or recalculates content-length cleanly on downgrade."
+        },
+        severity: "critical"
+      },
+      {
+        id: "web-h2-2",
+        text: "HTTP/2 Rapid Reset & Resource Exhaustion (CVE-2023-44487)",
+        how: "Open multiple concurrent HTTP/2 streams and immediately reset them with RST_STREAM frames to test server resource management.",
+        payloads: [
+          "curl --http2 -s https://example.com/ (send HEADERS frame followed immediately by RST_STREAM in loop)",
+          "h2load -n 1000 -c 100 -m 100 https://example.com/"
+        ],
+        payloadNotes: [
+          "RST_STREAM abuse: Rapidly opening and canceling requests forces the server to do expensive work setting up streams while evading standard request count rate limits.",
+          "Multiplexed stress probe: Tests if server enforces maximum concurrent stream limits (SETTINGS_MAX_CONCURRENT_STREAMS)."
+        ],
+        expectedResponse: {
+          vulnerable: "Server CPU spikes to 100%, nginx/envoy worker processes crash, or server returns 502/503 errors.",
+          safe: "Server rate limits RST_STREAM frames per connection and closes connections that exceed cancellation thresholds."
+        },
+        severity: "high"
+      }
+    ]
+  },
+  // ─────────────────────────── MODERN AUTH & WEBAUTHN ───────────────────────────
+  {
+    id: "web-modern-auth",
+    name: "Modern Auth: Passkeys, WebAuthn & DPoP",
+    emoji: "🔑",
+    description: "Biometric passkey registration, challenge replays, and OAuth 2.1 proof-of-possession tokens.",
+    reference: "https://www.w3.org/TR/webauthn-2/",
+    items: [
+      {
+        id: "web-authn-1",
+        text: "WebAuthn / Passkey Challenge Replay & Verification Bypass",
+        how: "Intercept the navigator.credentials.get() or create() assertion and attempt to replay the clientDataJSON and authenticatorData with modified challenge.",
+        payloads: [
+          "Replay response: POST /api/webauthn/verify with previous assertionResponse",
+          "Tamper clientDataJSON: change 'origin' from 'https://example.com' to 'https://evil.com' or modify 'challenge'"
+        ],
+        payloadNotes: [
+          "Challenge replay: tests whether the server invalidates one-time cryptographic challenges after initial verification.",
+          "Origin validation: checks if server verifies that clientDataJSON.origin matches the expected application domain."
+        ],
+        expectedResponse: {
+          vulnerable: "The server accepts a replayed assertion or an assertion generated for a different origin/challenge.",
+          safe: "The server enforces single-use challenge nonce stored in session and strictly validates origin and RP ID."
+        },
+        severity: "critical"
+      },
+      {
+        id: "web-oauth-dpop",
+        text: "OAuth 2.1 PKCE Downgrade & DPoP Token Replay",
+        how: "Attempt authorization code exchange without code_verifier when code_challenge was sent, or replay DPoP-bound access tokens from a different HTTP method/URI.",
+        payloads: [
+          "POST /oauth/token\ncode=auth_code&grant_type=authorization_code (omit code_verifier)",
+          "Replay DPoP proof header: 'DPoP: <jwt>' against a different endpoint or with expired 'iat'"
+        ],
+        payloadNotes: [
+          "PKCE downgrade: tests if the authorization server enforces PKCE strictly or permits clients to omit code_verifier on exchange.",
+          "DPoP proof replay: tests if the resource server verifies the HTTP method, target URI (htu), and jti nonce inside the DPoP proof."
+        ],
+        expectedResponse: {
+          vulnerable: "Token is issued without PKCE verification, or DPoP-bound token is accepted without matching proof of possession.",
+          safe: "Server rejects token request with invalid_grant or invalid_dpop_proof."
+        },
+        severity: "high"
+      }
+    ]
+  }
 ];

@@ -647,4 +647,49 @@ export const iosCategories: ChecklistCategory[] = [
       },
     ],
   },
+  {
+    id: "ios-modern-ipc",
+    reference: "https://developer.apple.com/documentation/xcode/supporting-associated-domains",
+    name: "Universal Links & App Groups Security",
+    emoji: "🔗",
+    description: "Universal Link hijacking, apple-app-site-association (AASA) flaws, and Shared Container leakage.",
+    items: [
+      {
+        id: "ios-ulink-1",
+        text: "Universal Links & AASA File Validation",
+        how: "Inspect https://<domain>/.well-known/apple-app-site-association for wildcard path patterns and test URL handling in application(_:continue:restorationHandler:).",
+        payloads: [
+          "curl -s https://example.com/.well-known/apple-app-site-association",
+          "xcrun simctl openurl booted \"https://example.com/auth/callback?token=stolen\""
+        ],
+        payloadNotes: [
+          "Fetch AASA file: verify appIDs match team ID and bundle ID, and check 'components' or 'paths' for overly permissive wildcards (*).",
+          "Simulator URL open: tests whether deep-linked URLs are parsed safely or execute unauthorized state transitions (e.g., account linking, password reset)."
+        ],
+        expectedResponse: {
+          vulnerable: "Wildcard patterns permit opening arbitrary URLs, or the app executes sensitive operations immediately upon parsing query parameters without user confirmation.",
+          safe: "The app strictly matches specific deep link paths and confirms user intent before taking sensitive actions."
+        },
+        severity: "high"
+      },
+      {
+        id: "ios-appgroup-1",
+        text: "App Groups & Shared Container Data Leakage",
+        how: "Check if the app uses shared App Group directories (containerURL(forSecurityApplicationGroupIdentifier:)) and inspect files accessible to app extensions.",
+        payloads: [
+          "find /private/var/mobile/Containers/Shared/AppGroup/ -type f",
+          "grep -rn 'group.' Payload/App.app/Info.plist"
+        ],
+        payloadNotes: [
+          "Shared AppGroup filesystem: widgets, notification service extensions, and watch apps share this sandbox directory.",
+          "Identify group ID: inspect entitlements and Info.plist for group.<company>.<name> identifier."
+        ],
+        expectedResponse: {
+          vulnerable: "Auth tokens, credentials, or private databases are stored unencrypted in the shared App Group directory, readable by lower-privilege extensions.",
+          safe: "Shared directories store only non-sensitive UI cache data; all authentication keys remain securely in the Keychain."
+        },
+        severity: "medium"
+      }
+    ]
+  }
 ];
