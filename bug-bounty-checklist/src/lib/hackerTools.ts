@@ -555,3 +555,120 @@ export function calculateSubnet(input: string): SubnetResult {
     dwordIp: ipInt.toString(10),
   };
 }
+
+// -------------------------------------------------------------
+// 4. JWT BUILDER, EDITOR & RESIGNER
+// -------------------------------------------------------------
+
+export function base64UrlEncode(str: string): string {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+export function base64UrlDecode(str: string): string {
+  let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+export interface JwtSignResult {
+  token: string;
+  signature: string;
+  unsignedToken: string;
+  error?: string;
+}
+
+export async function signJwtHmac(
+  headerJsonStr: string,
+  payloadJsonStr: string,
+  secretKey: string,
+  algorithm: "HS256" | "HS384" | "HS512" | "none"
+): Promise<JwtSignResult> {
+  try {
+    let headerObj: Record<string, unknown>;
+    try {
+      headerObj = JSON.parse(headerJsonStr);
+    } catch {
+      return { token: "", signature: "", unsignedToken: "", error: "Header is not valid JSON syntax" };
+    }
+
+    let payloadObj: Record<string, unknown>;
+    try {
+      payloadObj = JSON.parse(payloadJsonStr);
+    } catch {
+      return { token: "", signature: "", unsignedToken: "", error: "Payload is not valid JSON syntax" };
+    }
+
+    // Synchronize alg in header
+    headerObj.alg = algorithm;
+    if (!headerObj.typ) headerObj.typ = "JWT";
+
+    const headerB64 = base64UrlEncode(JSON.stringify(headerObj));
+    const payloadB64 = base64UrlEncode(JSON.stringify(payloadObj));
+    const unsignedToken = `${headerB64}.${payloadB64}`;
+
+    if (algorithm === "none") {
+      return {
+        token: `${unsignedToken}.`,
+        signature: "",
+        unsignedToken,
+      };
+    }
+
+    const hashName =
+      algorithm === "HS256" ? "SHA-256" : algorithm === "HS384" ? "SHA-384" : "SHA-512";
+
+    const enc = new TextEncoder();
+    const keyData = enc.encode(secretKey);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: { name: hashName } },
+      false,
+      ["sign"]
+    );
+
+    const sigBuffer = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(unsignedToken));
+    const signature = arrayBufferToBase64Url(sigBuffer);
+
+    return {
+      token: `${unsignedToken}.${signature}`,
+      signature,
+      unsignedToken,
+    };
+  } catch (err: unknown) {
+    return {
+      token: "",
+      signature: "",
+      unsignedToken: "",
+      error: err instanceof Error ? err.message : "Error signing JWT",
+    };
+  }
+}
+
