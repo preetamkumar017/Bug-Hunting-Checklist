@@ -1,5 +1,16 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Menu, Search, Filter, X, FolderPlus, Wrench, Zap } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Filter,
+  X,
+  FolderPlus,
+  Wrench,
+  Zap,
+  Command,
+  Database,
+  Sparkles,
+} from "lucide-react";
 import { domains } from "./data/domains";
 import type { Domain, ItemStatus } from "./types/checklist";
 import { Sidebar } from "./components/Sidebar";
@@ -11,6 +22,10 @@ import { ChecklistItemRow } from "./components/ChecklistItemRow";
 import { HackerToolsModal } from "./components/HackerToolsModal";
 import { HttpAnalyzerModal } from "./components/HttpAnalyzerModal";
 import { AddCustomCategoryModal } from "./components/AddCustomCategoryModal";
+import { CommandPaletteModal } from "./components/CommandPaletteModal";
+import { WordlistsModal } from "./components/WordlistsModal";
+import { BurpRulesModal } from "./components/BurpRulesModal";
+import { ReportDrafterModal } from "./components/ReportDrafterModal";
 import { useActiveProfile } from "./store/useChecklistStore";
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
@@ -23,14 +38,23 @@ export default function App() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [analyzerOpen, setAnalyzerOpen] = useState(false);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [wordlistsOpen, setWordlistsOpen] = useState(false);
+  const [burpRulesOpen, setBurpRulesOpen] = useState(false);
+  const [reportDrafterOpen, setReportDrafterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profile = useActiveProfile();
 
-  // Keyboard shortcut listener
+  // Keyboard shortcut listener: Cmd/Ctrl+K for Command Palette, / for search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
       if (
         e.key === "/" &&
         document.activeElement?.tagName !== "INPUT" &&
@@ -154,6 +178,10 @@ export default function App() {
         onSelectView={setView}
         onOpenTools={() => setToolsOpen(true)}
         onOpenAnalyzer={() => setAnalyzerOpen(true)}
+        onOpenWordlists={() => setWordlistsOpen(true)}
+        onOpenBurpRules={() => setBurpRulesOpen(true)}
+        onOpenReportDrafter={() => setReportDrafterOpen(true)}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onOpenAddCategory={() => setAddCatOpen(true)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -175,43 +203,77 @@ export default function App() {
 
         <div className="flex items-center gap-1.5">
           <button
+            onClick={() => setCommandPaletteOpen(true)}
+            title="Open Command Palette"
+            className="flex items-center gap-1 rounded border border-purple-500/40 bg-purple-950/30 px-2 py-1 text-xs text-purple-300 hover:bg-purple-900/40"
+          >
+            <Command className="h-3 w-3" /> ⌘K
+          </button>
+          <button
             onClick={() => setAnalyzerOpen(true)}
             title="Open Raw HTTP Request Analyzer"
             className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-emerald-300 hover:bg-slate-700"
           >
-            <Zap className="h-3 w-3" /> Analyzer
+            <Zap className="h-3 w-3" />
           </button>
           <button
             onClick={() => setToolsOpen(true)}
             className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-amber-300 hover:bg-slate-700"
           >
-            <Wrench className="h-3 w-3" /> Tools
+            <Wrench className="h-3 w-3" />
           </button>
         </div>
       </header>
 
       <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-          {/* Search bar */}
-          <div className="relative mb-5 flex items-center gap-2">
-            <div className="relative flex-1">
+          {/* Search bar & Action triggers */}
+          <div className="relative mb-5 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
                 ref={searchInputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search across all checks & payloads... (Press '/' to focus)"
-                className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-8 text-sm text-slate-200 outline-none focus:border-emerald-500"
+                placeholder="Search across all checks & payloads... (Press '/' to search)"
+                className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-14 text-sm text-slate-200 outline-none focus:border-emerald-500"
               />
+              <button
+                type="button"
+                onClick={() => setCommandPaletteOpen(true)}
+                title="Spotlight Command Palette (⌘K / Ctrl+K)"
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded border border-border bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+              >
+                <Command className="h-3 w-3 text-purple-400" />
+                <span>⌘K</span>
+              </button>
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-200"
+                  className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-200"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
+
+            <button
+              onClick={() => setWordlistsOpen(true)}
+              title="Curated Fuzzing Wordlists & Payloads"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-950/20 px-3 py-2 text-xs font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200"
+            >
+              <Database className="h-3.5 w-3.5 text-blue-400" />
+              <span>Wordlists</span>
+            </button>
+
+            <button
+              onClick={() => setReportDrafterOpen(true)}
+              title="Smart Vulnerability Report Drafter"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-900/30 hover:text-amber-200"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Report Drafter</span>
+            </button>
 
             <button
               onClick={() => setAnalyzerOpen(true)}
@@ -336,6 +398,38 @@ export default function App() {
         activeDomain={activeDomain}
         open={addCatOpen}
         onClose={() => setAddCatOpen(false)}
+      />
+
+      {/* Spotlight Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandPaletteModal
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSelectDomain={setActiveDomain}
+        onSelectView={setView}
+        onOpenTools={() => setToolsOpen(true)}
+        onOpenAnalyzer={() => setAnalyzerOpen(true)}
+        onOpenWordlists={() => setWordlistsOpen(true)}
+        onOpenBurpRules={() => setBurpRulesOpen(true)}
+        onOpenReportDrafter={() => setReportDrafterOpen(true)}
+        onJumpToCategory={jumpToCategory}
+      />
+
+      {/* Curated Wordlists & Fuzzing Hub Modal */}
+      <WordlistsModal
+        open={wordlistsOpen}
+        onClose={() => setWordlistsOpen(false)}
+      />
+
+      {/* Burp Suite & Caido Match/Replace Rule Generator Modal */}
+      <BurpRulesModal
+        open={burpRulesOpen}
+        onClose={() => setBurpRulesOpen(false)}
+      />
+
+      {/* Smart Vulnerability Report Drafter Modal */}
+      <ReportDrafterModal
+        open={reportDrafterOpen}
+        onClose={() => setReportDrafterOpen(false)}
       />
     </div>
   );

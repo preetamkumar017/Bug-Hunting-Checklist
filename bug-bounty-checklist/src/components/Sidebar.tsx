@@ -10,6 +10,10 @@ import {
   FolderPlus,
   LayoutDashboard,
   Zap,
+  Command,
+  Sparkles,
+  Settings,
+  Database,
 } from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
@@ -24,6 +28,10 @@ export function Sidebar({
   onSelectView,
   onOpenTools,
   onOpenAnalyzer,
+  onOpenWordlists,
+  onOpenBurpRules,
+  onOpenReportDrafter,
+  onOpenCommandPalette,
   onOpenAddCategory,
   open,
   onClose,
@@ -34,6 +42,10 @@ export function Sidebar({
   onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope") => void;
   onOpenTools: () => void;
   onOpenAnalyzer?: () => void;
+  onOpenWordlists?: () => void;
+  onOpenBurpRules?: () => void;
+  onOpenReportDrafter?: () => void;
+  onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
   open: boolean;
   onClose: () => void;
@@ -117,6 +129,15 @@ export function Sidebar({
               {totalDone} / {totalItems} completed
             </p>
           </div>
+          {onOpenCommandPalette && (
+            <button
+              onClick={onOpenCommandPalette}
+              className="hidden lg:flex items-center gap-1 rounded border border-border bg-slate-900 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 transition"
+              title="Open Command Palette (Cmd+K)"
+            >
+              <Command className="h-3 w-3" />K
+            </button>
+          )}
           <button
             onClick={onClose}
             className="shrink-0 rounded-md p-1 text-slate-400 hover:text-slate-200 lg:hidden"
@@ -192,6 +213,39 @@ export function Sidebar({
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-emerald-400 transition"
             >
               <Zap className="h-4 w-4 text-emerald-400" /> HTTP Analyzer ⚡
+            </button>
+          )}
+          {onOpenWordlists && (
+            <button
+              onClick={() => {
+                onOpenWordlists();
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-sky-400 transition"
+            >
+              <Database className="h-4 w-4 text-sky-400" /> Payloads &amp; Wordlists 🗂️
+            </button>
+          )}
+          {onOpenReportDrafter && (
+            <button
+              onClick={() => {
+                onOpenReportDrafter();
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-emerald-400 transition"
+            >
+              <Sparkles className="h-4 w-4 text-emerald-400" /> Report Drafter ✍️
+            </button>
+          )}
+          {onOpenBurpRules && (
+            <button
+              onClick={() => {
+                onOpenBurpRules();
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-amber-400 transition"
+            >
+              <Settings className="h-4 w-4 text-amber-400" /> Burp / Caido Rules 🎯
             </button>
           )}
           <button
