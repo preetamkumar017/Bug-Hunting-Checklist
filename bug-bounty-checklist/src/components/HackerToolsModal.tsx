@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   X,
   Calculator,
@@ -7,6 +7,10 @@ import {
   ShieldAlert,
   Copy,
   Check,
+  Hash,
+  Link,
+  Globe,
+  Code2,
 } from "lucide-react";
 import {
   urlEncode,
@@ -22,6 +26,16 @@ import {
   generateWafMutations,
   type WafMutation,
 } from "../lib/encoder";
+import {
+  identifyHash,
+  computeSubtleHash,
+  computeMd5,
+  parseTargetUrl,
+  defangString,
+  refangString,
+  convertParamsToJson,
+  calculateSubnet,
+} from "../lib/hackerTools";
 import {
   calcCvss4,
   cvss4SeverityLabel,
@@ -143,7 +157,14 @@ export function HackerToolsModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"cvss" | "encoder" | "jwt" | "waf">("cvss");
+  if (!open) return null;
+  return <HackerToolsModalContent onClose={onClose} />;
+}
+
+function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<
+    "cvss" | "encoder" | "jwt" | "waf" | "hashes" | "url" | "subnet"
+  >("cvss");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // CVSS State
@@ -163,7 +184,41 @@ export function HackerToolsModal({
   // WAF Mutator State
   const [wafInput, setWafInput] = useState("' UNION SELECT null, username, password FROM users --");
 
-  if (!open) return null;
+  // Hash Inspector & Hasher State
+  const [hashInput, setHashInput] = useState("5f4dcc3b5aa765d61d8327deb882cf99");
+  const [hashLiveText, setHashLiveText] = useState("admin");
+  const [computedHashes, setComputedHashes] = useState<{
+    md5: string;
+    sha1: string;
+    sha256: string;
+    sha512: string;
+  }>({ md5: "", sha1: "", sha256: "", sha512: "" });
+
+  // URL Studio State
+  const [urlInput, setUrlInput] = useState(
+    "https://api.example.com/v2/users?user_id=1337&role=standard&redirect=https%3A%2F%2Ftarget.com%2Fcallback#profile"
+  );
+
+  // Subnet State
+  const [subnetInput, setSubnetInput] = useState("192.168.1.100/24");
+
+  // Live hash calculator effect
+  useEffect(() => {
+    let cancelled = false;
+    async function updateHashes() {
+      const md5 = computeMd5(hashLiveText);
+      const sha1 = await computeSubtleHash(hashLiveText, "SHA-1");
+      const sha256 = await computeSubtleHash(hashLiveText, "SHA-256");
+      const sha512 = await computeSubtleHash(hashLiveText, "SHA-512");
+      if (!cancelled) {
+        setComputedHashes({ md5, sha1, sha256, sha512 });
+      }
+    }
+    updateHashes();
+    return () => {
+      cancelled = true;
+    };
+  }, [hashLiveText]);
 
   async function copyText(text: string, key: string) {
     await navigator.clipboard.writeText(text);
@@ -197,6 +252,10 @@ export function HackerToolsModal({
 
   const parsedJwt = parseJwt(jwtInput);
   const wafMutations: WafMutation[] = generateWafMutations(wafInput);
+  const matchedHashes = useMemo(() => identifyHash(hashInput), [hashInput]);
+  const parsedUrl = useMemo(() => parseTargetUrl(urlInput), [urlInput]);
+  const jsonParams = useMemo(() => convertParamsToJson(parsedUrl.params), [parsedUrl.params]);
+  const subnetResult = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-5">
@@ -210,7 +269,7 @@ export function HackerToolsModal({
             <div>
               <h2 className="text-sm font-bold text-slate-100">Hacker Swiss Army Knife</h2>
               <p className="text-[11px] text-slate-400">
-                In-app utilities: CVSS v4.0/3.1, Encoders, JWT Parser & WAF Mutators
+                In-app utilities: CVSS, Encoders, JWT, WAF Mutators, Hashes, URL Studio & Subnets
               </p>
             </div>
           </div>
@@ -222,31 +281,31 @@ export function HackerToolsModal({
           </button>
         </div>
 
-        {/* Tab Bar */}
-        <div className="flex border-b border-border bg-slate-900/40 px-5">
+        {/* Tab Bar with Horizontal Scrolling */}
+        <div className="flex overflow-x-auto border-b border-border bg-slate-900/40 px-5 scrollbar-thin">
           <button
             onClick={() => setActiveTab("cvss")}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
               activeTab === "cvss"
                 ? "border-emerald-500 text-emerald-400"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Calculator className="h-3.5 w-3.5" /> CVSS Calculator
+            <Calculator className="h-3.5 w-3.5" /> CVSS Calc
           </button>
           <button
             onClick={() => setActiveTab("encoder")}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
               activeTab === "encoder"
                 ? "border-emerald-500 text-emerald-400"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Binary className="h-3.5 w-3.5" /> Encoders / Decoders
+            <Binary className="h-3.5 w-3.5" /> Encoders
           </button>
           <button
             onClick={() => setActiveTab("jwt")}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
               activeTab === "jwt"
                 ? "border-emerald-500 text-emerald-400"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -256,13 +315,43 @@ export function HackerToolsModal({
           </button>
           <button
             onClick={() => setActiveTab("waf")}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
               activeTab === "waf"
                 ? "border-emerald-500 text-emerald-400"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
             <ShieldAlert className="h-3.5 w-3.5" /> WAF Mutator
+          </button>
+          <button
+            onClick={() => setActiveTab("hashes")}
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+              activeTab === "hashes"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Hash className="h-3.5 w-3.5" /> Hash Inspector
+          </button>
+          <button
+            onClick={() => setActiveTab("url")}
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+              activeTab === "url"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Link className="h-3.5 w-3.5" /> URL Studio
+          </button>
+          <button
+            onClick={() => setActiveTab("subnet")}
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+              activeTab === "subnet"
+                ? "border-emerald-500 text-emerald-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Globe className="h-3.5 w-3.5" /> CIDR Subnet
           </button>
         </div>
 
@@ -672,6 +761,591 @@ export function HackerToolsModal({
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 5: HASH INSPECTOR & LIVE HASHER */}
+          {activeTab === "hashes" && (
+            <div className="space-y-6">
+              {/* Section 1: Hash Identifier */}
+              <div className="rounded-xl border border-border/70 bg-slate-900/40 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200">
+                      Hash Identifier & Format Analyzer
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Detect hash algorithm by structure, character set, length and signatures
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => setHashInput("5f4dcc3b5aa765d61d8327deb882cf99")}
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      MD5
+                    </button>
+                    <button
+                      onClick={() =>
+                        setHashInput("$2b$12$e868N305S8i0vN46261L2.S264024222047k/Jm2")
+                      }
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      bcrypt
+                    </button>
+                    <button
+                      onClick={() =>
+                        setHashInput(
+                          "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+                        )
+                      }
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      SHA-256
+                    </button>
+                    <button
+                      onClick={() =>
+                        setHashInput(
+                          "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RdescudvJCsgTVqlKIZrpA"
+                        )
+                      }
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      Argon2
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <input
+                    value={hashInput}
+                    onChange={(e) => setHashInput(e.target.value)}
+                    placeholder="Paste any hash to identify (e.g. MD5, SHA-256, bcrypt, NTLM)..."
+                    className="w-full rounded-lg border border-border bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-emerald-500"
+                  />
+
+                  <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                    <span>
+                      Length: <strong className="text-slate-200">{hashInput.trim().length}</strong> chars
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Hexadecimal:{" "}
+                      <strong className="text-slate-200">
+                        {/^[a-fA-F0-9]+$/.test(hashInput.trim()) ? "Yes" : "No"}
+                      </strong>
+                    </span>
+                  </div>
+
+                  {matchedHashes.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border/80 bg-slate-950/40 p-4 text-center text-xs text-slate-500">
+                      No standard cryptographic or password hash format identified for this string.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {matchedHashes.map((match, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start justify-between rounded-lg border border-border/60 bg-slate-950/70 p-3"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-emerald-400">
+                                {match.name}
+                              </span>
+                              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                                {match.category}
+                              </span>
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                  match.confidence === "High"
+                                    ? "bg-emerald-500/20 text-emerald-300"
+                                    : "bg-amber-500/20 text-amber-300"
+                                }`}
+                              >
+                                {match.confidence} Confidence
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              {match.description}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => copyText(match.name, `hash-name-${i}`)}
+                            className="flex shrink-0 items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-700"
+                          >
+                            {copiedKey === `hash-name-${i}` ? (
+                              <Check className="h-3 w-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                            Copy Type
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 2: Live Multi-Hash Generator */}
+              <div className="rounded-xl border border-border/70 bg-slate-900/40 p-4">
+                <div className="mb-3">
+                  <h3 className="text-xs font-bold text-slate-200">
+                    Live Client-Side Hasher
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Real-time cryptographic hash generation using native browser Web Crypto API
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                    Plaintext to Hash
+                  </label>
+                  <input
+                    value={hashLiveText}
+                    onChange={(e) => setHashLiveText(e.target.value)}
+                    placeholder="Enter string to hash..."
+                    className="w-full rounded-lg border border-border bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    { label: "MD5 (128-bit)", hash: computedHashes.md5 },
+                    { label: "SHA-1 (160-bit)", hash: computedHashes.sha1 },
+                    { label: "SHA-256 (256-bit)", hash: computedHashes.sha256 },
+                    { label: "SHA-512 (512-bit)", hash: computedHashes.sha512 },
+                  ].map((h, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-1 rounded-lg border border-border/60 bg-slate-950 p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-bold text-emerald-400">
+                          {h.label}
+                        </span>
+                        <code className="mt-0.5 block truncate font-mono text-xs text-amber-300 select-all">
+                          {h.hash || "Computing..."}
+                        </code>
+                      </div>
+                      <button
+                        onClick={() => copyText(h.hash, `live-hash-${i}`)}
+                        className="flex shrink-0 items-center gap-1 self-start rounded border border-border bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 sm:self-center"
+                      >
+                        {copiedKey === `live-hash-${i}` ? (
+                          <Check className="h-3 w-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        Copy
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: URL & PARAMETER STUDIO */}
+          {activeTab === "url" && (
+            <div className="space-y-5">
+              {/* URL Input */}
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-200">
+                    Target URL to Deconstruct & Inspect
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() =>
+                        setUrlInput(
+                          "https://api.target.com/v1/auth?client_id=sec_109&redirect_uri=https%3A%2F%2Fpartner.com%2Fcallback&scope=read+write&state=xyz987#token"
+                        )
+                      }
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      OAuth URL
+                    </button>
+                    <button
+                      onClick={() =>
+                        setUrlInput(
+                          "http://internal.service.corp:8080/admin/data?export=csv&filter=all&debug=1&user_id=1337"
+                        )
+                      }
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      Internal API
+                    </button>
+                  </div>
+                </div>
+                <input
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="Paste URL (e.g. https://target.com/api?id=123)..."
+                  className="w-full rounded-lg border border-border bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {!parsedUrl.valid ? (
+                <div className="rounded-lg border border-dashed border-rose-500/40 bg-rose-500/5 p-4 text-center text-xs text-rose-300">
+                  {parsedUrl.error || "Invalid URL format."}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Components Row */}
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-lg border border-border/70 bg-slate-900/60 p-2.5">
+                      <p className="text-[10px] font-medium text-slate-500 uppercase">Protocol</p>
+                      <p className="mt-0.5 font-mono text-xs font-bold text-emerald-400">
+                        {parsedUrl.protocol}://
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-slate-900/60 p-2.5">
+                      <p className="text-[10px] font-medium text-slate-500 uppercase">Hostname & Port</p>
+                      <p className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-200">
+                        {parsedUrl.hostname}:{parsedUrl.port}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-slate-900/60 p-2.5">
+                      <p className="text-[10px] font-medium text-slate-500 uppercase">Endpoint Path</p>
+                      <p className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-200">
+                        {parsedUrl.pathname || "/"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-slate-900/60 p-2.5">
+                      <p className="text-[10px] font-medium text-slate-500 uppercase">Fragment / Hash</p>
+                      <p className="mt-0.5 truncate font-mono text-xs text-slate-400">
+                        {parsedUrl.hash || "(none)"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Defanged Section for Reports */}
+                  <div className="rounded-lg border border-border/70 bg-slate-900/40 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300">
+                        Safe Defanged URL for Reports
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => copyText(defangString(urlInput), "defanged-url")}
+                          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-700"
+                        >
+                          {copiedKey === "defanged-url" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          Copy Defanged
+                        </button>
+                        <button
+                          onClick={() => copyText(refangString(urlInput), "refanged-url")}
+                          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-700"
+                        >
+                          {copiedKey === "refanged-url" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          Copy Refanged
+                        </button>
+                      </div>
+                    </div>
+                    <code className="block rounded bg-slate-950 p-2 font-mono text-xs text-emerald-300/90 break-all select-all">
+                      {defangString(urlInput)}
+                    </code>
+                  </div>
+
+                  {/* Query Parameters & JSON Converter */}
+                  <div className="rounded-lg border border-border/70 bg-slate-900/40 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-200">
+                          Query Parameters ({parsedUrl.params.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Inspect parameter pairs and convert GET query into POST JSON payload
+                        </p>
+                      </div>
+                      {parsedUrl.params.length > 0 && (
+                        <button
+                          onClick={() => copyText(jsonParams, "params-json")}
+                          className="flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-900/40"
+                        >
+                          {copiedKey === "params-json" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Code2 className="h-3 w-3 text-emerald-400" />
+                          )}
+                          Copy as JSON Body
+                        </button>
+                      )}
+                    </div>
+
+                    {parsedUrl.params.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic">No query parameters found in this URL.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="max-h-48 overflow-y-auto rounded border border-border/60 bg-slate-950">
+                          <table className="w-full text-left text-xs">
+                            <thead className="border-b border-border bg-slate-900/80 text-[10px] font-semibold text-slate-400 uppercase">
+                              <tr>
+                                <th className="px-3 py-1.5">Parameter Key</th>
+                                <th className="px-3 py-1.5">Value</th>
+                                <th className="px-3 py-1.5 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/40 font-mono">
+                              {parsedUrl.params.map((p, idx) => (
+                                <tr key={idx} className="hover:bg-white/5">
+                                  <td className="px-3 py-1.5 font-bold text-amber-300">{p.key}</td>
+                                  <td className="px-3 py-1.5 text-slate-300 break-all">{p.value}</td>
+                                  <td className="px-3 py-1.5 text-right">
+                                    <button
+                                      onClick={() => copyText(p.value, `param-val-${idx}`)}
+                                      className="rounded p-1 text-slate-400 hover:text-slate-200"
+                                      title="Copy value"
+                                    >
+                                      {copiedKey === `param-val-${idx}` ? (
+                                        <Check className="h-3 w-3 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* JSON preview */}
+                        <div>
+                          <p className="mb-1 text-[11px] font-medium text-slate-400">
+                            Converted JSON Request Payload:
+                          </p>
+                          <pre className="max-h-36 overflow-x-auto rounded bg-slate-950 p-2.5 font-mono text-xs text-slate-300 border border-border/60">
+                            {jsonParams}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 7: CIDR & SUBNET CALCULATOR */}
+          {activeTab === "subnet" && (
+            <div className="space-y-5">
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200">
+                      IPv4 CIDR & Subnet Range Calculator
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Calculate network boundaries, broadcast addresses, and usable host counts for scope planning
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => setSubnetInput("192.168.1.0/24")}
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      /24 (254 hosts)
+                    </button>
+                    <button
+                      onClick={() => setSubnetInput("10.0.0.0/16")}
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      /16 (65k hosts)
+                    </button>
+                    <button
+                      onClick={() => setSubnetInput("172.16.0.0/20")}
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      /20 (Cloud VPC)
+                    </button>
+                    <button
+                      onClick={() => setSubnetInput("127.0.0.1/8")}
+                      className="rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      Loopback /8
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  value={subnetInput}
+                  onChange={(e) => setSubnetInput(e.target.value)}
+                  placeholder="Enter IPv4 CIDR (e.g. 192.168.1.100/24 or 10.0.0.1/16)..."
+                  className="w-full rounded-lg border border-border bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {!subnetResult.valid ? (
+                <div className="rounded-lg border border-dashed border-rose-500/40 bg-rose-500/5 p-4 text-center text-xs text-rose-300">
+                  {subnetResult.error || "Invalid CIDR input."}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Top Stats Cards */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-border/70 bg-slate-900/60 p-3">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Usable Hosts
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-emerald-400">
+                        {subnetResult.usableHosts.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        Total: {subnetResult.totalHosts.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-border/70 bg-slate-900/60 p-3">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Subnet Mask
+                      </p>
+                      <p className="mt-1 font-mono text-sm font-bold text-slate-200">
+                        {subnetResult.subnetMask}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        Prefix: /{subnetResult.prefix}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-border/70 bg-slate-900/60 p-3">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Network ID
+                      </p>
+                      <p className="mt-1 font-mono text-sm font-bold text-amber-300 truncate">
+                        {subnetResult.networkAddress}
+                      </p>
+                      <p className="text-[10px] text-slate-500">Routing Base</p>
+                    </div>
+
+                    <div className="rounded-xl border border-border/70 bg-slate-900/60 p-3">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Broadcast IP
+                      </p>
+                      <p className="mt-1 font-mono text-sm font-bold text-slate-200 truncate">
+                        {subnetResult.broadcastAddress}
+                      </p>
+                      <p className="text-[10px] text-slate-500">Broadcast Target</p>
+                    </div>
+                  </div>
+
+                  {/* Range and Scope details */}
+                  <div className="rounded-xl border border-border/70 bg-slate-900/40 p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-200">Subnet Specification</h4>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-xs">
+                      <div className="flex items-center justify-between rounded bg-slate-950 p-2">
+                        <span className="text-slate-400">First Usable Host:</span>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {subnetResult.firstUsableIp}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-slate-950 p-2">
+                        <span className="text-slate-400">Last Usable Host:</span>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {subnetResult.lastUsableIp}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-slate-950 p-2">
+                        <span className="text-slate-400">Wildcard Mask:</span>
+                        <span className="font-mono text-slate-200">
+                          {subnetResult.wildcardMask}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded bg-slate-950 p-2">
+                        <span className="text-slate-400">Network Scope:</span>
+                        <span
+                          className={`font-semibold ${
+                            subnetResult.isPrivate ? "text-emerald-400" : "text-blue-400"
+                          }`}
+                        >
+                          {subnetResult.isPrivate ? "RFC 1918 Private / Loopback" : "Public Internet"} (Class {subnetResult.ipClass})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security Testing & Recon Formats */}
+                  <div className="rounded-xl border border-border/70 bg-slate-900/40 p-4">
+                    <h4 className="text-xs font-bold text-slate-200 mb-2">
+                      Target Formats & Obfuscation
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between rounded bg-slate-950 px-3 py-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] text-slate-400">Nmap Scope String:</span>
+                          <code className="ml-2 font-mono font-bold text-amber-300">
+                            {subnetResult.networkAddress}/{subnetResult.prefix}
+                          </code>
+                        </div>
+                        <button
+                          onClick={() =>
+                            copyText(`${subnetResult.networkAddress}/${subnetResult.prefix}`, "nmap-cidr")
+                          }
+                          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                        >
+                          {copiedKey === "nmap-cidr" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          Copy
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded bg-slate-950 px-3 py-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] text-slate-400">Dword Decimal Notation:</span>
+                          <code className="ml-2 font-mono text-slate-200">
+                            {subnetResult.dwordIp}
+                          </code>
+                        </div>
+                        <button
+                          onClick={() => copyText(subnetResult.dwordIp, "dword-ip")}
+                          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                        >
+                          {copiedKey === "dword-ip" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          Copy
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded bg-slate-950 px-3 py-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] text-slate-400">Hexadecimal Notation:</span>
+                          <code className="ml-2 font-mono text-slate-200">
+                            {subnetResult.hexIp}
+                          </code>
+                        </div>
+                        <button
+                          onClick={() => copyText(subnetResult.hexIp, "hex-ip")}
+                          className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
+                        >
+                          {copiedKey === "hex-ip" ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
