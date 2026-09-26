@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   X,
   FlaskConical,
-  Target,
   Copy,
   Check,
   Wrench,
@@ -33,13 +32,13 @@ export function TestingMethodsModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"methods" | "usecases" | "payloads">("methods");
+  const [activeTab, setActiveTab] = useState<"methods" | "payloads">("methods");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedMethodIdx, setSelectedMethodIdx] = useState(0);
 
   if (!open) return null;
 
-  const { methods, useCases } = getItemPlaybook(item, category, domain);
+  const { methods } = getItemPlaybook(item, category, domain);
 
   async function copyText(text: string, key: string) {
     await navigator.clipboard.writeText(text);
@@ -90,16 +89,6 @@ export function TestingMethodsModal({
               }`}
             >
               <FlaskConical className="h-3.5 w-3.5" /> Testing Methods ({methods.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("usecases")}
-              className={`flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-xs font-semibold transition ${
-                activeTab === "usecases"
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Target className="h-3.5 w-3.5" /> Bug Bounty Use Cases ({useCases.length})
             </button>
             <button
               onClick={() => setActiveTab("payloads")}
@@ -234,49 +223,7 @@ export function TestingMethodsModal({
             </div>
           )}
 
-          {/* TAB 2: REAL-WORLD USE CASES & ATTACK SCENARIOS */}
-          {activeTab === "usecases" && (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-400">
-                Where does this vulnerability commonly hide in real bug bounty targets? Test these specific business workflows:
-              </p>
-
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                {useCases.map((uc, uIdx) => (
-                  <div
-                    key={uIdx}
-                    className="flex flex-col justify-between rounded-xl border border-border/80 bg-slate-900/50 p-4 shadow-sm"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="flex h-5 w-5 items-center justify-center rounded bg-indigo-500/20 text-indigo-300 text-[11px] font-bold">
-                          {uIdx + 1}
-                        </span>
-                        <h3 className="text-xs font-bold text-slate-200">{uc.title}</h3>
-                      </div>
-
-                      {uc.targetContext && (
-                        <p className="text-[11px] text-slate-400 mb-2">
-                          <span className="text-slate-500 font-medium">Context:</span> {uc.targetContext}
-                        </p>
-                      )}
-
-                      <p className="text-xs text-slate-300 leading-relaxed">{uc.description}</p>
-                    </div>
-
-                    {uc.impactExample && (
-                      <div className="mt-3 rounded border border-border/50 bg-slate-950/70 p-2 text-[11px]">
-                        <span className="font-semibold text-rose-400">Typical Impact: </span>
-                        <span className="text-slate-400">{uc.impactExample}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: PAYLOADS & CHEATSHEET */}
+          {/* TAB 2: PAYLOADS & CHEATSHEET */}
           {activeTab === "payloads" && (
             <div className="space-y-4">
               {/* How-to summary */}

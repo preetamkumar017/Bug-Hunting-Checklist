@@ -130,7 +130,7 @@ export function ChecklistItemRow({
                 <div className="flex items-center gap-2 text-emerald-300">
                   <FlaskConical className="h-4 w-4 shrink-0 text-emerald-400" />
                   <span className="text-xs">
-                    Multiple testing methods &amp; real-world bug bounty use cases available.
+                    Multiple testing methodologies &amp; tool playbooks available.
                   </span>
                 </div>
                 <button
