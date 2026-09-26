@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X } from "lucide-react";
+import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X, FlaskConical } from "lucide-react";
 import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus } from "../types/checklist";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusSelect } from "./StatusSelect";
 import { CommandHelpModal } from "./CommandHelpModal";
+import { TestingMethodsModal } from "./TestingMethodsModal";
 import { CvssPicker } from "./CvssPicker";
 import { findReferencedCommands } from "../lib/commandRef";
 import { DEFAULT_CVSS, calcCvss, type CvssMetrics } from "../lib/cvss";
@@ -36,6 +37,7 @@ export function ChecklistItemRow({
   const [findingCvss, setFindingCvss] = useState<CvssMetrics>(DEFAULT_CVSS);
   const [findingScreenshots, setFindingScreenshots] = useState<string[]>([]);
   const [helpCommands, setHelpCommands] = useState<string[] | null>(null);
+  const [showPlaybook, setShowPlaybook] = useState(false);
 
   const profile = useActiveProfile();
   const setItemStatus = useChecklistStore((s) => s.setItemStatus);
@@ -107,13 +109,38 @@ export function ChecklistItemRow({
             </p>
           </button>
 
-          <div className="mt-2 flex items-center gap-2 sm:hidden">
+          <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
             <SeverityBadge severity={item.severity} />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPlaybook(true);
+              }}
+              className="flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400"
+            >
+              <FlaskConical className="h-3 w-3" />
+              Playbook
+            </button>
             <StatusSelect value={status} onChange={handleStatusChange} severity={item.severity} />
           </div>
 
           {open && (
-            <div className="mt-3 space-y-2 rounded-md bg-black/20 p-3 text-xs text-slate-400">
+            <div className="mt-3 space-y-2.5 rounded-md bg-black/20 p-3 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2.5">
+                <div className="flex items-center gap-2 text-emerald-300">
+                  <FlaskConical className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="text-xs">
+                    Multiple testing methods &amp; real-world bug bounty use cases available.
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowPlaybook(true)}
+                  className="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow hover:bg-emerald-500 transition"
+                >
+                  View Playbook
+                </button>
+              </div>
+
               <div>
                 <span className="font-semibold text-slate-300">How: </span>
                 {item.how}
@@ -259,11 +286,33 @@ export function ChecklistItemRow({
         </div>
 
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPlaybook(true);
+            }}
+            title="Open Testing Methods & Real-World Use Cases Playbook"
+            className="flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition"
+          >
+            <FlaskConical className="h-3.5 w-3.5" />
+            <span>Methods</span>
+          </button>
           <SeverityBadge severity={item.severity} />
           <StatusSelect value={status} onChange={handleStatusChange} severity={item.severity} />
         </div>
       </div>
     </div>
+
+    {showPlaybook && (
+      <TestingMethodsModal
+        item={item}
+        category={category}
+        domain={domain}
+        itemIndex={itemIndex}
+        open={showPlaybook}
+        onClose={() => setShowPlaybook(false)}
+      />
+    )}
     </>
   );
 }

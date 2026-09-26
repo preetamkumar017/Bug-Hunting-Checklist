@@ -17,6 +17,23 @@ export interface ExpectedResponse {
   safe: string; // response/behavior that indicates the target is NOT vulnerable (properly protected)
 }
 
+export interface TestingMethod {
+  id?: string;
+  title: string;
+  scenario?: string; // Where this method applies
+  tools?: string[]; // e.g. ["Burp Suite", "Caido", "Curl", "DevTools"]
+  steps: string[]; // Step-by-step testing instructions
+  payloads?: string[];
+  tips?: string;
+}
+
+export interface UseCaseScenario {
+  title: string;
+  description: string;
+  targetContext?: string; // e.g. "User Settings, Invoices, Reset Password, API Webhooks"
+  impactExample?: string; // Realistic impact description
+}
+
 export interface ChecklistItem {
   id: string;
   text: string; // what to test (short)
@@ -28,6 +45,8 @@ export interface ChecklistItem {
   severity: Severity;
   tags?: ItemTags;
   isCustom?: boolean;
+  methods?: TestingMethod[]; // Multiple testing methods
+  useCases?: UseCaseScenario[]; // Real-world use cases & attack scenarios
 }
 
 export interface ChecklistCategory {
