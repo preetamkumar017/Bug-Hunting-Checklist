@@ -2,7 +2,7 @@ export type Severity = "critical" | "high" | "medium" | "low" | "info";
 
 export type ItemStatus = "not_tested" | "clean" | "vulnerable" | "blocked";
 
-export type Domain = "web" | "api" | "cloud" | "ai" | "android" | "ios" | "thick_client" | "web3";
+export type Domain = "web" | "api" | "cloud" | "ai" | "android" | "ios" | "thick_client" | "web3" | "network_ad" | "binary_re" | "soc_forensics";
 
 /** Tags used by the suggestion engine to link items to detected tech / related deep-dive checks. */
 export interface ItemTags {

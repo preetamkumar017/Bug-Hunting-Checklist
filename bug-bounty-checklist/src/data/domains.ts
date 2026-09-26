@@ -7,12 +7,18 @@ import { androidCategories } from "./android";
 import { iosCategories } from "./ios";
 import { thickClientCategories } from "./thickclient";
 import { web3Categories } from "./web3";
+import { networkAdCategories } from "./networkAd";
+import { binarySafetyCategories } from "./binarySafety";
+import { socForensicsCategories } from "./socForensics";
 
 export const domains: ChecklistDomain[] = [
   { id: "web", label: "Web", emoji: "🌐", categories: webCategories },
   { id: "api", label: "API", emoji: "🔌", categories: apiCategories },
   { id: "cloud", label: "Cloud & CI/CD", emoji: "☁️", categories: cloudCategories },
   { id: "ai", label: "AI & LLM", emoji: "🤖", categories: aiCategories },
+  { id: "network_ad", label: "Network & Active Directory", emoji: "🏢", categories: networkAdCategories },
+  { id: "binary_re", label: "Binary & Memory Safety", emoji: "🧩", categories: binarySafetyCategories },
+  { id: "soc_forensics", label: "SOC & Threat Hunting", emoji: "🛡️", categories: socForensicsCategories },
   { id: "android", label: "Android", emoji: "📱", categories: androidCategories },
   { id: "ios", label: "iOS", emoji: "🍏", categories: iosCategories },
   { id: "thick_client", label: "Thick Client", emoji: "🖥️", categories: thickClientCategories },
