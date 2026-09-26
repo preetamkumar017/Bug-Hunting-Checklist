@@ -292,6 +292,7 @@ export default function App() {
                     key={category.id}
                     category={category}
                     domain={domain}
+                    index={idx + 1}
                     defaultOpen={idx === 0 || statusFilter !== "all"}
                   />
                 ))

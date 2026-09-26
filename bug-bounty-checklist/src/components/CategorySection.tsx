@@ -9,10 +9,12 @@ import { AddCustomItemModal } from "./AddCustomItemModal";
 export function CategorySection({
   category,
   domain,
+  index,
   defaultOpen = false,
 }: {
   category: ChecklistCategory;
   domain: ChecklistDomain;
+  index?: number;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -52,6 +54,11 @@ export function CategorySection({
             <ChevronRight
               className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
             />
+            {index !== undefined && (
+              <span className="shrink-0 font-mono text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                {String(index).padStart(2, "0")}
+              </span>
+            )}
             <span className="shrink-0">{category.emoji || "📋"}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -59,7 +66,7 @@ export function CategorySection({
                   {category.name}
                 </span>
                 {category.isCustom && (
-                  <span className="rounded bg-indigo-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-400">
+                  <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400">
                     Custom
                   </span>
                 )}
@@ -145,12 +152,13 @@ export function CategorySection({
                 No items in this category. Click &quot;+&quot; to add a check.
               </div>
             ) : (
-              category.items.map((item) => (
+              category.items.map((item, itemIdx) => (
                 <ChecklistItemRow
                   key={item.id}
                   item={item}
                   category={category}
                   domain={domain}
+                  itemIndex={itemIdx + 1}
                 />
               ))
             )}

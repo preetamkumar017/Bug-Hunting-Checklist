@@ -22,10 +22,12 @@ export function ChecklistItemRow({
   item,
   category,
   domain,
+  itemIndex,
 }: {
   item: ChecklistItem;
   category: ChecklistCategory;
   domain: ChecklistDomain;
+  itemIndex?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [showFindingForm, setShowFindingForm] = useState(false);
@@ -95,7 +97,14 @@ export function ChecklistItemRow({
 
         <div className="min-w-0 flex-1">
           <button onClick={() => setOpen((o) => !o)} className="block w-full text-left">
-            <p className="text-sm text-slate-200">{item.text}</p>
+            <p className="text-sm text-slate-200">
+              {itemIndex !== undefined && (
+                <span className="font-mono text-xs font-semibold text-slate-500 mr-1.5">
+                  {itemIndex}.
+                </span>
+              )}
+              {item.text}
+            </p>
           </button>
 
           <div className="mt-2 flex items-center gap-2 sm:hidden">
