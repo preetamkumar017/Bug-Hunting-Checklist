@@ -70,14 +70,14 @@ export const androidCategories: ChecklistCategory[] = [
       {
         id: "android-static-5",
         text: "Check allowBackup flag",
-        how: "If android:allowBackup is true, app data can be extracted via adb backup without root, potentially leaking sensitive local storage.",
+        how: "If android:allowBackup is true, app data can be extracted via adb backup without root, potentially leaking sensitive local storage. (Note: on Android 12+ / API 31+, adb backup defaults to disabled for release builds).",
         payloads: ["adb backup -f backup.ab <package>"],
         payloadNotes: [
-          "Triggers an adb backup of the app's data: -f backup.ab sets the output archive filename, and <package> is the target app's package name whose app-private data gets included if android:allowBackup permits it.",
+          "Triggers an adb backup of the app's data: -f backup.ab sets the output archive filename, and <package> is the target app's package name whose app-private data gets included if android:allowBackup permits it. On Android 12+, adb backup is supported on debuggable or emulator builds.",
         ],
         expectedResponse: {
-          vulnerable: "android:allowBackup is true (or unset, defaulting to true) and adb backup produces a non-empty archive containing app data.",
-          safe: "allowBackup is explicitly false, and adb backup returns an empty/failed backup for the package.",
+          vulnerable: "android:allowBackup is true (or unset, defaulting to true on API < 31) and adb backup produces a non-empty archive containing app data.",
+          safe: "allowBackup is explicitly false, or targetSdk is 31+ without debuggable, and adb backup returns an empty/failed backup for the package.",
         },
         severity: "medium",
       },
@@ -377,14 +377,17 @@ export const androidCategories: ChecklistCategory[] = [
       {
         id: "android-storage-5",
         text: "Check for sensitive data cached in WebView storage",
-        how: "Inspect WebView's local storage/cache database for cached authenticated content or tokens.",
-        payloads: ["adb shell run-as <package> sqlite3 app_webview/Default/Local\\ Storage/leveldb/*.log '.dump'", "adb shell run-as <package> find app_webview/ -iname '*.db'"],
+        how: "Inspect WebView's local storage LevelDB files and SQLite cookies database for cached authenticated content or tokens.",
+        payloads: [
+          "adb shell run-as <package> strings 'app_webview/Default/Local Storage/leveldb/'*.log | grep -iE 'token|auth|key|secret'",
+          "adb shell run-as <package> sqlite3 app_webview/Default/Cookies \"SELECT host_key, name, value FROM cookies;\"",
+        ],
         payloadNotes: [
-          "Dumps the WebView's LevelDB log files as the app's user: run-as <package> executes as that UID, and sqlite3 ... '.dump' opens the LevelDB log file(s) under the WebView's Local Storage path and prints their contents in SQL-dump form.",
-          "Locates SQLite databases in the WebView data directory: find app_webview/ -iname '*.db' searches that directory case-insensitively for any file ending in .db.",
+          "Extracts printable strings from WebView's LevelDB log files: LevelDB stores HTML5 localStorage key-values, and strings filters human-readable text while grep isolates authentication tokens, keys, and session parameters.",
+          "Dumps stored session cookies from the WebView SQLite database: queries the host_key, name, and value columns from the cookies table to inspect whether sensitive session tokens or persistent credentials are saved unencrypted.",
         ],
         expectedResponse: {
-          vulnerable: "The WebView's local storage/cache database contains cached authenticated page content or session tokens in plaintext.",
+          vulnerable: "The WebView's local storage LevelDB or Cookies database contains cached authenticated page content or session tokens in plaintext.",
           safe: "WebView storage contains no sensitive cached content, or sensitive pages are excluded from caching/storage.",
         },
         severity: "medium",
