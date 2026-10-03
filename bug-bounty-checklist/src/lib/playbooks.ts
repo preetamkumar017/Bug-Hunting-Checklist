@@ -51,14 +51,16 @@ function generateMethodsForCategory(
       {
         title: "Method 1: Multi-Source Passive OSINT Aggregation",
         scenario: "Harvesting subdomains and exposed assets without sending direct packets to the target.",
-        tools: ["subfinder", "amass", "crt.sh"],
+        tools: ["subfinder", "amass", "crt.sh", "crt.name"],
         steps: [
           "Run subfinder across all configured passive API sources: `subfinder -d target.com -all -o passive_subs.txt`.",
-          "Query Certificate Transparency logs for wildcards: `curl -s 'https://crt.sh/?q=%25.target.com&output=json' | jq -r '.[].name_value' | sed 's/\\*\\.//g' | sort -u`.",
+          "Query fast Certificate Transparency logs via crt.name: `curl -s 'https://crt.name/v1/search?apex=target.com' | sort -u`.",
+          "Query crt.sh for wildcards and JSON extraction: `curl -s 'https://crt.sh/?q=%25.target.com&output=json' | jq -r '.[].name_value' | sed 's/\\*\\.//g' | sort -u`.",
           "Combine passive lists and deduplicate to form the initial seed domain inventory.",
         ],
         payloads: [
           "subfinder -d target.com -all -o subs.txt",
+          "curl -s 'https://crt.name/v1/search?apex=target.com' | sort -u",
           "curl -s 'https://crt.sh/?q=%25.target.com&output=json' | jq -r '.[].name_value' | sort -u",
         ],
         tips: "Configure free API keys in subfinder (Chaos, SecurityTrails, Shodan, Censys) to 3x your passive discovery yield.",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X, FlaskConical } from "lucide-react";
+import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X, FlaskConical, Copy, Check } from "lucide-react";
 import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus } from "../types/checklist";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusSelect } from "./StatusSelect";
@@ -38,6 +38,17 @@ export function ChecklistItemRow({
   const [findingScreenshots, setFindingScreenshots] = useState<string[]>([]);
   const [helpCommands, setHelpCommands] = useState<string[] | null>(null);
   const [showPlaybook, setShowPlaybook] = useState(false);
+  const [copiedPayloadIdx, setCopiedPayloadIdx] = useState<number | null>(null);
+
+  async function copyPayload(text: string, idx: number) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPayloadIdx(idx);
+      setTimeout(() => setCopiedPayloadIdx(null), 1500);
+    } catch {
+      // ignore
+    }
+  }
 
   const profile = useActiveProfile();
   const setItemStatus = useChecklistStore((s) => s.setItemStatus);
@@ -157,10 +168,34 @@ export function ChecklistItemRow({
                             <code className="block flex-1 whitespace-pre-wrap rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
                               {p}
                             </code>
+                            {p.startsWith("http://") || p.startsWith("https://") ? (
+                              <a
+                                href={p}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-0.5 shrink-0 rounded p-1 text-slate-400 hover:text-blue-400 hover:bg-slate-800 transition"
+                                title="Open URL in new tab"
+                                aria-label="Open URL in new tab"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            ) : null}
+                            <button
+                              onClick={() => copyPayload(p, i)}
+                              className="mt-0.5 shrink-0 rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+                              title="Copy payload"
+                              aria-label="Copy payload"
+                            >
+                              {copiedPayloadIdx === i ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                             {refs.length > 0 && (
                               <button
                                 onClick={() => setHelpCommands(refs)}
-                                className="mt-0.5 shrink-0 text-slate-500 hover:text-slate-300"
+                                className="mt-0.5 shrink-0 rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
                                 title={`Command reference: ${refs.join(", ")}`}
                                 aria-label="Show command reference"
                               >

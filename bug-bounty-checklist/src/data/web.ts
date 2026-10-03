@@ -30,12 +30,37 @@ export const webCategories: ChecklistCategory[] = [
         id: "web-recon-sub-2",
         text: "Query crt.sh certificate transparency logs",
         how: "Search crt.sh for the domain to find subdomains issued via public TLS certs, including forgotten/staging hosts.",
-        payloads: ["https://crt.sh/?q=%25.example.com&output=json"],
-        payloadNotes: ["Queries crt.sh's certificate transparency API: the q parameter (%25.example.com, i.e. %.example.com) wildcard-matches any hostname issued under example.com, and output=json returns the matches as structured JSON instead of an HTML table."],
+        payloads: [
+          "https://crt.sh/?q=%25.example.com&output=json",
+          "https://crt.name/v1/search?apex=example.com",
+        ],
+        payloadNotes: [
+          "Queries crt.sh's certificate transparency API: the q parameter (%25.example.com, i.e. %.example.com) wildcard-matches any hostname issued under example.com, and output=json returns the matches as structured JSON instead of an HTML table.",
+          "Fast Certificate Transparency API alternative: https://crt.name/v1/search?apex= queries CT logs and streams subdomains directly without crt.sh DB timeouts.",
+        ],
         expectedResponse: {
           vulnerable: "crt.sh returns certificate entries for internal, staging, or dev hostnames that were never intended to be public.",
           safe: "crt.sh only shows certificates for the organization's known, already-public hostnames.",
         },
+        severity: "info",
+      },
+      {
+        id: "web-recon-sub-crtname",
+        text: "Query crt.name fast Certificate Transparency API",
+        how: "Query crt.name (https://crt.name/v1/search?apex=) for high-speed, reliable Certificate Transparency log extraction without crt.sh timeouts or rate limits.",
+        payloads: [
+          "https://crt.name/v1/search?apex=example.com",
+          "curl -s \"https://crt.name/v1/search?apex=example.com\" | sort -u",
+        ],
+        payloadNotes: [
+          "Fast CT log search API: the apex parameter (https://crt.name/v1/search?apex=example.com) queries all issued TLS certificates and streams discovered subdomains in clean newline-delimited plaintext.",
+          "Fast curl one-liner to fetch all subdomains from crt.name directly into your recon pipeline without needing jq.",
+        ],
+        expectedResponse: {
+          vulnerable: "crt.name returns certificate entries for internal, staging, admin, or pre-production hostnames that were never intended to be publicly exposed.",
+          safe: "crt.name only returns certificates for the organization's expected and hardened public infrastructure.",
+        },
+        reference: "https://crt.name/v1/search?apex=",
         severity: "info",
       },
       {
