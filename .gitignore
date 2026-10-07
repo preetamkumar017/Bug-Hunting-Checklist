@@ -2,6 +2,7 @@
 # evidence, and other client-confidential material. Must never be pushed to the public
 # Bug-Hunting-Checklist repo.
 targets/
+findings/
 
 # Local workspace notes and generated log/checklist mirrors — engagement-specific,
 # not meant for the public repo.
