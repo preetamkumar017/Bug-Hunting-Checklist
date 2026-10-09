@@ -46,6 +46,7 @@ export function hexEncode(input: string): string {
 export function hexDecode(input: string): string {
   try {
     const clean = input.replace(/\s+/g, "");
+    if (!/^[0-9a-fA-F]*$/.test(clean)) return "Error: Invalid Hex input";
     if (clean.length % 2 !== 0) return "Error: Hex string length must be even";
     const bytes = new Uint8Array(clean.length / 2);
     for (let i = 0; i < clean.length; i += 2) {
@@ -76,6 +77,7 @@ export function htmlDecode(input: string): string {
 }
 
 export interface JwtParsed {
+  verified: false;
   header: object | string;
   payload: object | string;
   signature: string;
@@ -87,32 +89,42 @@ export interface JwtParsed {
 export function parseJwt(jwtString: string): JwtParsed | null {
   try {
     const parts = jwtString.trim().split(".");
-    if (parts.length < 2) return null;
+    if (parts.length !== 3 || !parts[0] || !parts[1] || parts.some(p => !/^[A-Za-z0-9_-]*$/.test(p) || p.length % 4 === 1)) return null;
 
     const base64UrlDecode = (str: string) => {
       let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
       while (b64.length % 4) b64 += "=";
-      return base64Decode(b64);
+      const binary = atob(b64);
+      if (btoa(binary) !== b64) throw new Error("Non-canonical base64url");
+      return new TextDecoder("utf-8", {fatal:true}).decode(Uint8Array.from(binary,c=>c.charCodeAt(0)));
     };
 
     const headerJson = JSON.parse(base64UrlDecode(parts[0]));
     const payloadJson = JSON.parse(base64UrlDecode(parts[1]));
+    if (!headerJson || typeof headerJson !== "object" || Array.isArray(headerJson) ||
+        !payloadJson || typeof payloadJson !== "object" || Array.isArray(payloadJson) ||
+        typeof headerJson.alg !== "string" || !headerJson.alg) return null;
+    if ((headerJson.alg === "none") !== (parts[2] === "")) return null;
+    for (const key of ["exp", "iat", "nbf"]) {
+      if (key in payloadJson && (typeof payloadJson[key] !== "number" || !Number.isFinite(payloadJson[key]))) return null;
+    }
 
     let isExpired: boolean | undefined;
     let expiresAt: string | undefined;
     let issuedAt: string | undefined;
 
-    if (payloadJson.exp && typeof payloadJson.exp === "number") {
+    if (typeof payloadJson.exp === "number") {
       const expDate = new Date(payloadJson.exp * 1000);
-      isExpired = expDate.getTime() < Date.now();
+      isExpired = payloadJson.exp <= Date.now() / 1000;
       expiresAt = expDate.toLocaleString();
     }
 
-    if (payloadJson.iat && typeof payloadJson.iat === "number") {
+    if (typeof payloadJson.iat === "number") {
       issuedAt = new Date(payloadJson.iat * 1000).toLocaleString();
     }
 
     return {
+      verified: false,
       header: headerJson,
       payload: payloadJson,
       signature: parts[2] || "",
@@ -131,14 +143,14 @@ export interface WafMutation {
   note: string;
 }
 
-export function generateWafMutations(input: string): WafMutation[] {
+export function generateWafMutations(input: string, context: "auto" | "sql" | "javascript" | "html" | "text" = "auto"): WafMutation[] {
   if (!input.trim()) return [];
 
   const mutations: WafMutation[] = [
     {
       technique: "Inline SQL Comments (Space substitution)",
       payload: input.replace(/\s+/g, "/**/"),
-      note: "Replaces spaces with /* */ to bypass WAFs filtering on whitespace delimiters.",
+      note: "SQL-only experiment: comments may replace SQL token separators. Can change string literals and breaks other languages; not a proven bypass.",
     },
     {
       technique: "Alternative Spacing (%09 Tab / %0a Newline)",
@@ -151,36 +163,34 @@ export function generateWafMutations(input: string): WafMutation[] {
         .split("")
         .map((c, i) => (i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()))
         .join(""),
-      note: "Defeats case-sensitive string matching rules (e.g. sElEcT, aLeRt).",
+      note: "Only suitable for case-insensitive tokens (such as some SQL keywords). JavaScript identifiers are case-sensitive: aLeRt is not alert. May change semantics.",
     },
     {
       technique: "Full URL Encoding",
-      payload: input
-        .split("")
-        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+      payload: Array.from(new TextEncoder().encode(input))
+        .map((b) => "%" + b.toString(16).padStart(2, "0"))
         .join(""),
-      note: "Encodes every single ASCII character into percent-hex representation.",
+      note: "Percent-encodes UTF-8 bytes. Only equivalent in a context that URL-decodes the value.",
     },
     {
       technique: "Double URL Encoding",
       payload: doubleUrlEncode(input),
-      note: "Bypasses reverse proxies that decode URL parameters once before forwarding to backend.",
+      note: "Requires two decoding passes to restore the input; not a guaranteed bypass.",
     },
     {
-      technique: "Null-Byte Injection (%00 prefix/mid)",
+      technique: "Null-byte whitespace substitution (destructive experiment)",
       payload: input.replace(/\s+/g, "%00"),
-      note: "Inserts null bytes into keywords to terminate C-based inspection filters prematurely.",
+      note: "Replaces whitespace with encoded NUL. Often rejected or changes parsing; does not preserve the original payload.",
     },
     {
       technique: "HTML Decimal Entity Encoding",
-      payload: input
-        .split("")
-        .map((c) => `&#${c.charCodeAt(0)};`)
+      payload: Array.from(input)
+        .map((c) => `&#${c.codePointAt(0)};`)
         .join(""),
-      note: "Useful in HTML attribute/tag contexts where the browser decodes HTML entities before JavaScript evaluation.",
+      note: "For HTML text/attribute value contexts only. Entities do not create markup delimiters and are not decoded inside script text.",
     },
     {
-      technique: "Unicode Overlong / Fullwidth Variant",
+      technique: "Unicode fullwidth variant (requires normalization)",
       payload: input
         .split("")
         .map((c) => {
@@ -194,5 +204,8 @@ export function generateWafMutations(input: string): WafMutation[] {
     },
   ];
 
-  return mutations;
+  const detected = context === "auto" ? /<|\b(?:alert|document|window|function|const|let)\b/.test(input) ? "javascript" : /\b(?:SELECT|UNION|AND|OR|INSERT|UPDATE)\b/i.test(input) ? "sql" : "text" : context;
+  // Never suggest case-changing JavaScript identifiers or SQL comments as
+  // equivalent JavaScript. Other transformations explicitly name their decoder.
+  return mutations.filter(m => detected === "sql" || !(m.technique.startsWith("Inline SQL") || m.technique === "Mixed / Alternating Case"));
 }

@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 // Ordered: Static Analysis -> Dynamic Analysis -> Data Storage -> Network -> IPC -> Reverse Eng Protection
 
@@ -194,9 +195,9 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-dynamic-1",
         text: "Intercept traffic with Frida + Burp (cert pinning bypass)",
         how: "Use a Frida script to bypass SSL pinning so Burp can intercept and modify app traffic.",
-        payloads: ["frida -U -f <package> -l ssl-pinning-bypass.js --no-pause", "objection -g <package> explore --startup-command 'android sslpinning disable'"],
+        payloads: ["frida -U -f <package> -l ssl-pinning-bypass.js", "objection -g <package> explore --startup-command 'android sslpinning disable'"],
         payloadNotes: [
-          "Launches the app under Frida with a pinning-bypass script: -U targets the USB-connected device, -f <package> spawns the app fresh by package name, -l ssl-pinning-bypass.js loads the hooking script that disables pinning checks, and --no-pause lets the process run immediately instead of waiting at the entry point.",
+          "Version-dependent fixture command: supply and review the actual script for this client's TLS stack. Modern frida-tools resumes spawned processes by default; successful instrumentation is test setup, not a TLS flaw.",
           "Uses Objection to attach and disable pinning: -g <package> attaches to the running app by package name, explore opens an interactive REPL session, and --startup-command 'android sslpinning disable' runs Objection's built-in SSL pinning bypass automatically on attach.",
         ],
         expectedResponse: {
@@ -209,10 +210,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-dynamic-2",
         text: "Test for root/jailbreak detection bypass",
         how: "Use Frida/Objection to hook and bypass root detection checks to test the app's behavior on a rooted device.",
-        payloads: ["objection -g <package> explore --startup-command 'android root disable'", "frida -U -f <package> -l root-detection-bypass.js --no-pause"],
+        payloads: ["objection -g <package> explore --startup-command 'android root disable'", "frida -U -f <package> -l root-detection-bypass.js"],
         payloadNotes: [
           "Attaches Objection and disables root detection: -g <package> targets the running app by package name, explore starts the interactive session, and --startup-command 'android root disable' runs Objection's built-in command that patches common root-detection checks.",
-          "Launches the app under Frida with a root-detection bypass: -U selects the USB device, -f <package> spawns the app by package name, -l root-detection-bypass.js loads the custom hooking script, and --no-pause resumes execution immediately.",
+          "Supply a reviewed, build-specific root-detection script on a disposable device. Modern frida-tools resumes spawned processes by default; a bypass is a resilience observation, not proof of unauthorized access.",
         ],
         expectedResponse: {
           vulnerable: "The app's root-restricted features become accessible on a rooted device once the detection hook is applied.",
@@ -224,9 +225,9 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-dynamic-3",
         text: "Hook and monitor runtime API calls for sensitive data leaks",
         how: "Trace calls to logging, crypto, and network functions at runtime to spot sensitive data mishandling.",
-        payloads: ["frida-trace -U -f <package> -j 'javax.crypto.Cipher.doFinal' -j 'android.util.Log.*'", "objection -g <package> explore --startup-command 'android hooking watch class_method javax.crypto.Cipher.doFinal --dump-args --dump-return'"],
+        payloads: ["frida-trace -U -f <package> -j 'javax.crypto.Cipher!doFinal' -j 'android.util.Log!*'", "objection -g <package> explore --startup-command 'android hooking watch class_method javax.crypto.Cipher.doFinal --dump-args --dump-return'"],
         payloadNotes: [
-          "Traces sensitive runtime calls: -U selects the USB device, -f <package> spawns the app by package name, and each -j flag adds a Java method glob to trace — javax.crypto.Cipher.doFinal for encryption/decryption calls and android.util.Log.* for every logging method — printing arguments and call sites as they fire.",
+          "Frida Java selectors use Class!method, here javax.crypto.Cipher!doFinal and android.util.Log!*. Inspect generated handlers and overloads; tracing alone does not guarantee every argument is dumped or prove a leak.",
           "Watches a specific method call via Objection: class_method javax.crypto.Cipher.doFinal names the fully-qualified method to hook, --dump-args prints the arguments passed to it, and --dump-return prints its return value each time it's invoked.",
         ],
         expectedResponse: {
@@ -296,10 +297,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-dynamic-8",
         text: "Test biometric authentication bypass",
         how: "Check if biometric prompt result is validated purely client-side, allowing bypass via hooking the callback.",
-        payloads: ["frida -U -f <package> -l biometric-bypass.js --no-pause  # hooks BiometricPrompt$AuthenticationCallback.onAuthenticationSucceeded", "objection -g <package> explore --startup-command 'android hooking watch class androidx.biometric.BiometricPrompt$AuthenticationCallback'"],
+        payloads: ["// Schematic: instrument the actual application's concrete biometric callback subclass and overload in a disposable build.", "// Compare genuine, cancelled and forced application-level success with the protected Keystore operation."],
         payloadNotes: [
-          "Hooks the biometric success callback with Frida: -U selects the USB device, -f <package> spawns the app by package name, -l biometric-bypass.js loads a script targeting BiometricPrompt$AuthenticationCallback.onAuthenticationSucceeded, and --no-pause resumes the app immediately so the hook can force that callback to fire without a genuine scan.",
-          "Watches the biometric callback class via Objection: watch class androidx.biometric.BiometricPrompt$AuthenticationCallback logs every invocation of that callback class's methods so testers can see how and when authentication success/failure is signaled to app code.",
+          "A base callback hook or a call to the original success callback does not manufacture authentication. A version-specific harness is required.",
+          "Verify the actual decrypt/sign or protected backend action, not only navigation to an unlocked UI.",
         ],
         expectedResponse: {
           vulnerable: "Hooking onAuthenticationSucceeded forces the success path to execute even without a real biometric match, granting access.",
@@ -463,10 +464,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-crypto-3",
         text: "Check for hardcoded IVs or key reuse in AES encryption",
         how: "Review encryption routines for a static IV or key reused across multiple encrypt calls, which weakens confidentiality guarantees.",
-        payloads: ["grep -rn \"IvParameterSpec(\\\"\\|new byte\\[\\] iv =\" out/", "frida-trace -U -f <package> -j 'javax.crypto.spec.IvParameterSpec.*'"],
+        payloads: ["grep -rn \"IvParameterSpec(\\\"\\|new byte\\[\\] iv =\" out/", "frida-trace -U -f <package> -j 'javax.crypto.spec.IvParameterSpec!*'"],
         payloadNotes: [
           "Searches decompiled code for hardcoded IVs: -r recurses, -n prints line numbers, and the pattern matches either an IvParameterSpec( constructor call taking a literal string or a byte array variable literally named iv being assigned.",
-          "Traces IV construction at runtime: -U selects the USB device, -f <package> spawns the app by package name, and -j 'javax.crypto.spec.IvParameterSpec.*' hooks every method on the IvParameterSpec class to log the IV bytes used on each call.",
+          "The Class!method selector targets matching IvParameterSpec methods. Inspect the actual constructor/overload and configure handlers explicitly to observe fixture IVs; a wildcard trace is not proof every IV was captured.",
         ],
         expectedResponse: {
           vulnerable: "A hardcoded IV literal or a fixed key reused across multiple encrypt calls is found in code or confirmed via the Frida trace.",
@@ -478,10 +479,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-crypto-4",
         text: "Test for predictable random values (weak PRNG) in security-sensitive contexts",
         how: "Check if tokens/keys are derived from java.util.Random (seeded, predictable) instead of SecureRandom.",
-        payloads: ["grep -rn \"new Random(\\|java.util.Random\" out/", "frida-trace -U -f <package> -j 'java.util.Random.*'"],
+        payloads: ["grep -rn \"new Random(\\|java.util.Random\" out/", "frida-trace -U -f <package> -j 'java.util.Random!*'"],
         payloadNotes: [
           "Searches decompiled code for the non-cryptographic PRNG: -r recurses, -n prints line numbers, and the pattern matches either a new Random( instantiation or any reference to the java.util.Random class.",
-          "Traces java.util.Random calls at runtime: -U selects the USB device, -f <package> spawns the app by package name, and -j 'java.util.Random.*' hooks every method on that class to log generated values and check for predictability.",
+          "The java.util.Random!* selector targets matching Java methods. Inspect handlers, return values and the security-sensitive caller; Random usage elsewhere is not token predictability.",
         ],
         expectedResponse: {
           vulnerable: "Token/key generation code uses java.util.Random (or a fixed seed), and traced values are predictable/reproducible across runs.",
@@ -493,10 +494,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-crypto-5",
         text: "Check certificate/public-key pinning implementation strength",
         how: "Verify TLS pinning is implemented via a supported mechanism (Network Security Config / OkHttp CertificatePinner) covering all HTTP clients used, not just the main one.",
-        payloads: ["grep -rn \"CertificatePinner\\|pin-set\" out/ res/", "frida -U -f <package> -l ssl-pinning-bypass.js --no-pause"],
+        payloads: ["grep -rn \"CertificatePinner\\|pin-set\" out/ res/", "frida -U -f <package> -l ssl-pinning-bypass.js"],
         payloadNotes: [
           "Searches code and resources for pinning configuration: -r recurses, -n prints line numbers, and the pattern matches either OkHttp's CertificatePinner class or a pin-set element from a network security config, searched across both out/ (decompiled code) and res/ (resources).",
-          "Launches the app under Frida with a pinning-bypass script: -U selects the USB device, -f <package> spawns the app by package name, -l ssl-pinning-bypass.js loads the hooking script that disables certificate pinning checks, and --no-pause resumes execution immediately.",
+          "Provide a reviewed build-specific script; modern frida-tools resumes by default. Test invalid certificates on an unmodified client separately from instrumented proxy access.",
         ],
         expectedResponse: {
           vulnerable: "Only one HTTP client enforces pinning, or the Frida bypass script successfully disables pinning and Burp sees decrypted traffic.",
@@ -531,9 +532,9 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-network-1",
         text: "Test SSL/TLS certificate pinning strength",
         how: "Confirm pinning can't be trivially bypassed and covers all network clients used by the app (not just the main OkHttp client).",
-        payloads: ["frida -U -f <package> -l ssl-pinning-bypass.js --no-pause", "objection -g <package> explore --startup-command 'android sslpinning disable'"],
+        payloads: ["frida -U -f <package> -l ssl-pinning-bypass.js", "objection -g <package> explore --startup-command 'android sslpinning disable'"],
         payloadNotes: [
-          "Launches the app under Frida with a pinning-bypass script: -U selects the USB device, -f <package> spawns the app by package name, -l ssl-pinning-bypass.js loads the hook, and --no-pause resumes execution immediately instead of pausing at start.",
+          "Provide a reviewed client-specific script and record instrumentation state. Modern frida-tools resumes by default; successful modified-client interception is not a certificate-validation vulnerability.",
           "Attaches Objection and disables pinning: -g <package> attaches to the running app by package name, explore opens the interactive session, and --startup-command 'android sslpinning disable' runs the built-in pinning bypass automatically.",
         ],
         expectedResponse: {
@@ -687,10 +688,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-ipc-6",
         text: "Test PendingIntent mutability for hijacking",
         how: "Check if PendingIntents are created without FLAG_IMMUTABLE, allowing a malicious app to modify the underlying intent.",
-        payloads: ["grep -rn \"PendingIntent.getActivity\\|PendingIntent.getBroadcast\" out/ | grep -v FLAG_IMMUTABLE", "frida-trace -U -f <package> -j 'android.app.PendingIntent.*'"],
+        payloads: ["grep -rn \"PendingIntent.getActivity\\|PendingIntent.getBroadcast\" out/ | grep -v FLAG_IMMUTABLE", "frida-trace -U -f <package> -j 'android.app.PendingIntent!*'"],
         payloadNotes: [
           "Finds mutable PendingIntent creation sites: the first grep -rn matches calls to PendingIntent.getActivity or PendingIntent.getBroadcast, and piping to grep -v FLAG_IMMUTABLE filters out lines that already reference the immutability flag, leaving the likely-mutable ones.",
-          "Traces PendingIntent API calls at runtime: -U selects the USB device, -f <package> spawns the app by package name, and -j 'android.app.PendingIntent.*' hooks every method on the PendingIntent class to log the flags and extras used at creation.",
+          "The android.app.PendingIntent!* selector targets matching methods; inspect generated handlers and the specific creation overload for flags, explicit component and recipient. Mutable flags alone do not prove hijacking.",
         ],
         expectedResponse: {
           vulnerable: "grep finds PendingIntent.getActivity/getBroadcast calls without FLAG_IMMUTABLE, and a hijacked PendingIntent successfully executes attacker-controlled extras.",
@@ -717,10 +718,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-ipc-8",
         text: "Test Parcelable/Bundle deserialization from IPC for object injection",
         how: "Check if data received via Intent extras/Bundles is deserialized (readParcelable/readSerializable) without validating the actual class, allowing a malicious app to supply an unexpected object type.",
-        payloads: ["grep -rn \"getParcelableExtra\\|readSerializable\" out/", "frida-trace -U -f <package> -j 'android.content.Intent.getParcelableExtra'"],
+        payloads: ["grep -rn \"getParcelableExtra\\|readSerializable\" out/", "frida-trace -U -f <package> -j 'android.content.Intent!getParcelableExtra'"],
         payloadNotes: [
           "Searches decompiled code for IPC deserialization calls: -r recurses, -n prints line numbers, and the pattern matches either getParcelableExtra (pulling a Parcelable out of an Intent) or readSerializable, both of which can skip class-type validation.",
-          "Traces Intent deserialization at runtime: -U selects the USB device, -f <package> spawns the app by package name, and -j 'android.content.Intent.getParcelableExtra' hooks that specific method to log what extra keys and object types the app actually reads.",
+          "The android.content.Intent!getParcelableExtra selector targets matching overloads. Inspect actual extra names/types and caller UID; a crash or unexpected class alone is not code execution.",
         ],
         expectedResponse: {
           vulnerable: "getParcelableExtra/readSerializable is called without a class-type check, and supplying an unexpected object type causes a crash or unintended code execution.",
@@ -770,10 +771,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-reverse-3",
         text: "Test Frida/hooking framework detection",
         how: "Check if the app detects and reacts to an attached Frida server or common hooking framework artifacts.",
-        payloads: ["grep -rn \"frida-server\\|gum-js-loop\\|/data/local/tmp/frida\" out/", "frida -U -f <package> -l anti-frida-detection-bypass.js --no-pause"],
+        payloads: ["grep -rn \"frida-server\\|gum-js-loop\\|/data/local/tmp/frida\" out/", "frida -U -f <package> -l anti-frida-detection-bypass.js"],
         payloadNotes: [
           "Searches decompiled code for Frida-detection signals: -r recurses, -n prints line numbers, and the pattern matches references to the frida-server process name, its gum-js-loop thread name, or its common /data/local/tmp/frida install path.",
-          "Launches the app under Frida while hiding its own artifacts: -U selects the USB device, -f <package> spawns the app by package name, -l anti-frida-detection-bypass.js loads a script that masks common Frida detection signals, and --no-pause resumes execution immediately.",
+          "Requires a reviewed build-specific script; modern frida-tools resumes by default. Record whether the hook changes a real security boundary rather than treating undetected instrumentation as a vulnerability.",
         ],
         expectedResponse: {
           vulnerable: "The app runs normally with Frida attached, with no crash, warning, or behavioral change indicating hooking framework detection.",
@@ -785,10 +786,10 @@ export const androidCategories: ChecklistCategory[] = [
         id: "android-reverse-4",
         text: "Test emulator detection bypass",
         how: "Run the app on an emulator and check if detection can be trivially bypassed to access emulator-restricted functionality.",
-        payloads: ["grep -rn \"Build.FINGERPRINT.*generic\\|goldfish\\|ro.kernel.qemu\" out/", "frida -U -f <package> -l emulator-detection-bypass.js --no-pause"],
+        payloads: ["grep -rn \"Build.FINGERPRINT.*generic\\|goldfish\\|ro.kernel.qemu\" out/", "frida -U -f <package> -l emulator-detection-bypass.js"],
         payloadNotes: [
           "Searches decompiled code for emulator fingerprint checks: -r recurses, -n prints line numbers, and the pattern matches a Build.FINGERPRINT value containing generic, references to the goldfish emulator hardware name, or the ro.kernel.qemu system property.",
-          "Launches the app under Frida while spoofing emulator signals: -U selects the USB device, -f <package> spawns the app by package name, -l emulator-detection-bypass.js loads the script that fakes device-like fingerprint/property values, and --no-pause resumes execution immediately.",
+          "Requires a reviewed emulator-specific script; modern frida-tools resumes by default. Emulator detection bypass alone is not unauthorized access.",
         ],
         expectedResponse: {
           vulnerable: "The app grants access to emulator-restricted functionality (e.g. payments, promotions) once the build fingerprint/qemu bypass is applied.",
@@ -870,8 +871,8 @@ export const androidCategories: ChecklistCategory[] = [
         text: "BiometricPrompt Callback Hooking Bypass",
         how: "Hook BiometricPrompt.AuthenticationCallback to force onAuthenticationSucceeded() when CryptoObject is not backed by hardware Keystore keys.",
         payloads: [
-          "frida -U -f <package> -l biometric-hook.js --no-pause",
-          "Java.use('android.hardware.biometrics.BiometricPrompt$AuthenticationCallback').onAuthenticationSucceeded.implementation = function() { ... };"
+          "// Schematic: identify and instrument the application's concrete callback subclass/overload.",
+          "// Compare the protected key operation under genuine authentication, cancellation and a forced application-level success result."
         ],
         payloadNotes: [
           "Biometric callback hook: if the app only checks whether authentication succeeded without validating cryptographic signature from Android Keystore, hook unlocks app.",
@@ -904,3 +905,4 @@ export const androidCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("android", androidCategories);

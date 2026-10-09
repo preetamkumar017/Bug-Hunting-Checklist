@@ -10,6 +10,8 @@ import {
   Settings,
 } from "lucide-react";
 import { useActiveProfile } from "../store/useChecklistStore";
+import { Modal } from "./Modal";
+import { headerText, generateProxyShell } from "../lib/proxyTools";
 
 interface BurpRulesModalProps {
   open: boolean;
@@ -19,7 +21,7 @@ interface BurpRulesModalProps {
 export function BurpRulesModal({ open, onClose }: BurpRulesModalProps) {
   const profile = useActiveProfile();
   const [hackerHandle, setHackerHandle] = useState("researcher");
-  const [includeWafBypass, setIncludeWafBypass] = useState(true);
+  const [includeWafBypass, setIncludeWafBypass] = useState(false);
   const [includeNoCache, setIncludeNoCache] = useState(true);
   const [mobileEmulate, setMobileEmulate] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -36,12 +38,12 @@ export function BurpRulesModal({ open, onClose }: BurpRulesModalProps) {
   // Generate Burp Match & Replace Rules JSON
   const burpRules = [
     {
-      comment: "Bug Bounty Safe Harbor Researcher ID",
+      comment: "Researcher identification only; not authorization",
       enabled: true,
       is_simple_match: true,
       rule_type: "request_header",
       string_match: "",
-      string_replace: `X-Bug-Bounty: ${hackerHandle || "researcher"} (${profile?.name || "Target"})`,
+      string_replace: `X-Bug-Bounty: ${headerText(hackerHandle || "researcher")} (${headerText(profile?.name || "Target")})`,
     },
   ];
 
@@ -97,14 +99,14 @@ export function BurpRulesModal({ open, onClose }: BurpRulesModalProps) {
     2
   );
 
-  const caidoRulesYaml = `# Caido Match & Replace Tamper Rules
-# Target: ${profile?.name || "Security Assessment"}
+  const caidoRulesYaml = `# Rule worksheet for manual translation into Caido (NOT a validated import schema)
+# Target: ${headerText(profile?.name || "Security Assessment")}
 rules:
   - name: "X-Bug-Bounty Header"
     type: "request_header"
     action: "add"
     header: "X-Bug-Bounty"
-    value: "${hackerHandle || "researcher"}"
+    value: ${JSON.stringify(headerText(hackerHandle || "researcher"))}
 ${
   includeWafBypass
     ? `  - name: "X-Forwarded-For Spoof"
@@ -125,15 +127,7 @@ ${
       : ""
   }`;
 
-  const curlAliasScript = `# Terminal Proxy Environment & cURL Setup
-export HTTP_PROXY="http://127.0.0.1:8080"
-export HTTPS_PROXY="http://127.0.0.1:8080"
-
-# One-liner cURL through Burp/Caido proxy with Safe Harbor header:
-alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle || "researcher"}"'
-
-# Example usage:
-# bcurl -i "https://target.com/api/v1/profile"`;
+  const curlAliasScript = generateProxyShell(hackerHandle);
 
   function handleDownloadBurpJson() {
     const blob = new Blob([burpConfigJson], { type: "application/json" });
@@ -146,7 +140,7 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-4">
+    <Modal onClose={onClose} title="Burp and Caido rule worksheet" className="w-full max-w-4xl">
       <div className="flex h-[88vh] w-full max-w-4xl flex-col rounded-xl border border-border bg-card shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
@@ -158,15 +152,16 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 Burp Suite &amp; Caido Rule Generator
                 <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                  Ready to Import
+                  Unvalidated worksheets
                 </span>
               </h2>
               <p className="text-[11px] text-slate-400">
-                Generate Match &amp; Replace rules to auto-inject Safe Harbor identification and WAF bypass headers.
+                Draft request-header rules. Researcher identification does not grant safe harbour or testing authorization. Check formats against your installed proxy version.
               </p>
             </div>
           </div>
           <button
+            aria-label="Close proxy rules"
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-200"
           >
@@ -180,7 +175,7 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
           <div className="w-full border-b border-border p-4 md:w-80 md:border-b-0 md:border-r bg-slate-950/40 space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Bug Hunter Handle / Safe Harbor ID:
+                Researcher handle:
               </label>
               <input
                 type="text"
@@ -206,7 +201,7 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
                   onChange={(e) => setIncludeWafBypass(e.target.checked)}
                   className="rounded border-border accent-emerald-500"
                 />
-                <span>Add WAF Bypass (`X-Forwarded-For: 127.0.0.1`)</span>
+                <span>Opt-in header spoof test (`X-Forwarded-For: 127.0.0.1`); changes request semantics</span>
               </label>
 
               <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
@@ -236,11 +231,10 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
                 className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
               >
                 <Download className="h-3.5 w-3.5" />
-                Download Burp JSON Config
+                Download Burp JSON draft
               </button>
               <p className="mt-2 text-[10px] text-slate-500 leading-normal">
-                How to import in Burp Suite: <br />
-                <span className="text-slate-400">Settings &rarr; Project &rarr; HTTP &rarr; Match and Replace &rarr; Cog Icon &rarr; Restore options</span>
+                Import compatibility has not been validated. Compare this worksheet with a rules export from your installed version; review each rule before enabling it.
               </p>
             </div>
           </div>
@@ -250,8 +244,8 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
             <div className="flex border-b border-border pb-2 mb-3">
               {[
                 { id: "burp", label: "Burp Suite JSON", icon: FileCode },
-                { id: "caido", label: "Caido YAML", icon: Shield },
-                { id: "curl", label: "Terminal / cURL Alias", icon: Terminal },
+                { id: "caido", label: "Caido worksheet", icon: Shield },
+                { id: "curl", label: "Terminal / cURL function", icon: Terminal },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -277,8 +271,8 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
                 {activeTab === "burp"
                   ? "Burp Suite Project Match and Replace configuration:"
                   : activeTab === "caido"
-                  ? "Caido Tamper rule specification:"
-                  : "Shell alias to proxy CLI tools through 127.0.0.1:8080:"}
+                  ? "Manual rule worksheet, not a validated Caido import format:"
+                  : "Shell function to proxy CLI tools through 127.0.0.1:8080 (TLS verification enabled):"}
               </span>
               <button
                 onClick={() =>
@@ -312,6 +306,6 @@ alias bcurl='curl -k -x http://127.0.0.1:8080 -H "X-Bug-Bounty: ${hackerHandle |
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

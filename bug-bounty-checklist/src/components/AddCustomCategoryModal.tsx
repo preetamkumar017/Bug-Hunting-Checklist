@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X, FolderPlus } from "lucide-react";
 import { useChecklistStore } from "../store/useChecklistStore";
 import type { Domain } from "../types/checklist";
+import { Modal } from './Modal';
+import { domains } from '../data/domains';
 
 export function AddCustomCategoryModal({
   activeDomain,
@@ -19,6 +21,7 @@ export function AddCustomCategoryModal({
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [domainId, setDomainId] = useState<Domain>(activeDomain);
+  const [error, setError] = useState('');
 
   if (!open) return null;
 
@@ -26,14 +29,14 @@ export function AddCustomCategoryModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    addCustomCategory({
+    try { addCustomCategory({
       name: name.trim(),
       emoji: emoji.trim() || "📁",
       description: description.trim() || undefined,
       reference: reference.trim() || undefined,
       domainId,
       items: [],
-    });
+    }); } catch (error) { setError(error instanceof Error ? error.message : 'Unable to save category'); return; }
 
     onClose();
     setName("");
@@ -42,25 +45,27 @@ export function AddCustomCategoryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+    <Modal title="Create custom category" onClose={onClose}>
       <div className="relative w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <FolderPlus className="h-4 w-4 text-emerald-400" />
             <h3 className="text-sm font-bold text-slate-100">Create Custom Category</h3>
           </div>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-slate-200">
+          <button aria-label="Close dialog" onClick={onClose} className="rounded p-1 text-slate-400 hover:text-slate-200">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
           <div className="grid grid-cols-4 gap-2">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Emoji</label>
               <input
                 type="text"
                 value={emoji}
+                aria-label="Emoji"
                 onChange={(e) => setEmoji(e.target.value)}
                 maxLength={4}
                 className="w-full text-center rounded border border-border bg-slate-950 px-2 py-1.5 text-xs text-slate-200 outline-none"
@@ -74,6 +79,7 @@ export function AddCustomCategoryModal({
                 type="text"
                 required
                 value={name}
+                aria-label="Category name"
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Internal Admin Endpoints"
                 className="w-full rounded border border-border bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-emerald-500"
@@ -85,17 +91,11 @@ export function AddCustomCategoryModal({
             <label className="block text-xs font-semibold text-slate-300 mb-1">Domain</label>
             <select
               value={domainId}
+              aria-label="Domain"
               onChange={(e) => setDomainId(e.target.value as Domain)}
               className="w-full rounded border border-border bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none"
             >
-              <option value="web">🌐 Web</option>
-              <option value="api">🔌 API</option>
-              <option value="cloud">☁️ Cloud & CI/CD</option>
-              <option value="ai">🤖 AI & LLM</option>
-              <option value="android">📱 Android</option>
-              <option value="ios">🍏 iOS</option>
-              <option value="thick_client">🖥️ Thick Client</option>
-              <option value="web3">⛓️ Web3</option>
+              {domains.map(domain => <option key={domain.id} value={domain.id}>{domain.emoji} {domain.label}</option>)}
             </select>
           </div>
 
@@ -103,6 +103,7 @@ export function AddCustomCategoryModal({
             <label className="block text-xs font-semibold text-slate-300 mb-1">Description</label>
             <textarea
               value={description}
+              aria-label="Description"
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Short description of what to test in this category..."
@@ -115,6 +116,7 @@ export function AddCustomCategoryModal({
             <input
               type="url"
               value={reference}
+              aria-label="Reference URL"
               onChange={(e) => setReference(e.target.value)}
               placeholder="https://..."
               className="w-full rounded border border-border bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-emerald-500"
@@ -138,6 +140,6 @@ export function AddCustomCategoryModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

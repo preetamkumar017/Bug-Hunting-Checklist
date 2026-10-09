@@ -17,6 +17,7 @@ export function ProfileSwitcher() {
       </p>
       <div className="flex items-center gap-1">
         <select
+          aria-label="Active target profile"
           value={activeProfileId ?? ""}
           onChange={(e) => setActiveProfile(e.target.value)}
           className="w-full rounded-md border border-border bg-transparent px-2 py-1.5 text-sm text-slate-200 outline-none"
@@ -38,6 +39,7 @@ export function ProfileSwitcher() {
       {adding && (
         <div className="mt-2 flex gap-1">
           <input
+            aria-label="New target profile name"
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}

@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { Modal } from "./Modal";
+import { CvssVectorInput } from "./CvssVectorInput";
 import {
   X,
   Calculator,
@@ -42,12 +44,14 @@ import {
 } from "../lib/hackerTools";
 import {
   calcCvss4,
+  parseCvss4Vector,
   cvss4SeverityLabel,
   DEFAULT_CVSS4,
   type Cvss4Metrics,
 } from "../lib/cvss4";
 import {
   calcCvss,
+  parseCvssVector,
   cvssSeverityLabel,
   DEFAULT_CVSS,
   type CvssMetrics,
@@ -353,7 +357,7 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
   const subnetResult = useMemo(() => calculateSubnet(subnetInput), [subnetInput]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-5">
+    <Modal onClose={onClose} title="Hacker Swiss Army Knife" className="w-full max-w-4xl">
       <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col rounded-xl border border-border bg-card shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
@@ -369,6 +373,7 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <button
+            aria-label="Close hacker tools"
             onClick={onClose}
             className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-200"
           >
@@ -514,6 +519,23 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
                   </button>
                 </div>
               </div>
+
+              {/* Paste vector */}
+              {cvssVer === "4.0" ? (
+                <CvssVectorInput
+                  key="v4"
+                  parse={parseCvss4Vector}
+                  onApply={setCvss4}
+                  placeholder="Paste vector: CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+                />
+              ) : (
+                <CvssVectorInput
+                  key="v3"
+                  parse={parseCvssVector}
+                  onApply={setCvss3}
+                  placeholder="Paste vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+                />
+              )}
 
               {/* Vector Bar */}
               <div className="rounded border border-border/50 bg-slate-950 p-2 font-mono text-xs text-slate-400 select-all">
@@ -732,6 +754,7 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
           {/* TAB 3: JWT INSPECTOR, EDITOR & RESIGNER */}
           {activeTab === "jwt" && (
             <div className="space-y-5">
+              <p role="status" className="rounded border border-amber-500/30 p-3 text-xs text-amber-300">Unverified decode only: the original signature, issuer, audience and authorization have not been validated. Re-signing with a local key does not prove server acceptance. {parseJwt(jwtInput) ? (parseJwt(jwtInput)?.isExpired === true ? "The untrusted exp claim is expired." : "Expiry alone does not establish validity.") : "Input is not a supported compact JWT; editors retain their previous values."}</p>
               {/* Raw Token Input */}
               <div className="rounded-xl border border-border/70 bg-slate-900/40 p-3.5">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -947,7 +970,7 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
                       Newly Re-signed JWT Token Output
                     </span>
                     <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                      Ready to Use
+                      Local test token — unverified
                     </span>
                   </div>
 
@@ -1656,6 +1679,6 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

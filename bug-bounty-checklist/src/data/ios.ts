@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 // Ordered: Static Analysis -> Dynamic Analysis -> Data Storage -> Network -> Cryptography -> Jailbreak Detection
 
@@ -169,7 +170,7 @@ export const iosCategories: ChecklistCategory[] = [
         how: "Use Frida/objection to bypass certificate pinning so Burp can intercept and modify app traffic.",
         payloads: [
           "objection --gadget com.target.app explore --startup-command 'ios sslpinning disable'",
-          "frida -U -f com.target.app -l ios-ssl-bypass.js --no-pause",
+          "frida -U -f com.target.app -l ios-ssl-bypass.js",
         ],
         payloadNotes: [
           "Attaches objection to the app via a Frida gadget and disables SSL pinning at runtime.",
@@ -418,7 +419,7 @@ export const iosCategories: ChecklistCategory[] = [
         text: "Test SSL/TLS certificate pinning strength",
         how: "Confirm pinning can't be trivially bypassed and is applied consistently across all networking code paths in the app.",
         payloads: [
-          "frida -U -f com.target.app -l ios-ssl-bypass.js --no-pause",
+          "frida -U -f com.target.app -l ios-ssl-bypass.js",
           "objection --gadget com.target.app explore --startup-command 'ios sslpinning disable'",
         ],
         payloadNotes: [
@@ -579,7 +580,7 @@ export const iosCategories: ChecklistCategory[] = [
         how: "Use objection/frida to bypass jailbreak detection checks and confirm the app still functions with reduced protections.",
         payloads: [
           "objection --gadget com.target.app explore --startup-command 'ios jailbreak disable'",
-          "frida -U -f com.target.app -l jb-bypass.js --no-pause",
+          "frida -U -f com.target.app -l jb-bypass.js",
         ],
         payloadNotes: [
           "Attaches objection to the app and runs its built-in jailbreak-detection disable module.",
@@ -632,7 +633,7 @@ export const iosCategories: ChecklistCategory[] = [
         text: "Test Frida/hooking framework detection",
         how: "Check if the app detects and reacts to an attached Frida server or common instrumentation artifacts.",
         payloads: [
-          "frida -U -f com.target.app -l frida-detection-bypass.js --no-pause",
+          "frida -U -f com.target.app -l frida-detection-bypass.js",
           "grep -R -iE 'frida|gum-js-loop|d-pipe' Payload/App.app/",
         ],
         payloadNotes: [
@@ -693,3 +694,4 @@ export const iosCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("ios", iosCategories);

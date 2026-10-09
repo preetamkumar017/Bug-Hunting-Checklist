@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 // Ordered: Smart Contract Vulns -> Access Control -> DeFi/Economic Logic
 // -> Wallet & Signature Security -> Bridge/Cross-chain -> Frontend/dApp Integration
@@ -797,3 +798,4 @@ export const web3Categories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("web3", web3Categories);

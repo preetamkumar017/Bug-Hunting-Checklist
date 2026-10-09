@@ -14,6 +14,7 @@ import {
 import { domains } from "../data/domains";
 import { useActiveProfile } from "../store/useChecklistStore";
 import { domainProgress } from "../lib/progress";
+import { effectiveCatalogue } from '../lib/catalogue';
 import type { Domain, Severity } from "../types/checklist";
 
 interface DashboardViewProps {
@@ -21,13 +22,6 @@ interface DashboardViewProps {
   onSelectView: (v: "checklist" | "findings" | "scope") => void;
 }
 
-const DEFAULT_REWARDS: Record<Severity, number> = {
-  critical: 3000,
-  high: 1500,
-  medium: 500,
-  low: 150,
-  info: 0,
-};
 
 export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewProps) {
   const profile = useActiveProfile();
@@ -36,13 +30,9 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
   const stats = useMemo(() => {
     if (!profile) return null;
 
-    const allStandardItems = domains.flatMap((d) =>
+    const totalItemsList = effectiveCatalogue(profile).flatMap((d) =>
       d.categories.flatMap((c) => c.items.map((i) => ({ ...i, domainId: d.id })))
     );
-    const customItems = (profile.customCategories || []).flatMap((c) =>
-      c.items.map((i) => ({ ...i, domainId: (c.domainId || "web") as Domain }))
-    );
-    const totalItemsList = [...allStandardItems, ...customItems];
     const totalChecks = totalItemsList.length;
 
     let clean = 0;
@@ -50,14 +40,16 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
     let blocked = 0;
     let bookmarked = 0;
 
-    Object.values(profile.itemStates).forEach((st) => {
+    totalItemsList.forEach((item) => {
+      const st = profile.itemStates[item.id];
+      if (!st) return;
       if (st.status === "clean") clean++;
       else if (st.status === "vulnerable") vulnerable++;
       else if (st.status === "blocked") blocked++;
       if (st.bookmarked) bookmarked++;
     });
 
-    const tested = clean + vulnerable + blocked;
+    const tested = clean + vulnerable;
     const progressPercent = totalChecks > 0 ? Math.round((tested / totalChecks) * 100) : 0;
 
     // Findings breakdown
@@ -69,12 +61,10 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
       info: 0,
     };
 
-    let estimatedBountyTotal = 0;
 
     profile.findings.forEach((f) => {
       const sev = f.severity || "medium";
       findingsBySev[sev] = (findingsBySev[sev] || 0) + 1;
-      estimatedBountyTotal += DEFAULT_REWARDS[sev] || 0;
     });
 
     // Domain breakdown
@@ -98,7 +88,6 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
       bookmarked,
       progressPercent,
       findingsBySev,
-      estimatedBountyTotal,
       domainStats,
     };
   }, [profile]);
@@ -114,7 +103,7 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
             📊 Security Audit &amp; Bounty Dashboard
           </h1>
           <p className="text-xs text-slate-400">
-            Real-time assessment metrics, methodology velocity, and bounty earnings for{" "}
+            Checklist progress and recorded findings for{" "}
             <span className="font-semibold text-emerald-400">{profile.name}</span>.
           </p>
         </div>
@@ -135,17 +124,17 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/15 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-              Estimated Bounty Value
+              Recorded Findings
             </span>
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
               <DollarSign className="h-4 w-4" />
             </span>
           </div>
           <p className="mt-2 text-2xl font-extrabold text-slate-100">
-            ${stats.estimatedBountyTotal.toLocaleString()}
+            {profile.findings.length}
           </p>
           <p className="mt-1 text-[11px] text-emerald-300/80">
-            Based on {profile.findings.length} reported finding(s)
+            Rewards depend on program validation and policy.
           </p>
         </div>
 
@@ -235,28 +224,24 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
                 sev: "critical" as Severity,
                 label: "Critical",
                 count: stats.findingsBySev.critical,
-                reward: DEFAULT_REWARDS.critical,
                 bg: "bg-rose-500/20 text-rose-300 border-rose-500/30",
               },
               {
                 sev: "high" as Severity,
                 label: "High",
                 count: stats.findingsBySev.high,
-                reward: DEFAULT_REWARDS.high,
                 bg: "bg-amber-500/20 text-amber-300 border-amber-500/30",
               },
               {
                 sev: "medium" as Severity,
                 label: "Medium",
                 count: stats.findingsBySev.medium,
-                reward: DEFAULT_REWARDS.medium,
                 bg: "bg-sky-500/20 text-sky-300 border-sky-500/30",
               },
               {
                 sev: "low" as Severity,
                 label: "Low",
                 count: stats.findingsBySev.low,
-                reward: DEFAULT_REWARDS.low,
                 bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
               },
               {
@@ -281,9 +266,8 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-mono font-semibold text-emerald-400">
-                    +${(item.count * item.reward).toLocaleString()}
+                    {item.count} recorded
                   </span>
-                  <p className="text-[10px] text-slate-500">~${item.reward}/each</p>
                 </div>
               </div>
             ))}

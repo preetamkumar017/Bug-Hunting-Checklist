@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { getPersistenceWarning, loadState, saveState } from '../lib/persistence';
+import { validateProfile } from '../lib/profileValidation';
+import { domains } from '../data/domains';
 import type {
   AppState,
   ChecklistCategory,
@@ -31,6 +33,8 @@ function newProfile(name: string): TargetProfile {
 }
 
 interface ChecklistStore extends AppState {
+  storageError: string | null;
+  storageWarning: string | null;
   createProfile: (name: string) => void;
   deleteProfile: (id: string) => void;
   setActiveProfile: (id: string) => void;
@@ -38,6 +42,7 @@ interface ChecklistStore extends AppState {
 
   setItemStatus: (itemId: string, status: ItemStatus) => void;
   setItemNote: (itemId: string, note: string) => void;
+  toggleBookmark: (itemId: string) => void;
   markCategoryStatus: (itemIds: string[], status: ItemStatus) => void;
 
   setScope: (scope: TargetScope) => void;
@@ -52,21 +57,41 @@ interface ChecklistStore extends AppState {
   deleteCustomCategory: (categoryId: string) => void;
   addCustomItem: (categoryId: string, item: Omit<ChecklistItem, "id">) => void;
   deleteCustomItem: (categoryId: string, itemId: string) => void;
+  renameCustomItem: (categoryId: string, itemId: string, text: string) => void;
 
   addFinding: (finding: Omit<Finding, "id" | "createdAt">) => void;
   removeFinding: (findingId: string) => void;
+  clearFindingScreenshots: (findingId: string) => void;
 
   resetActiveProfile: () => void;
-  importProfile: (profile: TargetProfile) => void;
+  importProfile: (profile: unknown) => void;
 }
 
 const DEFAULT_PROFILE = newProfile("Default");
 
 export const useChecklistStore = create<ChecklistStore>()(
-  persist(
-    (set) => ({
-      profiles: { [DEFAULT_PROFILE.id]: DEFAULT_PROFILE },
-      activeProfileId: DEFAULT_PROFILE.id,
+    (rawSet, get) => {
+      let initial: AppState = { profiles: { [DEFAULT_PROFILE.id]: DEFAULT_PROFILE }, activeProfileId: DEFAULT_PROFILE.id };
+      let hydrationError: string | null = null;
+      try { initial = loadState() ?? initial; } catch (error) { hydrationError = `Saved data could not be loaded; original storage is preserved. ${error instanceof Error ? error.message : String(error)}`; }
+      const set = (update: Partial<ChecklistStore> | ((state: ChecklistStore) => Partial<ChecklistStore>)) => {
+        try {
+          if (hydrationError) throw new Error('Saved data is unreadable. Recover or clear bbc-store in browser storage before editing.');
+          const previous = get();
+          const patch = typeof update === 'function' ? update(previous) : update;
+          const next = { ...previous, ...patch };
+          // Commit to durable storage first: failure never leaves a falsely saved in-memory edit.
+          saveState({ profiles: next.profiles, activeProfileId: next.activeProfileId });
+          rawSet({ ...patch, storageError: null, storageWarning: getPersistenceWarning() });
+        } catch (error) {
+          rawSet({ storageError: error instanceof Error ? error.message : 'Unable to save local data' });
+          throw error;
+        }
+      };
+      return ({
+      ...initial,
+      storageError: hydrationError,
+      storageWarning: getPersistenceWarning(),
 
       createProfile: (name) => {
         const p = newProfile(name);
@@ -87,7 +112,7 @@ export const useChecklistStore = create<ChecklistStore>()(
         });
       },
 
-      setActiveProfile: (id) => set({ activeProfileId: id }),
+      setActiveProfile: (id) => { if (Object.hasOwn(get().profiles, id)) set({ activeProfileId: id }); },
 
       renameProfile: (id, name) => {
         set((s) => {
@@ -105,11 +130,23 @@ export const useChecklistStore = create<ChecklistStore>()(
           const prevState = profile.itemStates[itemId];
           const itemStates = {
             ...profile.itemStates,
-            [itemId]: { status, note: prevState?.note, updatedAt: Date.now() },
+            [itemId]: { ...prevState, status, updatedAt: Date.now() },
           };
           return {
             profiles: { ...s.profiles, [activeId]: { ...profile, itemStates } },
           };
+        });
+      },
+
+      toggleBookmark: (itemId) => {
+        set(s => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const previous = profile.itemStates[itemId];
+          return { profiles: { ...s.profiles, [activeId]: { ...profile, itemStates: {
+            ...profile.itemStates, [itemId]: { ...previous, status: previous?.status ?? 'not_tested', bookmarked: !previous?.bookmarked, updatedAt: Date.now() },
+          } } } };
         });
       },
 
@@ -122,6 +159,7 @@ export const useChecklistStore = create<ChecklistStore>()(
           const itemStates = {
             ...profile.itemStates,
             [itemId]: {
+              ...prevState,
               status: prevState?.status ?? "not_tested",
               note,
               updatedAt: Date.now(),
@@ -142,6 +180,7 @@ export const useChecklistStore = create<ChecklistStore>()(
           const now = Date.now();
           for (const id of itemIds) {
             itemStates[id] = {
+              ...itemStates[id],
               status,
               note: itemStates[id]?.note,
               updatedAt: now,
@@ -249,7 +288,7 @@ export const useChecklistStore = create<ChecklistStore>()(
               newAssets.push({
                 id: `asset-${crypto.randomUUID()}`,
                 host: clean,
-                status: "200 OK",
+                 status: "Unverified",
                 updatedAt: now,
               });
             }
@@ -295,10 +334,12 @@ export const useChecklistStore = create<ChecklistStore>()(
           const customCategories = (profile.customCategories || []).filter(
             (c) => c.id !== categoryId
           );
+          const itemStates = { ...profile.itemStates };
+          profile.customCategories?.find(c => c.id === categoryId)?.items.forEach(i => delete itemStates[i.id]);
           return {
             profiles: {
               ...s.profiles,
-              [activeId]: { ...profile, customCategories },
+              [activeId]: { ...profile, customCategories, itemStates },
             },
           };
         });
@@ -314,7 +355,14 @@ export const useChecklistStore = create<ChecklistStore>()(
             id: `custom-item-${crypto.randomUUID()}`,
             isCustom: true,
           };
-          const customCategories = (profile.customCategories || []).map((cat) => {
+          const categories = [...(profile.customCategories || [])];
+          if (!categories.some(c => c.id === categoryId)) {
+            const domain = domains.find(d => d.categories.some(c => c.id === categoryId));
+            const base = domain?.categories.find(c => c.id === categoryId);
+            if (!base) throw new Error('Category not found');
+            categories.push({ ...base, domainId: domain!.id, items: [] });
+          }
+          const customCategories = categories.map((cat) => {
             if (cat.id === categoryId) {
               return { ...cat, items: [...cat.items, newItem] };
             }
@@ -334,6 +382,8 @@ export const useChecklistStore = create<ChecklistStore>()(
           const activeId = s.activeProfileId;
           if (!activeId) return s;
           const profile = s.profiles[activeId];
+          const itemStates = { ...profile.itemStates };
+          delete itemStates[itemId];
           const customCategories = (profile.customCategories || []).map((cat) => {
             if (cat.id === categoryId) {
               return {
@@ -346,9 +396,20 @@ export const useChecklistStore = create<ChecklistStore>()(
           return {
             profiles: {
               ...s.profiles,
-              [activeId]: { ...profile, customCategories },
+              [activeId]: { ...profile, customCategories, itemStates },
             },
           };
+        });
+      },
+
+      renameCustomItem: (categoryId, itemId, text) => {
+        if (!text.trim()) return;
+        set(s => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          const customCategories = profile.customCategories?.map(category => category.id === categoryId ? { ...category, items: category.items.map(item => item.id === itemId ? { ...item, text: text.trim() } : item) } : category);
+          return { profiles: { ...s.profiles, [activeId]: { ...profile, customCategories } } };
         });
       },
 
@@ -388,6 +449,15 @@ export const useChecklistStore = create<ChecklistStore>()(
         });
       },
 
+      clearFindingScreenshots: (findingId) => {
+        set(s => {
+          const id = s.activeProfileId;
+          if (!id) return s;
+          const profile = s.profiles[id];
+          return { profiles: { ...s.profiles, [id]: { ...profile, findings: profile.findings.map(finding => finding.id === findingId ? { ...finding, screenshots: [] } : finding) } } };
+        });
+      },
+
       resetActiveProfile: () => {
         set((s) => {
           const activeId = s.activeProfileId;
@@ -408,15 +478,19 @@ export const useChecklistStore = create<ChecklistStore>()(
         });
       },
 
-      importProfile: (profile) => {
+      importProfile: (input) => {
+        const profile = validateProfile(input);
+        if (get().profiles[profile.id]) {
+          profile.id = crypto.randomUUID();
+          profile.name = `${profile.name.slice(0, 180)} (imported copy)`;
+        }
         set((s) => ({
           profiles: { ...s.profiles, [profile.id]: profile },
           activeProfileId: profile.id,
         }));
       },
-    }),
-    { name: "bbc-store" }
-  )
+    });
+  }
 );
 
 export function useActiveProfile() {

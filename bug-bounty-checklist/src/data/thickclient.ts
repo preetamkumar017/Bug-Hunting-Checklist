@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 // Ordered: Static Analysis -> Dynamic Analysis -> Binary Analysis -> Network
 // -> Electron -> Java Thick Client -> Local Privilege Escalation
@@ -207,7 +208,7 @@ export const thickClientCategories: ChecklistCategory[] = [
         payloads: [
           "x64dbg MyApp.exe   # set breakpoint on IsLicensed/CheckFeature, force EAX=1 on return",
           "reg add HKCU\\Software\\MyApp /v LicenseValid /t REG_DWORD /d 1 /f",
-          "frida -f MyApp.exe -l bypass-license.js --no-pause",
+          "frida -f MyApp.exe -l bypass-license.js",
         ],
         payloadNotes: [
           "Breaks on the license-check function in a debugger and forces it to return a 'licensed' result.",
@@ -226,7 +227,7 @@ export const thickClientCategories: ChecklistCategory[] = [
         how: "Attempt to inject a DLL into the running process to see if the app has any anti-tampering detection.",
         payloads: [
           "# Simple LoadLibrary-based DLL injector (CreateRemoteThread + WriteProcessMemory targeting MyApp.exe)",
-          "frida -f MyApp.exe -l inject-test.js --no-pause",
+          "frida -f MyApp.exe -l inject-test.js",
           "Process Hacker: right-click MyApp.exe -> Miscellaneous -> Inject DLL...",
         ],
         payloadNotes: [
@@ -869,3 +870,4 @@ export const thickClientCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("thick_client", thickClientCategories);

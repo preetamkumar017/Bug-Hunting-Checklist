@@ -21,10 +21,10 @@ export const apiCategories: ChecklistCategory[] = [
           "Requests /openapi.json, a common alternate filename frameworks use to serve the same OpenAPI spec, in case the v3 path above is disabled.",
         ],
         expectedResponse: {
-          vulnerable: "The Swagger/OpenAPI/Postman docs are publicly reachable and reveal internal endpoints, parameters, and auth schemes not meant for outside consumption.",
-          safe: "Documentation endpoints return 401/403/404 or require authenticated internal access, with no public route exposing the API's full schema.",
+          vulnerable: "A spec exposes a verified secret/confidential value or a discovered operation separately fails authorization; public documentation alone is not a vulnerability.",
+          safe: "Observed docs match publication policy or these paths expose none; API completeness and authorization remain unassessed.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-recon-2",
@@ -37,10 +37,10 @@ export const apiCategories: ChecklistCategory[] = [
           "Requests /api/beta/users, using the beta path segment to probe for an unlisted pre-release version that may lack production hardening.",
         ],
         expectedResponse: {
-          vulnerable: "An older version like /api/v1/ is still live and responds successfully, potentially missing security fixes applied only to /v2/ or later.",
-          safe: "Deprecated/unlisted version paths return 404/410 or redirect to the current version, with no functional legacy endpoint left active.",
+          vulnerable: "A legacy operation demonstrably lacks a required control using the same owned fixture/identity as the current version; old/live alone is not a vulnerability.",
+          safe: "Tested operations enforce the relevant control or specific paths are retired; other legacy routes remain unassessed.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-recon-3",
@@ -53,10 +53,10 @@ export const apiCategories: ChecklistCategory[] = [
           "jadx -d out app.apk: -d out sets the output directory and app.apk is the input, decompiling the APK's DEX bytecode into readable Java source to spot hardcoded endpoints and secrets.",
         ],
         expectedResponse: {
-          vulnerable: "The decompiled app/JS bundle reveals hardcoded internal API URLs, hidden parameters, or admin routes not present in public documentation.",
-          safe: "No sensitive endpoints, secrets, or internal-only routes are found in the client code — only the already-documented public API surface.",
+          vulnerable: "Client routes are discovery leads; a verified secret or unauthorized operation establishes impact separately.",
+          safe: "No new candidates were found in inspected client files; other builds and dynamically constructed paths remain unassessed.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-recon-4",
@@ -65,10 +65,10 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["ffuf -u https://api.example.com/FUZZ -w api-wordlist.txt"],
         payloadNotes: ["ffuf -u https://api.example.com/FUZZ -w api-wordlist.txt: -u sets the target URL with the FUZZ keyword marking the injection point, and -w supplies the wordlist ffuf substitutes into FUZZ one entry at a time to brute-force hidden routes."],
         expectedResponse: {
-          vulnerable: "The fuzzer returns 200/301/403 (as opposed to a uniform 404) for paths like /api/internal/ or /api/admin/, confirming a hidden route exists.",
-          safe: "All undocumented paths consistently return 404 with no distinguishing status/length/timing difference from genuinely nonexistent routes.",
+          vulnerable: "Distinct responses suggest routes; compare a random-path control and validate protected content/actions before reporting a vulnerability.",
+          safe: "No distinct routes found within this wordlist, role and budget; uniform responses do not prove no hidden endpoints.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-recon-5",
@@ -81,8 +81,8 @@ export const apiCategories: ChecklistCategory[] = [
           "Requests /v1/graphql, a versioned path pattern (common with Hasura-style deployments) in case the GraphQL API is version-prefixed like the REST one.",
         ],
         expectedResponse: {
-          vulnerable: "A GraphQL endpoint responds to introspection or a basic query, revealing a second, less-audited attack surface running alongside the REST API.",
-          safe: "No GraphQL endpoint is found at common paths, or if present it returns 404/disabled-introspection responses only.",
+          vulnerable: "A GraphQL endpoint is discovered: inventory data, not evidence of weaker auditing or access control.",
+          safe: "No endpoint identified at these paths; disabled introspection does not establish resolver security.",
         },
         severity: "info",
       },
@@ -96,7 +96,7 @@ export const apiCategories: ChecklistCategory[] = [
           "curl -X TRACE https://api.example.com/: -X TRACE overrides the method to TRACE, checking if the server echoes the raw request back and leaks proxy/gateway chain details in the response.",
         ],
         expectedResponse: {
-          vulnerable: "Response headers or a TRACE request reveal the specific gateway/WAF product and version, which can be matched to known bypass techniques.",
+          vulnerable: "Gateway fingerprints are advisory leads; verify affected build/configuration and reachable behavior separately. TRACE echo is not a modern-browser HttpOnly bypass.",
           safe: "Headers are stripped/generic (no product-identifying via/x-* headers) and TRACE is disabled (405/501), giving no gateway fingerprint.",
         },
         severity: "info",
@@ -112,10 +112,10 @@ export const apiCategories: ChecklistCategory[] = [
           "Requests /api/CHANGELOG.md, a markdown changelog nested under the API path itself rather than the site root, in case docs are colocated with the API.",
         ],
         expectedResponse: {
-          vulnerable: "The changelog exposes internal endpoint names, feature flags, or infrastructure details useful for further recon.",
+          vulnerable: "Changelog names are recon leads; confidential data or a separately demonstrated control failure is needed for security impact.",
           safe: "Changelog/release notes are either inaccessible or contain only user-facing feature descriptions with no technical endpoint/internal names.",
         },
-        severity: "low",
+        severity: "info",
       },
     ],
   },
@@ -159,14 +159,14 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-auth-3",
         text: "Test BFLA (Broken Function Level Authorization)",
-        how: "Call admin-only or higher-privilege endpoints/methods using a low-privileged user's token.",
+        how: "Use two owned roles and known fixtures. Start with read-only admin operations; deletion examples are isolated-lab-only and must target a disposable owned account. Confirm actual data/side effects rather than status codes.",
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE https://api.example.com/v1/admin/users/42", "curl -H 'Authorization: Bearer <low_priv_token>' https://api.example.com/v1/admin/reports"],
         payloadNotes: [
           "curl -H 'Authorization: Bearer <low_priv_token>' -X DELETE .../admin/users/42: -H supplies a deliberately low-privileged token, -X DELETE sets the destructive method, and the /admin/users/42 path targets an admin-only user-deletion function.",
           "curl -H 'Authorization: Bearer <low_priv_token>' .../admin/reports: the same low-privileged token is used on a GET to an admin-only reports endpoint to check function-level access control.",
         ],
         expectedResponse: {
-          vulnerable: "A low-privileged token can successfully call admin-only endpoints/methods (e.g. DELETE on /admin/users) and receive a 200/204 success response.",
+          vulnerable: "A low-privileged caller obtains protected data or performs a forbidden reversible action on an owned fixture, confirmed by owner-side read-back; 200/204 alone is insufficient.",
           safe: "Privileged endpoints return 403 for low-privileged tokens, with the check enforced server-side independent of the UI hiding the option.",
         },
         severity: "critical",
@@ -244,7 +244,7 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         expectedResponse: {
           vulnerable: "API keys appear in URL query strings and subsequently show up in server access logs, browser history, or referrer headers.",
-          safe: "API keys/tokens are only accepted via headers (e.g. Authorization), never as URL query parameters, so they never land in logs or history.",
+          safe: "Tokens are absent from URLs and the inspected application/proxy logs redact sensitive headers; Authorization headers can also be logged, so their use alone is not proof of no leakage.",
         },
         severity: "medium",
       },
@@ -275,14 +275,14 @@ export const apiCategories: ChecklistCategory[] = [
         id: "api-inject-1",
         text: "Test JSON body parameters for injection",
         how: "Fuzz every JSON field with SQLi/NoSQLi payloads, including nested objects and arrays.",
-        payloads: ["{\"username\": \"admin' OR '1'='1\"}", "{\"username\": {\"$ne\": null}, \"password\": {\"$ne\": null}}", "{\"search\": \"'; DROP TABLE users;--\"}"],
+        payloads: ["{\"username\": \"owned-test-user' AND '1'='1\"}", "{\"username\": \"owned-test-user\", \"password\": {\"$ne\": null}}", "{\"search\": \"marker'; SELECT 42;--\"}"],
         payloadNotes: [
-          "{\"username\": \"admin' OR '1'='1\"}: the username field breaks out of its quoted string with ' and appends OR '1'='1, a tautology intended to make a SQL WHERE clause always match and bypass authentication.",
-          "{\"username\": {\"$ne\": null}, \"password\": {\"$ne\": null}}: both fields use MongoDB's $ne (not-equal) operator against null instead of a plain string, matching any document where the field simply exists — a classic NoSQL auth bypass.",
-          "{\"search\": \"'; DROP TABLE users;--\"}: the search field closes the current string with ', chains a destructive DROP TABLE statement with ;, and -- comments out the rest of the original query.",
+          "Owned-account boolean probe; compare with AND '1'='2 in a seeded fixture, adjusting syntax for the actual query context.",
+          "Keep the username fixed to an owned account while testing the password operator. Operator objects only matter if the parser/driver passes them to a matching query context.",
+          "Non-destructive SELECT marker for an isolated DB fixture; stacked statements and result handling depend on the driver. Never modify tables as a detection test.",
         ],
         expectedResponse: {
-          vulnerable: "A SQLi/NoSQLi payload in a JSON field alters query logic — e.g. auth bypass, extra rows returned, or a DB error/stack trace in the response.",
+          vulnerable: "Controlled true/false or marker probes reproducibly alter executed query semantics or authenticate the owned fixture incorrectly. A lone error/stack trace is an injection lead or separate disclosure, not confirmed SQLi.",
           safe: "Payloads are safely parameterized/escaped: the field is treated as a literal string, returning normal validation errors or empty results with no DB error leakage.",
         },
         severity: "critical",
@@ -306,7 +306,7 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["{\"id\":[1,2]}"],
         payloadNotes: ["{\"id\":[1,2]}: the id field holds a JSON array [1,2] instead of the single expected numeric value, testing whether the backend mishandles the type by querying/matching against both IDs or throwing an unhandled error."],
         expectedResponse: {
-          vulnerable: "Sending an array where a scalar is expected causes a server error, type-confusion bypass, or unexpected filter behavior (e.g. matching multiple records).",
+          vulnerable: "An array changes authorization/query semantics or discloses protected data in an owned fixture; a generic 500 alone is a validation lead, not confirmed injection.",
           safe: "The server validates parameter types strictly and returns a 400 validation error for the malformed array input.",
         },
         severity: "medium",
@@ -399,11 +399,11 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-rate-1",
         text: "Test for missing rate limiting on sensitive endpoints",
-        how: "Send a burst of requests to login/OTP/password-reset endpoints and confirm throttling kicks in.",
+        how: "Agree a small request budget and lockout threshold for an owned account; do not send real-user resets or OTP messages. Compare documented per-account/action counters with bounded requests. Stop on lockout, rising latency or the budget; lack of 429 alone is not a bypass because delays and other controls may apply.",
         payloads: ["for i in {1..50}; do curl -s -o /dev/null -w '%{http_code}\\n' -X POST https://api.example.com/v1/login -d '{\"email\":\"a@a.com\",\"password\":\"wrong\"}'; done"],
         payloadNotes: ["for i in {1..50}; do ...; done: loops 50 times, each iteration using curl -s (silent) -o /dev/null (discard body) -w '%{http_code}\\n' (print only the status code) with -X POST and -d sending a wrong-password login attempt, to see if throttling/429s kick in as the count rises."],
         expectedResponse: {
-          vulnerable: "Dozens of rapid requests to login/OTP/reset all return normal responses (200/401 per attempt) with no 429 or increasing delay.",
+          vulnerable: "A bounded controlled test exceeds the documented security-relevant action quota despite accounting for delays and other enforcement; record accepted actions, not only HTTP statuses.",
           safe: "After a small number of attempts the server returns 429 Too Many Requests or introduces increasing delay/lockout, throttling further attempts.",
         },
         severity: "high",
@@ -438,8 +438,8 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-rate-4",
         text: "Test for resource exhaustion via expensive query parameters",
-        how: "Request large page sizes, unbounded date ranges, or wildcard filters that force expensive backend computation.",
-        payloads: ["?limit=999999", "?page_size=-1"],
+        how: "Use a small owned dataset and an agreed CPU/time budget. Check one value just above the documented page-size cap; investigate unbounded/negative sentinel values only in an isolated lab with telemetry. A slow response alone does not demonstrate resource exhaustion.",
+        payloads: ["?limit=101 # only if the documented cap is 100", "# Isolated lab only: ?page_size=-1"],
         payloadNotes: [
           "?limit=999999: sets the limit query parameter to a huge value, testing whether the server caps result-set size server-side or tries to return/compute nearly a million rows.",
           "?page_size=-1: sets page_size to a negative number, testing whether the backend's bounds check misinterprets -1 as \"no limit\" and returns the entire dataset.",
@@ -453,15 +453,15 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-rate-5",
         text: "Test for pagination-based DoS (deep offset attacks)",
-        how: "Request extremely high offset/page values to check if the database performs a full-table scan each time.",
-        payloads: ["curl 'https://api.example.com/v1/items?offset=9999999&limit=100'", "curl 'https://api.example.com/v1/items?page=999999999'"],
+        how: "In an owned fixture, compare a few bounded offsets using database query plans and latency against a baseline. Increase only within an agreed resource cap. Neither high latency nor constant latency alone identifies the pagination algorithm.",
+        payloads: ["curl --max-time 5 'https://api.example.com/v1/items?offset=0&limit=1'", "curl --max-time 5 'https://api.example.com/v1/items?offset=10&limit=1'"],
         payloadNotes: [
           "curl '.../items?offset=9999999&limit=100': the offset parameter is set to nearly ten million while limit=100 caps the returned rows, testing whether the database still has to scan/skip all preceding rows (a full-table-scan-based DoS) to reach that point.",
           "curl '.../items?page=999999999': the page parameter is set to an extremely high page number, testing whether page-based pagination degrades the same way under a deep offset translation.",
         ],
         expectedResponse: {
           vulnerable: "Very high offset/page values cause increasing response latency, showing the database re-scans all preceding rows each time.",
-          safe: "Response time stays roughly constant regardless of offset, indicating cursor-based or otherwise efficient pagination rather than an OFFSET full-scan.",
+          safe: "The tested offsets stay within the resource budget; inspect query plans/configured bounds before claiming a particular pagination algorithm or scalability guarantee.",
         },
         severity: "low",
       },
@@ -508,8 +508,8 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["curl -H 'Authorization: Bearer <token>' https://api.example.com/v1/users | jq '.[0]'"],
         payloadNotes: ["curl -H 'Authorization: Bearer <token>' .../users | jq '.[0]': -H authenticates the request, and the response is piped into jq '.[0]', which extracts just the first array element's raw JSON so its full field list can be compared against what the UI actually renders."],
         expectedResponse: {
-          vulnerable: "The list endpoint returns extra fields (e.g. internal IDs, emails, password hashes) that aren't rendered in the UI but are present in the raw JSON.",
-          safe: "The API response is limited to exactly the fields the UI displays, with no internal/sensitive fields present in the raw JSON.",
+          vulnerable: "The response includes fields the caller is not authorized to read, proven with a private owned-account canary or data-classification requirement. Fields omitted by the UI are not automatically sensitive.",
+          safe: "The response respects field-level permissions for this caller; legitimate API fields may exceed what the current UI displays.",
         },
         severity: "medium",
       },
@@ -520,8 +520,8 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' https://api.example.com/v1/orders/5001 | jq '._links'"],
         payloadNotes: ["curl -H 'Authorization: Bearer <low_priv_token>' .../orders/5001 | jq '._links': -H authenticates as a deliberately low-privileged user, and the response is piped into jq '._links' to isolate the HATEOAS action-link object and check if edit/delete links appear despite the caller lacking permission for them."],
         expectedResponse: {
-          vulnerable: "HATEOAS links for edit/delete actions are included in the response even for users who lack permission to perform them.",
-          safe: "Action links are conditionally included only when the authenticated caller actually has permission to perform that action.",
+          vulnerable: "Following a disclosed action link as a low-privileged caller performs a forbidden reversible action on an owned fixture. Link visibility alone is discovery, not authorization bypass.",
+          safe: "The linked operation independently enforces authorization; the link may legitimately remain visible.",
         },
         severity: "medium",
       },
@@ -564,7 +564,7 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         expectedResponse: {
           vulnerable: "A low-privileged token is blocked on GET but succeeds on DELETE/PUT for the same resource, showing authorization isn't checked uniformly per verb.",
-          safe: "Authorization is enforced identically across all HTTP verbs for the same resource — the same 403 applies whether the low-priv token tries GET, PUT, or DELETE.",
+          safe: "Each verb enforces its intended permissions; read and write permissions may legitimately differ. Compare with the role policy, not identical status codes.",
         },
         severity: "high",
       },
@@ -607,10 +607,10 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["/service.asmx?wsdl"],
         payloadNotes: ["/service.asmx?wsdl: the ?wsdl query parameter appended to the service endpoint requests its self-describing WSDL document, which enumerates every exposed SOAP operation including undocumented ones."],
         expectedResponse: {
-          vulnerable: "The WSDL is publicly fetchable and lists internal/undocumented operations beyond what's used by the client application.",
-          safe: "The WSDL is not exposed publicly, or only lists the operations that are actually intended for external/documented use.",
+          vulnerable: "The WSDL is a discovery lead unless it discloses genuinely confidential data or a listed operation demonstrably bypasses authorization.",
+          safe: "Observed WSDL content matches intended publication policy; absence of a WSDL does not prove SOAP operations secure.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-soap-4",
@@ -651,10 +651,10 @@ export const apiCategories: ChecklistCategory[] = [
         payloads: ["grpcurl -plaintext <host>:<port> list"],
         payloadNotes: ["grpcurl -plaintext <host>:<port> list: -plaintext disables TLS for the connection, and the list command calls the server's reflection service to enumerate every registered service and method, including undocumented internal ones."],
         expectedResponse: {
-          vulnerable: "Server reflection is enabled and lists all services/methods, including internal ones never exposed through documented client code.",
-          safe: "Reflection is disabled in production (list returns an error/empty), so the service/method surface isn't enumerable without prior knowledge.",
+          vulnerable: "Reflection is a discovery signal; confirm a separate unauthorized method call or confidential schema disclosure before treating it as a vulnerability.",
+          safe: "Reflection follows intended publication policy; disabling reflection does not establish method authorization.",
         },
-        severity: "medium",
+        severity: "info",
       },
       {
         id: "api-grpc-2",
@@ -690,8 +690,8 @@ export const apiCategories: ChecklistCategory[] = [
         id: "api-grpc-4",
         text: "Test gRPC-Web gateway for REST-to-gRPC translation flaws",
         how: "Compare authorization behavior of the gRPC-Web/HTTP gateway against direct gRPC calls for inconsistencies.",
-        payloads: ["curl -H 'Authorization: Bearer <low_priv_token>' -X POST https://api.example.com/grpc-web/UserService/DeleteUser -d '{\"id\":1}'"],
-        payloadNotes: ["curl -H 'Authorization: Bearer <low_priv_token>' -X POST .../grpc-web/UserService/DeleteUser -d '{\"id\":1}': -H supplies a low-privileged token, -X POST hits the HTTP-translated gRPC-Web path for UserService/DeleteUser, and -d sends the target id, testing whether the REST-to-gRPC gateway applies the same authorization as a direct gRPC call."],
+        payloads: ["# Capture a legitimate gRPC-Web request for an owned fixture and replay its framed body/metadata with the low-privileged test identity"],
+        payloadNotes: ["gRPC-Web uses framed protobuf or base64-encoded frames, not arbitrary JSON. Use the actual generated client/proxy capture; a JSON transcoding gateway is a distinct protocol and requires its mapped route."],
         expectedResponse: {
           vulnerable: "The gRPC-Web/HTTP gateway allows an action that direct gRPC calls block (or vice versa), showing the translation layer applies weaker authorization.",
           safe: "Authorization behavior is identical between the gRPC-Web gateway and direct gRPC calls for the same low-privileged credential.",
@@ -740,7 +740,7 @@ export const apiCategories: ChecklistCategory[] = [
         id: "api-webhook-2",
         text: "Test webhook replay protection",
         how: "Resend a previously valid webhook payload and check if it's processed again (no timestamp/nonce validation).",
-        payloads: ["curl -X POST https://client.example.com/webhook -H 'X-Signature: <captured_valid_signature>' -H 'Content-Type: application/json' -d @captured-payload.json"],
+        payloads: ["curl -X POST https://client.example.com/webhook -H 'X-Signature: <captured_valid_signature>' -H 'Content-Type: application/json' --data-binary @captured-payload.json"],
         payloadNotes: ["curl -X POST .../webhook -H 'X-Signature: <captured_valid_signature>' -H 'Content-Type: application/json' -d @captured-payload.json: -H replays a genuinely valid, previously-captured signature and -d @captured-payload.json resends the exact original body byte-for-byte, testing if the receiver detects and rejects an already-processed event."],
         expectedResponse: {
           vulnerable: "Resending a previously captured valid webhook payload is processed again, duplicating the event (e.g. a payment credited twice).",
@@ -774,7 +774,7 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         expectedResponse: {
           vulnerable: "The stored integration token has broader scopes than needed (e.g. full admin access) or is retrievable in plaintext from the application.",
-          safe: "Integration tokens are stored encrypted/hashed and scoped to only the minimal permissions the integration actually requires.",
+          safe: "Reusable outbound integration tokens are encrypted at rest with controlled decryption and scoped to required operations; one-way hashing alone cannot store a token that must later be presented to a provider.",
         },
         severity: "medium",
       },
@@ -823,7 +823,7 @@ export const apiCategories: ChecklistCategory[] = [
           "curl -H 'Origin: https://evil.com' -H 'Cookie: session=<valid_session>' -I .../account: adds a valid session cookie alongside the untrusted Origin, testing whether the server combines a reflected origin with Access-Control-Allow-Credentials: true, which would let evil.com read authenticated account data via a browser.",
         ],
         expectedResponse: {
-          vulnerable: "The API reflects an arbitrary Origin in Access-Control-Allow-Origin together with Access-Control-Allow-Credentials: true, letting any website read authenticated responses.",
+          vulnerable: "A real browser on an owned untrusted origin reads a protected canary with the user's credentials. Reflected headers are only a candidate; SameSite and third-party-cookie policy still apply, and wildcard ACAO is invalid for credentialed reads.",
           safe: "The API only allows a fixed allow-list of trusted origins, and never combines a reflected/wildcard origin with credentialed CORS.",
         },
         severity: "high",
@@ -839,7 +839,7 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         expectedResponse: {
           vulnerable: "An old/legacy API version documented as retired still responds successfully and may skip security checks added later.",
-          safe: "Deprecated endpoints return 404/410, confirming they've been fully decommissioned rather than left silently reachable.",
+          safe: "The tested legacy paths return retirement responses; aliases, versions and different gateway routes remain unassessed.",
         },
         severity: "medium",
       },
@@ -853,8 +853,8 @@ export const apiCategories: ChecklistCategory[] = [
           "curl https://api.example.com/admin/debug/vars: requests /admin/debug/vars, a typical Go expvar-style debug/metrics path, directly from the public internet to test for exposed internal diagnostics.",
         ],
         expectedResponse: {
-          vulnerable: "Internal-only paths like /internal/health or /admin/debug/vars are reachable directly from the public internet without any network restriction.",
-          safe: "Internal endpoints return connection refused/404/403 when accessed externally, indicating they're properly restricted to internal network segments.",
+          vulnerable: "A path exposes protected diagnostics or allows a forbidden action contrary to its access policy; an intentional public health status is not automatically a bug.",
+          safe: "The tested path enforces the intended control. A connection failure or 404 alone does not establish network segmentation.",
         },
         severity: "critical",
       },
@@ -910,7 +910,8 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         payloadNotes: [
           "Full model serialization check: backend frameworks (Rails, Django, Express/Sequelize, Spring) often serialize the entire database entity by default.",
-          "Check team member list: public endpoints displaying usernames often accidentally return all team members' email addresses, phone numbers, and permission bits."
+          "Check a bounded list containing only owned test members against their actual field-level permissions.",
+          "These are candidate field names, not proof of sensitivity. Internal IDs and role labels may be intentionally public; verify caller authorization and data classification."
         ],
         expectedResponse: {
           vulnerable: "API responses contain sensitive fields that the client UI hides or filters, leaking confidential user or organization data.",
@@ -930,17 +931,17 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-gql-alias-1",
         text: "Alias-Based Rate Limit and Batching Bypass",
-        how: "Pack dozens or hundreds of aliased mutations into a single GraphQL HTTP request to bypass per-request rate limiters on login, OTP, or gift card redemption.",
+        how: "With an owned account and an agreed small action budget, compare two aliased operations with two ordinary requests. Use a sandbox verification action with no real messages or money; count resolver-side accepted actions against the documented quota. Alias support alone is not a bypass.",
         payloads: [
           "mutation {\n  m1: verifyOtp(code: \"1001\") { token }\n  m2: verifyOtp(code: \"1002\") { token }\n  m3: verifyOtp(code: \"1003\") { token }\n  m4: verifyOtp(code: \"1004\") { token }\n}",
-          "mutation {\n  a1: resetPassword(email: \"victim@target.com\") { status }\n  a2: resetPassword(email: \"victim@target.com\") { status }\n  # repeated 100 times\n}"
+          "mutation { a1: verifyTestMarker(code: \"marker-1\") { status } a2: verifyTestMarker(code: \"marker-2\") { status } }"
         ],
         payloadNotes: [
           "Aliased OTP brute-force: sends multiple execution queries in one HTTP POST; WAFs counting HTTP requests will see only 1 request while backend executes all aliased mutations.",
-          "Bulk trigger / email bomb: tests if rate limiters enforce action limits at the GraphQL resolver level or only at the HTTP gateway level."
+          "Two-action sandbox fixture only; adapt to the actual schema and ensure no email/SMS or financial side effects."
         ],
         expectedResponse: {
-          vulnerable: "The server processes all aliased operations in a single HTTP transaction, successfully brute-forcing pins or sending multiple automated messages.",
+          vulnerable: "The bounded alias fixture exceeds the intended per-account/action quota while equivalent separate requests are limited, confirmed by resolver counters. Alias execution alone is expected GraphQL behavior.",
           safe: "The GraphQL server enforces query complexity scoring, limits the maximum number of aliased fields/directives, or rate limits at the resolver function."
         },
         severity: "high"
@@ -948,17 +949,17 @@ export const apiCategories: ChecklistCategory[] = [
       {
         id: "api-gql-dos-1",
         text: "Circular / Deep Nested Query Denial of Service",
-        how: "Send a recursive nested query that exploits circular schema relationships (e.g., author -> posts -> author -> posts) to exhaust server CPU and memory.",
+        how: "Lab-only: set deliberately low depth/cost limits and a tiny owned dataset, then compare one query immediately below and above each limit. Stop at agreed CPU/time budgets. The illustrative fan-out queries below must be reduced to the fixture bounds; do not run unbounded recursive queries on production.",
         payloads: [
           "query {\n  user(id: 1) {\n    friends {\n      friends {\n        friends {\n          friends {\n            friends { id name }\n          }\n        }\n      }\n    }\n  }\n}",
           "query {\n  posts(limit: 100) {\n    author {\n      posts(limit: 100) {\n        author {\n          posts(limit: 100) { id title }\n        }\n      }\n    }\n  }\n}"
         ],
         payloadNotes: [
           "Deep recursion query: tests if the GraphQL server enforces maximum query depth (e.g. max depth 5-7).",
-          "Combinatorial explosion: combining limit parameters with circular relationships triggers exponential database joins (N+1 query problem)."
+          "Nested fan-out can amplify resolver work, but actual cost depends on data size, batching, caching and query planning. Do not assume exponential joins; measure the tiny controlled fixture."
         ],
         expectedResponse: {
-          vulnerable: "The backend server takes seconds/minutes to respond, consumes 100% CPU, or crashes with an Out of Memory error.",
+          vulnerable: "Controlled telemetry shows execution exceeding the documented query-cost/depth budget with a causal link to the bounded fixture; a lone slow response or timeout is inconclusive.",
           safe: "The GraphQL engine rejects the query before execution with 'Query depth exceeds maximum permitted limit'."
         },
         severity: "high"
@@ -973,13 +974,13 @@ export const apiCategories: ChecklistCategory[] = [
         ],
         payloadNotes: [
           "Field suggestion harvesting: GraphQL engines by default suggest valid field names when an invalid field is queried.",
-          "Automated tool Clairvoyance / Graphw00f uses this feedback loop to map out the entire private GraphQL schema even when introspection is turned off."
+          "Clairvoyance infers schema candidates from suggestions; graphw00f fingerprints GraphQL implementations and is not a schema reconstruction tool. Neither guarantees a complete schema."
         ],
         expectedResponse: {
-          vulnerable: "The error messages suggest hidden administrative fields, internal mutations, and proprietary data models.",
-          safe: "Field suggestions are disabled in production configurations, returning only generic 'Cannot query field' errors."
+          vulnerable: "Suggestions reveal schema candidates for authorization testing; confirm protected-data disclosure or an unauthorized operation separately. Suggestions alone are usually informational.",
+          safe: "The tested errors reveal no suggestions; this does not establish that the schema is undiscoverable or its resolvers authorized."
         },
-        severity: "medium"
+        severity: "info"
       }
     ]
   }

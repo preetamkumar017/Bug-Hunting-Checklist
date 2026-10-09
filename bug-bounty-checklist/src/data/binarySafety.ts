@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 export const binarySafetyCategories: ChecklistCategory[] = [
   {
@@ -68,7 +69,8 @@ export const binarySafetyCategories: ChecklistCategory[] = [
         ],
         payloadNotes: [
           "find -perm -u=s: Lists files where the SetUID flag is active. When executed by an unprivileged user, it runs with the file owner's privileges (e.g. root).",
-          "GTFOBins: Curated catalog of standard binaries (e.g. find, nmap, vim, bash, pkexec) that can be abused to bypass local security restrictions."
+          "find -perm -g=s: Lists SGID candidates; effective group behavior depends on ownership, mount flags and process restrictions.",
+          "This is a manual GTFOBins review procedure, not a runnable shell command. Confirm the actual binary's behavior and privilege boundary in an isolated fixture."
         ],
         expectedResponse: {
           vulnerable: "Custom or non-standard binaries have SUID set and permit command execution, arbitrary file writes, or file reads.",
@@ -86,8 +88,9 @@ export const binarySafetyCategories: ChecklistCategory[] = [
           "ltrace ./target_binary 2>&1 | grep -i 'open.*\\.so'"
         ],
         payloadNotes: [
-          "RPATH / RUNPATH: Defines directory paths the runtime linker searches before system directories (/lib, /usr/lib).",
-          "Relative RPATH (e.g. . or $ORIGIN/../lib): If points to a writable directory, an attacker can drop a malicious shared library (.so) that gets executed."
+          "Read ELF RPATH/RUNPATH entries without executing the binary; resolve paths and check all parent ACLs. $ORIGIN alone is not unsafe.",
+          "Alternative static inspection of the binary's RPATH; correlate actual loader behavior and privilege with effective write access.",
+          "Dynamic ltrace is a version-dependent lead and may miss loader syscalls. Use an isolated copy and actual library-load/syscall evidence before claiming hijacking."
         ],
         expectedResponse: {
           vulnerable: "Binary contains RPATH pointing to a world-writable directory or relative path, enabling arbitrary code execution.",
@@ -104,9 +107,8 @@ export const binarySafetyCategories: ChecklistCategory[] = [
           "/usr/bin/python3 -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'  # if cap_setuid is set"
         ],
         payloadNotes: [
-          "getcap -r: Recursively inspects file system extended attributes for granted capabilities.",
-          "cap_setuid+ep: Allows the process to change its UID to 0 (root) without needing full SUID bit.",
-          "cap_dac_read_search+ep: Allows reading any file on the system (bypassing file read permissions, including /etc/shadow)."
+          "Read-only capability inventory; record effective/permitted flags, bounding set, no_new_privs and ownership.",
+          "Historical cap_setuid escalation example: no interactive root shell is needed. Use a harmless identity operation in an isolated fixture, with prerequisites verified."
         ],
         expectedResponse: {
           vulnerable: "Interpreters (Python, Perl, Node) or utility binaries possess elevated capabilities enabling root privilege escalation.",
@@ -209,3 +211,4 @@ export const binarySafetyCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("binary_re", binarySafetyCategories);

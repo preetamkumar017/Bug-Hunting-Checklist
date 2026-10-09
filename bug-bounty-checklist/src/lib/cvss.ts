@@ -1,4 +1,5 @@
-/** Minimal CVSS 3.1 base-score calculator. */
+/** CVSS 3.1 base-score calculator (temporal/environmental metrics unsupported). */
+import { parseBaseVector } from "./cvssParser";
 
 export type AV = "N" | "A" | "L" | "P";
 export type AC = "L" | "H";
@@ -37,6 +38,8 @@ function roundUp1(x: number): number {
 }
 
 export function calcCvss(m: CvssMetrics): { score: number; vector: string } {
+  const vector = `CVSS:3.1/AV:${m.av}/AC:${m.ac}/PR:${m.pr}/UI:${m.ui}/S:${m.s}/C:${m.c}/I:${m.i}/A:${m.a}`;
+  if (!parseCvssVector(vector)) throw new Error("Invalid CVSS 3.1 base metrics");
   const iss = 1 - (1 - IMPACT_W[m.c]) * (1 - IMPACT_W[m.i]) * (1 - IMPACT_W[m.a]);
   const impact = m.s === "U" ? 6.42 * iss : 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15);
   const exploitability = 8.22 * AV_W[m.av] * AC_W[m.ac] * prWeight(m.pr, m.s) * UI_W[m.ui];
@@ -50,7 +53,6 @@ export function calcCvss(m: CvssMetrics): { score: number; vector: string } {
     score = roundUp1(Math.min(1.08 * (impact + exploitability), 10));
   }
 
-  const vector = `CVSS:3.1/AV:${m.av}/AC:${m.ac}/PR:${m.pr}/UI:${m.ui}/S:${m.s}/C:${m.c}/I:${m.i}/A:${m.a}`;
   return { score, vector };
 }
 
@@ -60,4 +62,23 @@ export function cvssSeverityLabel(score: number): string {
   if (score < 7) return "Medium";
   if (score < 9) return "High";
   return "Critical";
+}
+
+/** Parse a complete, canonical CVSS 3.1 base vector. Optional metrics are unsupported. */
+export function parseCvssVector(input: string): CvssMetrics | null {
+  const map = parseBaseVector(input, "3.1", {AV:"NALP",AC:"LH",PR:"NLH",UI:"NR",S:"UC",C:"NLH",I:"NLH",A:"NLH"});
+  if (!map) return null;
+  const ok = (key: string, allowed: string) => map[key] !== undefined && allowed.includes(map[key]) && map[key].length === 1;
+  if (!ok("AV", "NALP") || !ok("AC", "LH") || !ok("PR", "NLH") || !ok("UI", "NR") || !ok("S", "UC")) return null;
+  if (!ok("C", "NLH") || !ok("I", "NLH") || !ok("A", "NLH")) return null;
+  return {
+    av: map.AV as CvssMetrics["av"],
+    ac: map.AC as CvssMetrics["ac"],
+    pr: map.PR as CvssMetrics["pr"],
+    ui: map.UI as CvssMetrics["ui"],
+    s: map.S as CvssMetrics["s"],
+    c: map.C as CvssMetrics["c"],
+    i: map.I as CvssMetrics["i"],
+    a: map.A as CvssMetrics["a"],
+  };
 }

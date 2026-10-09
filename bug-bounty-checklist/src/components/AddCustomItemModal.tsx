@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { useChecklistStore } from "../store/useChecklistStore";
 import type { Severity } from "../types/checklist";
+import { Modal } from './Modal';
 
 export function AddCustomItemModal({
   categoryId,
@@ -22,6 +23,7 @@ export function AddCustomItemModal({
   const [severity, setSeverity] = useState<Severity>("high");
   const [vulnerableVerdict, setVulnerableVerdict] = useState("");
   const [safeVerdict, setSafeVerdict] = useState("");
+  const [error, setError] = useState('');
 
   if (!open) return null;
 
@@ -29,7 +31,7 @@ export function AddCustomItemModal({
     e.preventDefault();
     if (!text.trim() || !how.trim()) return;
 
-    addCustomItem(categoryId, {
+    try { addCustomItem(categoryId, {
       text: text.trim(),
       how: how.trim(),
       payloads: payloads
@@ -44,7 +46,7 @@ export function AddCustomItemModal({
               safe: safeVerdict.trim() || "System properly protected.",
             }
           : undefined,
-    });
+    }); } catch (error) { setError(error instanceof Error ? error.message : 'Unable to save check'); return; }
 
     onClose();
     setText("");
@@ -55,19 +57,20 @@ export function AddCustomItemModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+    <Modal title="Add custom checklist item" onClose={onClose}>
       <div className="relative w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-100">Add Custom Checklist Item</h3>
             <p className="text-[11px] text-slate-400">Category: {categoryName}</p>
           </div>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-slate-200">
+          <button aria-label="Close dialog" onClick={onClose} className="rounded p-1 text-slate-400 hover:text-slate-200">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               Check Title / Summary *
@@ -75,6 +78,7 @@ export function AddCustomItemModal({
             <input
               type="text"
               required
+              aria-label="Check title"
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="e.g. Unauthenticated access on /api/v2/export"
@@ -87,6 +91,7 @@ export function AddCustomItemModal({
               Testing Methodology (How to test) *
             </label>
             <textarea
+              aria-label="Testing methodology"
               required
               value={how}
               onChange={(e) => setHow(e.target.value)}
@@ -102,6 +107,7 @@ export function AddCustomItemModal({
                 Severity Rating
               </label>
               <select
+                aria-label="Severity rating"
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as Severity)}
                 className="w-full rounded border border-border bg-slate-950 px-2 py-1.5 text-xs text-slate-200 outline-none"
@@ -117,8 +123,8 @@ export function AddCustomItemModal({
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Payloads (one per line)
               </label>
-              <input
-                type="text"
+              <textarea
+                aria-label="Payloads, one per line"
                 value={payloads}
                 onChange={(e) => setPayloads(e.target.value)}
                 placeholder="curl -X POST ... or ' OR 1=1"
@@ -134,6 +140,7 @@ export function AddCustomItemModal({
             <input
               type="text"
               value={vulnerableVerdict}
+              aria-label="Expected vulnerable indicator"
               onChange={(e) => setVulnerableVerdict(e.target.value)}
               placeholder="e.g. Returns 200 OK with internal user JSON records"
               className="w-full rounded border border-border bg-slate-950 px-3 py-1.5 text-xs text-slate-200 outline-none"
@@ -158,6 +165,6 @@ export function AddCustomItemModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

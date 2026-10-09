@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   Bug,
   Download,
@@ -14,10 +15,14 @@ import {
   Sparkles,
   Settings,
   Database,
+  Search,
+  ArrowDownAZ,
 } from "lucide-react";
 import { domains } from "../data/domains";
 import { useActiveProfile, useChecklistStore } from "../store/useChecklistStore";
-import { domainProgress } from "../lib/progress";
+import { effectiveCategories, effectiveCatalogue } from '../lib/catalogue';
+import { MAX_IMPORT_BYTES, parseProfileImport } from '../lib/profileValidation';
+import { domainProgress, categoryProgress } from "../lib/progress";
 import type { Domain } from "../types/checklist";
 import { ProfileSwitcher } from "./ProfileSwitcher";
 
@@ -29,10 +34,12 @@ export function Sidebar({
   onOpenTools,
   onOpenAnalyzer,
   onOpenWordlists,
+  onOpenDorks,
   onOpenBurpRules,
   onOpenReportDrafter,
   onOpenCommandPalette,
   onOpenAddCategory,
+  onJumpToCategory,
   open,
   onClose,
 }: {
@@ -43,10 +50,12 @@ export function Sidebar({
   onOpenTools: () => void;
   onOpenAnalyzer?: () => void;
   onOpenWordlists?: () => void;
+  onOpenDorks?: () => void;
   onOpenBurpRules?: () => void;
   onOpenReportDrafter?: () => void;
   onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
+  onJumpToCategory?: (categoryId: string) => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -54,6 +63,23 @@ export function Sidebar({
   const resetActiveProfile = useChecklistStore((s) => s.resetActiveProfile);
   const deleteProfile = useChecklistStore((s) => s.deleteProfile);
   const profiles = useChecklistStore((s) => s.profiles);
+
+  const [sortAlphabetical, setSortAlphabetical] = useState(true);
+  const [showSubCategories, setShowSubCategories] = useState(true);
+
+  // Domains sorted alphabetically (A-Z) by default
+  const displayedDomains = useMemo(() => {
+    if (!sortAlphabetical) return domains;
+    return [...domains].sort((a, b) => a.label.localeCompare(b.label));
+  }, [sortAlphabetical]);
+
+  // Active domain sub-categories, sorted alphabetically (A-Z)
+  const activeSubCategories = useMemo(() => {
+    const curDomain = domains.find((d) => d.id === activeDomain);
+    if (!curDomain) return [];
+    const all = effectiveCategories(curDomain, profile);
+    return [...all].sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeDomain, profile]);
 
   function handleDeleteProfile() {
     if (!profile) return;
@@ -68,13 +94,12 @@ export function Sidebar({
     }
   }
 
-  const customItemsCount = (profile?.customCategories || []).flatMap((c) => c.items).length;
-  const totalStandardItems = domains.flatMap((d) => d.categories.flatMap((c) => c.items)).length;
-  const totalItems = totalStandardItems + customItemsCount;
+  const allItems = effectiveCatalogue(profile).flatMap(d => d.categories.flatMap(c => c.items));
+  const totalItems = allItems.length;
 
   const totalDone = profile
-    ? Object.values(profile.itemStates).filter(
-        (st) => st.status === "clean" || st.status === "vulnerable" || st.status === "blocked"
+    ? allItems.filter(
+        (item) => ['clean', 'vulnerable'].includes(profile.itemStates[item.id]?.status)
       ).length
     : 0;
 
@@ -92,15 +117,18 @@ export function Sidebar({
   function importJson(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) { alert('Import exceeds the 3 MB limit'); e.target.value = ''; return; }
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result as string);
+        const parsed = parseProfileImport(reader.result as string);
         useChecklistStore.getState().importProfile(parsed);
-      } catch {
-        alert("Invalid JSON file");
+        alert('Profile imported. Conflicting IDs are imported as a separate copy.');
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Unable to import profile');
       }
     };
+    reader.onerror = () => alert('Unable to read import file');
     reader.readAsText(file);
     e.target.value = "";
   }
@@ -226,6 +254,17 @@ export function Sidebar({
               <Database className="h-4 w-4 text-sky-400" /> Payloads &amp; Wordlists 🗂️
             </button>
           )}
+          {onOpenDorks && (
+            <button
+              onClick={() => {
+                onOpenDorks();
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-violet-400 transition"
+            >
+              <Search className="h-4 w-4 text-violet-400" /> Google Dorks 🔎
+            </button>
+          )}
           {onOpenReportDrafter && (
             <button
               onClick={() => {
@@ -263,41 +302,113 @@ export function Sidebar({
 
         <div className="mb-2 mt-3 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Domains ({domains.length})
+            Categories ({domains.length})
           </p>
-          <button
-            onClick={onOpenAddCategory}
-            title="Create Custom Category"
-            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300"
-          >
-            <FolderPlus className="h-3 w-3" /> + Custom
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setSortAlphabetical((s) => !s)}
+              title={
+                sortAlphabetical
+                  ? "Sorted Alphabetically (A-Z). Click for original methodology order."
+                  : "Click to sort categories alphabetically (A-Z)."
+              }
+              className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] transition ${
+                sortAlphabetical
+                  ? "bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <ArrowDownAZ className="h-3 w-3" />
+              <span>A-Z</span>
+            </button>
+            <button
+              onClick={onOpenAddCategory}
+              title="Create Custom Category"
+              className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300"
+            >
+              <FolderPlus className="h-3 w-3" /> + Custom
+            </button>
+          </div>
         </div>
 
         <div className="space-y-1">
-          {domains.map((d) => {
+          {displayedDomains.map((d) => {
             const { done, total } = profile ? domainProgress(d, profile) : { done: 0, total: 0 };
+            const isActive = view === "checklist" && activeDomain === d.id;
+
             return (
-              <button
-                key={d.id}
-                onClick={() => {
-                  onSelectView("checklist");
-                  onSelectDomain(d.id);
-                  onClose();
-                }}
-                className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
-                  view === "checklist" && activeDomain === d.id
-                    ? "bg-white/10 text-slate-100 font-medium"
-                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                }`}
-              >
-                <span>
-                  {d.emoji} {d.label}
-                </span>
-                <span className="text-[11px] font-mono text-slate-500">
-                  {done}/{total}
-                </span>
-              </button>
+              <div key={d.id} className="space-y-0.5">
+                <button
+                  onClick={() => {
+                    onSelectView("checklist");
+                    onSelectDomain(d.id);
+                    if (activeDomain === d.id) {
+                      setShowSubCategories((prev) => !prev);
+                    } else {
+                      setShowSubCategories(true);
+                    }
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
+                    isActive
+                      ? "bg-white/10 text-slate-100 font-medium"
+                      : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                  }`}
+                >
+                  <span className="truncate flex items-center gap-1.5">
+                    <span>{d.emoji}</span>
+                    <span className="truncate">{d.label}</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {done}/{total}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] text-slate-400">
+                        {showSubCategories ? "▴" : "▾"}
+                      </span>
+                    )}
+                  </div>
+                </button>
+
+                {/* Sub-categories under active domain (Alphabetically sorted) */}
+                {isActive && showSubCategories && activeSubCategories.length > 0 && (
+                  <div className="ml-3 my-1 space-y-0.5 border-l border-slate-700/60 pl-2">
+                    {activeSubCategories.map((cat) => {
+                      const catProg = profile
+                        ? categoryProgress(cat, profile)
+                        : { done: 0, total: cat.items.length };
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            if (onJumpToCategory) {
+                              onJumpToCategory(cat.id);
+                            } else {
+                              requestAnimationFrame(() => {
+                                document
+                                  .getElementById(cat.id)
+                                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              });
+                            }
+                            onClose();
+                          }}
+                          className="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs text-slate-400 hover:bg-white/5 hover:text-emerald-400 transition group"
+                        >
+                          <span className="truncate flex items-center gap-1.5">
+                            <span className="text-[11px]">{cat.emoji || "📋"}</span>
+                            <span className="truncate group-hover:text-emerald-300">
+                              {cat.name}
+                            </span>
+                          </span>
+                          <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                            {catProg.done}/{catProg.total}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

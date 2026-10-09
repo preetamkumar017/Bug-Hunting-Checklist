@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, useRef } from "react";
 import {
   Menu,
   Search,
@@ -19,14 +19,16 @@ import { FindingsView } from "./components/FindingsView";
 import { ScopeView } from "./components/ScopeView";
 import { DashboardView } from "./components/DashboardView";
 import { ChecklistItemRow } from "./components/ChecklistItemRow";
-import { HackerToolsModal } from "./components/HackerToolsModal";
-import { HttpAnalyzerModal } from "./components/HttpAnalyzerModal";
 import { AddCustomCategoryModal } from "./components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "./components/CommandPaletteModal";
-import { WordlistsModal } from "./components/WordlistsModal";
-import { BurpRulesModal } from "./components/BurpRulesModal";
-import { ReportDrafterModal } from "./components/ReportDrafterModal";
-import { useActiveProfile } from "./store/useChecklistStore";
+import { useActiveProfile, useChecklistStore } from "./store/useChecklistStore";
+import { effectiveCategories, effectiveCatalogue } from './lib/catalogue';
+const HackerToolsModal = lazy(() => import('./components/HackerToolsModal').then(m => ({ default: m.HackerToolsModal })));
+const HttpAnalyzerModal = lazy(() => import('./components/HttpAnalyzerModal').then(m => ({ default: m.HttpAnalyzerModal })));
+const WordlistsModal = lazy(() => import('./components/WordlistsModal').then(m => ({ default: m.WordlistsModal })));
+const DorkGeneratorModal = lazy(() => import('./components/DorkGeneratorModal').then(m => ({ default: m.DorkGeneratorModal })));
+const BurpRulesModal = lazy(() => import('./components/BurpRulesModal').then(m => ({ default: m.BurpRulesModal })));
+const ReportDrafterModal = lazy(() => import('./components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
 
@@ -40,16 +42,21 @@ export default function App() {
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [wordlistsOpen, setWordlistsOpen] = useState(false);
+  const [dorksOpen, setDorksOpen] = useState(false);
   const [burpRulesOpen, setBurpRulesOpen] = useState(false);
   const [reportDrafterOpen, setReportDrafterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profile = useActiveProfile();
+  const storageError = useChecklistStore(s => s.storageError);
+  const storageWarning = useChecklistStore(s => s.storageWarning);
+  const [jump, setJump] = useState<{ id: string; sequence: number } | null>(null);
 
   // Keyboard shortcut listener: Cmd/Ctrl+K for Command Palette, / for search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (document.querySelector('dialog[open]') || (document.activeElement as HTMLElement | null)?.closest('[role="dialog"]')) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
@@ -74,30 +81,21 @@ export default function App() {
 
   // Merge built-in domain categories with user custom categories for this domain
   const mergedCategories = useMemo(() => {
-    const customCats = (profile?.customCategories || []).filter(
-      (c) => c.domainId === activeDomain || !c.domainId
-    );
-    return [...domain.categories, ...customCats];
-  }, [domain.categories, profile?.customCategories, activeDomain]);
+    return effectiveCategories(domain, profile);
+  }, [domain, profile]);
 
   // Search Results across all domains & custom categories
   const searchResults = useMemo(() => {
     if (!query.trim()) return null;
-    const q = query.toLowerCase();
-    const standardMatches = domains.flatMap((d) =>
+    const q = query.trim().toLowerCase();
+    return effectiveCatalogue(profile).flatMap((d) =>
       d.categories.flatMap((c) =>
         c.items
-          .filter((i) => i.text.toLowerCase().includes(q) || i.how.toLowerCase().includes(q))
+          .filter((i) => [i.text, i.how, c.name, c.description, ...(i.payloads ?? []), ...(i.payloadNotes ?? []), ...(i.methods ?? []).flatMap(method => [method.title, method.scenario, method.tips, ...method.steps, ...(method.payloads ?? [])]), profile?.itemStates[i.id]?.note].some(text => text?.toLowerCase().includes(q)))
           .map((item) => ({ item, category: c, domain: d }))
       )
     );
-    const customMatches = (profile?.customCategories || []).flatMap((c) =>
-      c.items
-        .filter((i) => i.text.toLowerCase().includes(q) || i.how.toLowerCase().includes(q))
-        .map((item) => ({ item, category: c, domain: domains.find((d) => d.id === c.domainId) || domain }))
-    );
-    return [...standardMatches, ...customMatches];
-  }, [query, profile?.customCategories, domain]);
+  }, [query, profile]);
 
   // Filtered categories based on StatusFilter
   const filteredCategories = useMemo(() => {
@@ -155,20 +153,19 @@ export default function App() {
     setView("checklist");
     setQuery("");
     setStatusFilter("all");
-    for (const d of domains) {
+    for (const d of effectiveCatalogue(profile)) {
       if (d.categories.some((c) => c.id === categoryId)) {
         setActiveDomain(d.id);
         break;
       }
     }
-    requestAnimationFrame(() => {
-      document.getElementById(categoryId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    setJump(previous => ({ id: categoryId, sequence: (previous?.sequence ?? 0) + 1 }));
   }
 
   return (
     <div className="min-h-screen bg-background text-slate-200 lg:flex">
       <Sidebar
+        key={`sidebar:${profile?.id ?? 'no-profile'}`}
         activeDomain={activeDomain}
         onSelectDomain={(d) => {
           setActiveDomain(d);
@@ -179,10 +176,12 @@ export default function App() {
         onOpenTools={() => setToolsOpen(true)}
         onOpenAnalyzer={() => setAnalyzerOpen(true)}
         onOpenWordlists={() => setWordlistsOpen(true)}
+        onOpenDorks={() => setDorksOpen(true)}
         onOpenBurpRules={() => setBurpRulesOpen(true)}
         onOpenReportDrafter={() => setReportDrafterOpen(true)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onOpenAddCategory={() => setAddCatOpen(true)}
+        onJumpToCategory={jumpToCategory}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -225,7 +224,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="min-w-0 flex-1 overflow-y-auto">
+      <main key={`content:${profile?.id ?? 'no-profile'}`} className="min-w-0 flex-1 overflow-y-auto">
+        {storageError && <p role="alert" className="bg-red-950 p-4 text-red-200">Changes were not saved: {storageError}</p>}
+        {storageWarning && <p role="status" className="bg-amber-950 p-4 text-amber-200">{storageWarning}</p>}
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
           {/* Search bar & Action triggers */}
           <div className="relative mb-5 flex flex-wrap items-center gap-2">
@@ -233,6 +234,7 @@ export default function App() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
                 ref={searchInputRef}
+                aria-label="Search checks, payloads, notes and categories"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search across all checks & payloads... (Press '/' to search)"
@@ -264,6 +266,15 @@ export default function App() {
             >
               <Database className="h-3.5 w-3.5 text-blue-400" />
               <span>Wordlists</span>
+            </button>
+
+            <button
+              onClick={() => setDorksOpen(true)}
+              title="Google Dork Generator"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-950/20 px-3 py-2 text-xs font-medium text-violet-300 hover:bg-violet-900/30 hover:text-violet-200"
+            >
+              <Search className="h-3.5 w-3.5 text-violet-400" />
+              <span>Dorks</span>
             </button>
 
             <button
@@ -319,6 +330,7 @@ export default function App() {
                   <p className="text-xs text-slate-400">
                     Ordered by methodology flow — recon → auth → injection → business logic → advanced.
                   </p>
+                  <p className="mt-1 text-xs text-amber-300">Checklist badges are testing priorities, not confirmed finding severity. “Clean” means no issue found in the recorded test only; blocked checks are not verified.</p>
                 </div>
                 <button
                   onClick={() => setAddCatOpen(true)}
@@ -375,6 +387,8 @@ export default function App() {
                     domain={domain}
                     index={idx + 1}
                     defaultOpen={idx === 0 || statusFilter !== "all"}
+                    jumpSequence={jump?.id === category.id ? jump.sequence : undefined}
+                    filtered={statusFilter !== 'all'}
                   />
                 ))
               )}
@@ -384,21 +398,22 @@ export default function App() {
       </main>
 
       {/* Swiss Army Knife Modal */}
-      <HackerToolsModal open={toolsOpen} onClose={() => setToolsOpen(false)} />
+      <Suspense key={`tools:${profile?.id ?? 'no-profile'}`} fallback={<p role="status">Loading tools…</p>}>
+      {toolsOpen && <HackerToolsModal open={toolsOpen} onClose={() => setToolsOpen(false)} />}
 
       {/* Raw HTTP Request & Attack Vector Analyzer */}
-      <HttpAnalyzerModal
+      {analyzerOpen && <HttpAnalyzerModal
         open={analyzerOpen}
         onClose={() => setAnalyzerOpen(false)}
         onNavigateToCategory={jumpToCategory}
-      />
+      />}
 
       {/* Add Custom Category Modal */}
-      <AddCustomCategoryModal
+      {addCatOpen && <AddCustomCategoryModal
         activeDomain={activeDomain}
         open={addCatOpen}
         onClose={() => setAddCatOpen(false)}
-      />
+      />}
 
       {/* Spotlight Command Palette (Cmd+K / Ctrl+K) */}
       <CommandPaletteModal
@@ -415,22 +430,29 @@ export default function App() {
       />
 
       {/* Curated Wordlists & Fuzzing Hub Modal */}
-      <WordlistsModal
+      {wordlistsOpen && <WordlistsModal
         open={wordlistsOpen}
         onClose={() => setWordlistsOpen(false)}
-      />
+      />}
+
+      {dorksOpen && <DorkGeneratorModal
+        open={dorksOpen}
+        onClose={() => setDorksOpen(false)}
+        defaultDomain={profile?.name}
+      />}
 
       {/* Burp Suite & Caido Match/Replace Rule Generator Modal */}
-      <BurpRulesModal
+      {burpRulesOpen && <BurpRulesModal
         open={burpRulesOpen}
         onClose={() => setBurpRulesOpen(false)}
-      />
+      />}
 
       {/* Smart Vulnerability Report Drafter Modal */}
-      <ReportDrafterModal
+      {reportDrafterOpen && <ReportDrafterModal
         open={reportDrafterOpen}
         onClose={() => setReportDrafterOpen(false)}
-      />
+      />}
+      </Suspense>
     </div>
   );
 }

@@ -53,10 +53,10 @@ export const commandReference: Record<string, CommandRef> = {
     summary: "Dynamic instrumentation toolkit for hooking functions at runtime.",
     flags: [
       { flag: "-U", desc: "Target a USB-connected device." },
-      { flag: "-g <process>", desc: "Attach by process/app name (gadget)." },
+      { flag: "-n <name>", desc: "Attach to a running process by name; -N selects an application identifier in supporting frida-tools versions." },
       { flag: "-f <target>", desc: "Spawn and instrument the target from launch." },
       { flag: "-l <script.js>", desc: "Load a JavaScript hook script." },
-      { flag: "--no-pause", desc: "Don't pause the spawned process before resuming." },
+      { flag: "--pause", desc: "Leave the spawned main thread paused (modern frida-tools). --no-pause is obsolete in modern releases; verify frida --help for the installed version." },
     ],
   },
   "frida-trace": {
@@ -64,15 +64,14 @@ export const commandReference: Record<string, CommandRef> = {
     flags: [
       { flag: "-U", desc: "Target a USB-connected device." },
       { flag: "-i <symbol>", desc: "Trace a native function by name/glob." },
-      { flag: "-m <method>", desc: "Trace an Objective-C/Java method by class/selector pattern." },
+      { flag: "-m <method>", desc: "Include Objective-C methods by pattern; use -j for Java method patterns in supported frida-trace versions." },
       { flag: "-f <target>", desc: "Spawn the target app and trace from launch." },
     ],
   },
   objection: {
-    summary: "Runtime mobile exploration toolkit built on Frida (no jailbreak/root required for many features).",
+    summary: "Runtime mobile exploration toolkit built on Frida; requires an authorized instrumentable device/app (Frida server or embedded Gadget). CLI startup syntax is version-dependent: consult objection --help.",
     flags: [
-      { flag: "-g <target>", desc: "Attach to an app by bundle id / package name / gadget." },
-      { flag: "explore", desc: "Enter the interactive objection REPL." },
+      { flag: "-g <target> explore", desc: "Legacy startup syntax; current releases may use -n <target> start. Verify the installed version instead of assuming interchangeability." },
       { flag: "ios sslpinning disable", desc: "Attempt to bypass common iOS SSL pinning implementations." },
       { flag: "android sslpinning disable", desc: "Attempt to bypass common Android SSL pinning implementations." },
       { flag: "ios keychain dump", desc: "Dump Keychain contents accessible to the app." },
@@ -103,8 +102,9 @@ export const commandReference: Record<string, CommandRef> = {
     summary: "Toolkit for testing, tampering, and cracking JSON Web Tokens.",
     flags: [
       { flag: "-t <url>", desc: "Target URL to send the modified token to." },
-      { flag: "-M <mode>", desc: "Attack mode, e.g. 'alg' for algorithm-confusion/none attacks." },
-      { flag: "-S <alg>", desc: "Sign the token with a given algorithm (hs256, rs256, none...)." },
+      { flag: "-M <mode>", desc: "Scan/playbook mode; consult the installed jwt_tool.py -h. 'alg' is not the alg:none exploit flag." },
+      { flag: "-X a / -X k", desc: "Exploit variants: a = alg:none; k = RSA/HMAC key confusion (requires -pk public_key.pem). Generation alone does not test server acceptance." },
+      { flag: "-S <alg>", desc: "Sign using a supported algorithm such as hs256 or rs256; use -X a for unsigned alg:none variants." },
       { flag: "-p <secret>", desc: "Secret/key to sign or crack with." },
       { flag: "-C", desc: "Crack mode: brute-force the HMAC secret against a wordlist." },
     ],
@@ -214,7 +214,7 @@ export const commandReference: Record<string, CommandRef> = {
     summary: "Network scanner for discovering hosts, ports, and services.",
     flags: [
       { flag: "-p-", desc: "Scan all 65535 TCP ports." },
-      { flag: "-sS", desc: "TCP SYN (stealth) scan." },
+      { flag: "-sS", desc: "TCP SYN scan; detectable, often requires elevated privileges, and is not inherently stealthy." },
       { flag: "-sV", desc: "Probe open ports to determine service/version info." },
       { flag: "-T4", desc: "Timing template — faster scan speed." },
       { flag: "-A", desc: "Enable OS detection, version detection, script scanning, traceroute." },
@@ -460,14 +460,14 @@ export const commandReference: Record<string, CommandRef> = {
     flags: [{ flag: "-l <file>", desc: "Input file of known subdomains to mutate." }],
   },
   subzy: {
-    summary: "Checks a list of subdomains for subdomain takeover vulnerabilities.",
+    summary: "Matches takeover fingerprints on a scoped host list; hits are candidates, not proof of provider claimability.",
     flags: [{ flag: "run --targets <file>", desc: "Check each subdomain in the file against known takeover fingerprints." }],
   },
   amass: {
-    summary: "In-depth attack-surface mapping and subdomain enumeration tool.",
+    summary: "Attack-surface mapping tool with major-version-dependent subcommands; verify amass --help before using legacy enum/intel options.",
     flags: [
       { flag: "enum -d <domain>", desc: "Enumerate subdomains for a target domain." },
-      { flag: "-passive", desc: "Use only passive data sources (no direct target contact)." },
+      { flag: "-passive", desc: "Legacy-version passive enumeration option; not portable across all Amass releases." },
     ],
   },
   httpx: {
@@ -505,11 +505,15 @@ export const commandReference: Record<string, CommandRef> = {
     flags: [{ flag: "-h <host> -U <user> -d <db>", desc: "Connect to a specific host/user/database." }],
   },
   mongo: {
-    summary: "Command-line shell for a MongoDB server.",
+    summary: "Legacy MongoDB shell; modern deployments generally use mongosh. Check installed client/server compatibility.",
     flags: [{ flag: "<host>:<port>", desc: "Connect to a MongoDB instance at the given address." }],
   },
+  mongosh: {
+    summary: "Modern MongoDB shell; use an authorized fixture and bounded read-only commands.",
+    flags: [{ flag: "<connection-string>", desc: "Connect to a MongoDB URI." }, { flag: "--eval <javascript>", desc: "Evaluate shell JavaScript; prefer a read-only ping or owned-fixture query." }],
+  },
   wappalyzer: {
-    summary: "Fingerprints the technology stack (frameworks, CMS, libraries) a website uses.",
+    summary: "Technology fingerprinting; legacy public Wappalyzer CLI availability varies. Prefer the supported extension/service and do not assume a wappalyzer executable is installed.",
     flags: [],
   },
   whatweb: {
@@ -521,8 +525,8 @@ export const commandReference: Record<string, CommandRef> = {
     flags: [{ flag: "<url>", desc: "Target site to probe for a WAF signature." }],
   },
   retire: {
-    summary: "Scans JavaScript files/libraries for known vulnerable versions.",
-    flags: [],
+    summary: "Scans local JavaScript files for dependency advisory matches; a version match needs reachability and advisory precondition validation.",
+    flags: [{ flag: "--path <directory>", desc: "Scan a local directory. Do not assume the CLI supports --url for crawling a live site." }],
   },
   gau: {
     summary: "\"Get All URLs\" — fetches known URLs for a domain from sources like the Wayback Machine, OTX, and Common Crawl.",
@@ -533,12 +537,12 @@ export const commandReference: Record<string, CommandRef> = {
     flags: [{ flag: "-u <url>", desc: "Target endpoint to discover parameters on." }],
   },
   truffleHog: {
-    summary: "Scans a git repository's history for accidentally committed secrets/credentials.",
-    flags: [{ flag: "<repo>", desc: "Repository path or URL to scan." }],
+    summary: "Legacy mixed-case name; TruffleHog v3 normally installs the lowercase trufflehog executable with explicit source subcommands.",
+    flags: [{ flag: "filesystem <path> --no-verification", desc: "Scan authorized local files without provider-side credential validation; discovered strings remain candidates." }],
   },
   gitleaks: {
     summary: "Scans git repositories or filesystems for hardcoded secrets.",
-    flags: [{ flag: "detect", desc: "Run a secret-detection scan." }],
+    flags: [{ flag: "git <path>", desc: "Modern Gitleaks: scan repository history; verify local help. detect --source is legacy/deprecated syntax." }, { flag: "dir <path>", desc: "Modern Gitleaks: scan an authorized directory; use --redact to limit secret disclosure in output." }],
   },
   censys: {
     summary: "CLI for the Censys internet-wide host/certificate search engine.",

@@ -234,7 +234,7 @@ export function computeMd5(string: string): string {
     return wordToHexValue;
   }
 
-  const x = convertToWordArray(string);
+  const x = convertToWordArray(Array.from(new TextEncoder().encode(string), b => String.fromCharCode(b)).join(""));
   let a = 0x67452301;
   let b = 0xefcdab89;
   let c = 0x98badcfe;
@@ -421,9 +421,9 @@ export function parseTargetUrl(input: string): ParsedUrlResult {
 }
 
 export function convertParamsToJson(params: ParsedUrlParam[]): string {
-  const obj: Record<string, string> = {};
+  const obj: Record<string, string[]> = Object.create(null);
   for (const p of params) {
-    if (p.key) obj[p.key] = p.value;
+    (obj[p.key] ??= []).push(p.value);
   }
   return JSON.stringify(obj, null, 2);
 }
@@ -624,6 +624,15 @@ export async function signJwtHmac(
       return { token: "", signature: "", unsignedToken: "", error: "Payload is not valid JSON syntax" };
     }
 
+    if (!headerObj || typeof headerObj !== "object" || Array.isArray(headerObj) ||
+        !payloadObj || typeof payloadObj !== "object" || Array.isArray(payloadObj)) {
+      return {token:"",signature:"",unsignedToken:"",error:"JWT header and payload must be JSON objects"};
+    }
+    for (const key of ["exp", "iat", "nbf"]) {
+      if (key in payloadObj && (typeof payloadObj[key] !== "number" || !Number.isFinite(payloadObj[key]))) {
+        return {token:"",signature:"",unsignedToken:"",error:`${key} must be a finite NumericDate`};
+      }
+    }
     // Synchronize alg in header
     headerObj.alg = algorithm;
     if (!headerObj.typ) headerObj.typ = "JWT";
@@ -671,4 +680,3 @@ export async function signJwtHmac(
     };
   }
 }
-

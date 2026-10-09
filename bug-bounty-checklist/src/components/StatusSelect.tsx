@@ -29,6 +29,7 @@ export function StatusSelect({
   const current = options.find((o) => o.value === value) ?? options[0];
   return (
     <select
+      aria-label="Check status"
       value={value}
       onChange={(e) => onChange(e.target.value as ItemStatus)}
       className={`rounded border bg-transparent px-2 py-1 text-xs font-medium outline-none ${current.className}`}

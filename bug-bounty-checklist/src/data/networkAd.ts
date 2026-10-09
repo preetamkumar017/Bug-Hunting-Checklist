@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 export const networkAdCategories: ChecklistCategory[] = [
   {
@@ -85,8 +86,9 @@ export const networkAdCategories: ChecklistCategory[] = [
           "Rubeus.exe asreproast /format:hashcat /outfile:asrep.hashes"
         ],
         payloadNotes: [
-          "GetNPUsers: Sends AS-REQ without pre-auth for targeted accounts; DC responds with AS-REP encrypted using the target's password hash.",
-          "Offline cracking: The encrypted portion can be cracked offline with Hashcat mode 18200 ($krb5asrep$23) without generating failed logon events."
+          "Read-only inventory of preauthentication-disabled accounts; scope the directory query to the authorized fixture.",
+          "Lab-only: GetNPUsers requests AS-REP material for the listed synthetic accounts. Ticket encryption and supported formats depend on account/DC configuration.",
+          "Lab-only: Rubeus collects AS-REP material. Offline password testing is a separate bounded assessment; requests may generate Kerberos events."
         ],
         expectedResponse: {
           vulnerable: "Active domain accounts have pre-authentication disabled and use weak/crackable passwords.",
@@ -104,8 +106,9 @@ export const networkAdCategories: ChecklistCategory[] = [
           "hashcat -m 13100 kerberoast.hashes rockyou.txt"
         ],
         payloadNotes: [
-          "SPN query: Any domain user can legally request a TGS ticket for any registered SPN (e.g. MSSQL, HTTP).",
-          "Ticket cracking: TGS is encrypted with the SPN account's secret; cracked with Hashcat mode 13100 ($krb5tgs$23) to reveal plaintext password."
+          "Version-dependent Impacket ticket request for scoped synthetic SPN accounts. Requestability alone is expected Kerberos behavior.",
+          "Lab-only Rubeus service-ticket collection; record actual RC4/AES etype and effective account privileges.",
+          "Offline mode 13100 applies to RC4 TGS material, not every ticket type. Use only an agreed synthetic credential-strength fixture."
         ],
         expectedResponse: {
           vulnerable: "High-privilege service accounts (Domain Admins or Server Admins) have SPNs configured and use weak, crackable passwords.",
@@ -123,8 +126,9 @@ export const networkAdCategories: ChecklistCategory[] = [
           "Rubeus.exe s4u /user:CompAccount$ /rc4:hash /impersonate:Administrator /msdsspn:cifs/target.local /ptt"
         ],
         payloadNotes: [
-          "Unconstrained Delegation: When a user authenticates to an unconstrained server, their full TGT is stored in memory in LSASS.",
-          "S4U2Self / S4U2Proxy: Constrained delegation allows a service to request a ticket on behalf of any domain user to designated target services."
+          "Read unconstrained-delegation computer flags; DCs require separate interpretation and effective policy must be checked.",
+          "Read classic constrained-delegation targets. RBCD is stored in a different security-descriptor attribute and requires separate review.",
+          "Lab-only S4U fixture requiring the service account's key, effective delegation permission and an eligible target identity; it does not work for arbitrary users/services."
         ],
         expectedResponse: {
           vulnerable: "Unconstrained delegation servers allow attackers who compromise the host to harvest Domain Admin TGTs passing through.",
@@ -169,8 +173,9 @@ export const networkAdCategories: ChecklistCategory[] = [
           "ntlmrelayx.py -tf smb_targets.txt -smb2support -e payload.exe"
         ],
         payloadNotes: [
-          "--gen-relay-list: Identifies endpoints where 'SMB signing: false' is set; these can receive relayed authentications from other machines.",
-          "ntlmrelayx: Relays incoming NTLM authentications directly to target servers to create administrative sessions without cracking passwords."
+          "Discovery of signing-not-required candidates, not proof of relay. Prefer read-only effective policy inspection on isolated fixture hosts.",
+          "Lab-only relay fixture: needs accepted NTLM, a relayable authentication source, target authorization and no effective relay protection. A session is not necessarily administrative.",
+          "Historical payload-execution example, not a default test: replace with a harmless isolated-lab marker operation. Never execute arbitrary payloads against production hosts."
         ],
         expectedResponse: {
           vulnerable: "Workstations and servers have SMB Signing set to optional, allowing relay attacks to gain SYSTEM shells.",
@@ -215,8 +220,9 @@ export const networkAdCategories: ChecklistCategory[] = [
           "Rubeus.exe asktgt /user:Administrator /certificate:cert.pfx /password:pass /ptt"
         ],
         payloadNotes: [
-          "ESC1 vulnerability: CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT allows requester to specify an arbitrary Subject Alternative Name (SAN), e.g., Domain Admin.",
-          "PKINIT / asktgt: The forged client certificate is presented to Kerberos PKINIT on DC to receive a Domain Admin TGT."
+          "Template inventory; verify enrollment ACLs, publication, EKUs, approval requirements and effective strong certificate mapping on the actual patched DC.",
+          "Historical SAN-supply example; use only synthetic lab identities. A supplied privileged name is not proof of successful authentication under current strong-mapping policy.",
+          "Lab-only certificate-authentication step. Record which account the issued certificate actually maps to; successful enrollment alone does not establish escalation."
         ],
         expectedResponse: {
           vulnerable: "A certificate template allows any authenticated user to supply a SAN for Administrator and receive an authentication certificate.",
@@ -245,3 +251,4 @@ export const networkAdCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("network_ad", networkAdCategories);

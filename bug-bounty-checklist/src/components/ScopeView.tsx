@@ -29,20 +29,24 @@ function ScopePoliciesTab({ profile }: { profile: TargetProfile }) {
   const [programPolicy, setProgramPolicy] = useState(profile.scope?.programPolicy || "");
   const [bountyTier, setBountyTier] = useState(profile.scope?.bountyTier || "");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   function handleSave() {
-    setScope({
+    setSaved(false);
+    setSaveError('');
+    try { setScope({
       inScope,
       outOfScope,
       programPolicy,
       bountyTier,
-    });
+    }); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Scope was not saved'); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
   return (
     <div className="space-y-6">
+      {saveError && <p role="alert" className="text-sm text-red-300">Not saved: {saveError}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <h2 className="text-lg font-bold text-slate-100">
@@ -159,7 +163,7 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
     addAsset({
       host: hostInput.trim(),
       type: typeInput,
-      status: "live",
+      status: "Unverified",
       ports: portsInput.trim() || undefined,
       tech: techInput ? techInput.split(",").map((t) => t.trim()).filter(Boolean) : [],
       notes: notesInput.trim() || undefined,
@@ -395,7 +399,8 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
                       </td>
                       <td className="px-3 py-2.5">
                         <select
-                          value={asset.status || "live"}
+                          aria-label={`Status of ${asset.host}`}
+                          value={asset.status || "Unverified"}
                           onChange={(e) =>
                             updateAsset(asset.id, {
                               status: e.target.value,
@@ -411,6 +416,8 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
                               : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                           }`}
                         >
+                          <option value="Unverified" className="bg-slate-900 text-slate-300">Unverified</option>
+                          {asset.status && !['Unverified', 'live', 'takeover_risk', 'unconfirmed', 'dead'].includes(asset.status) && <option value={asset.status}>{asset.status}</option>}
                           <option value="live" className="bg-slate-900 text-emerald-300">
                             Live (200)
                           </option>
@@ -476,10 +483,13 @@ function ScratchpadTab({ profile }: { profile: TargetProfile }) {
   const [text, setText] = useState(profile.scratchpad || "");
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   function handleTextChange(val: string) {
     setText(val);
-    setScratchpad(val);
+    setSaved(false);
+    setSaveError('');
+    try { setScratchpad(val); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Scratchpad was not saved'); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 1200);
   }
@@ -526,6 +536,7 @@ function ScratchpadTab({ profile }: { profile: TargetProfile }) {
 
   return (
     <div className="space-y-4">
+      {saveError && <p role="alert" className="text-sm text-red-300">Unsaved draft — copy it before leaving: {saveError}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -641,11 +652,11 @@ export function ScopeView() {
       </div>
 
       {activeTab === "scope" ? (
-        <ScopePoliciesTab profile={profile} />
+        <ScopePoliciesTab key={profile.id} profile={profile} />
       ) : activeTab === "assets" ? (
-        <AssetInventoryTab profile={profile} />
+        <AssetInventoryTab key={profile.id} profile={profile} />
       ) : (
-        <ScratchpadTab profile={profile} />
+        <ScratchpadTab key={profile.id} profile={profile} />
       )}
     </div>
   );

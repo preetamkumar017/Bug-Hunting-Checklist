@@ -11,10 +11,10 @@ export interface ItemTags {
   suggestOnClean?: string[]; // advanced item ids to suggest when a category is mostly clean
 }
 
-/** What to look for in the response, mapped to a verdict. */
+/** Evidence and expected protected behaviour; neither is an automated verdict. */
 export interface ExpectedResponse {
-  vulnerable: string; // response/behavior that indicates the target IS vulnerable
-  safe: string; // response/behavior that indicates the target is NOT vulnerable (properly protected)
+  vulnerable: string; // candidate / supporting evidence, subject to prerequisites
+  safe: string; // expected control result for this test only, not blanket assurance
 }
 
 export interface TestingMethod {
@@ -25,6 +25,13 @@ export interface TestingMethod {
   steps: string[]; // Step-by-step testing instructions
   payloads?: string[];
   tips?: string;
+  expectedResponse?: ExpectedResponse;
+  prerequisites?: string[];
+  evidence?: string[];
+  limitations?: string[];
+  safety?: string[];
+  references?: string[];
+  verification?: "reviewed" | "needs_adaptation" | "lab_verified";
 }
 
 export interface UseCaseScenario {
@@ -133,5 +140,3 @@ export interface AppState {
   profiles: Record<string, TargetProfile>;
   activeProfileId: string | null;
 }
-
-

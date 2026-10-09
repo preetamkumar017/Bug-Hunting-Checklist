@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { ChevronDown, ExternalLink, HelpCircle, Paperclip, X, FlaskConical, Copy, Check } from "lucide-react";
-import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus } from "../types/checklist";
+import { lazy, Suspense, useState } from "react";
+import { Bookmark, ChevronDown, ExternalLink, HelpCircle, Paperclip, X, FlaskConical, Copy, Check } from "lucide-react";
+import type { ChecklistCategory, ChecklistDomain, ChecklistItem, ItemStatus, Severity } from "../types/checklist";
 import { SeverityBadge } from "./SeverityBadge";
 import { StatusSelect } from "./StatusSelect";
 import { CommandHelpModal } from "./CommandHelpModal";
-import { TestingMethodsModal } from "./TestingMethodsModal";
+const TestingMethodsModal = lazy(() => import('./TestingMethodsModal').then(m => ({ default: m.TestingMethodsModal })));
 import { CvssPicker } from "./CvssPicker";
 import { findReferencedCommands } from "../lib/commandRef";
-import { DEFAULT_CVSS, calcCvss, type CvssMetrics } from "../lib/cvss";
-import { useChecklistStore, useActiveProfile } from "../store/useChecklistStore";
+import { DEFAULT_CVSS, calcCvss, cvssSeverityLabel, type CvssMetrics } from "../lib/cvss";
+import { useChecklistStore } from "../store/useChecklistStore";
+import { useShallow } from 'zustand/react/shallow';
+import { MAX_SCREENSHOTS, MAX_SCREENSHOT_BYTES, validateScreenshot } from '../lib/profileValidation';
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,10 +37,12 @@ export function ChecklistItemRow({
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDesc, setFindingDesc] = useState("");
   const [findingCvss, setFindingCvss] = useState<CvssMetrics>(DEFAULT_CVSS);
+  const [findingSeverity, setFindingSeverity] = useState<Severity>('info');
   const [findingScreenshots, setFindingScreenshots] = useState<string[]>([]);
   const [helpCommands, setHelpCommands] = useState<string[] | null>(null);
   const [showPlaybook, setShowPlaybook] = useState(false);
   const [copiedPayloadIdx, setCopiedPayloadIdx] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   async function copyPayload(text: string, idx: number) {
     try {
@@ -50,12 +54,16 @@ export function ChecklistItemRow({
     }
   }
 
-  const profile = useActiveProfile();
+   const state = useChecklistStore(s => s.activeProfileId ? s.profiles[s.activeProfileId]?.itemStates[item.id] : undefined);
   const setItemStatus = useChecklistStore((s) => s.setItemStatus);
   const setItemNote = useChecklistStore((s) => s.setItemNote);
+  const toggleBookmark = useChecklistStore(s => s.toggleBookmark);
   const addFinding = useChecklistStore((s) => s.addFinding);
-
-  const state = profile?.itemStates[item.id];
+  const removeFinding = useChecklistStore((s) => s.removeFinding);
+  const clearFindingScreenshots = useChecklistStore(s => s.clearFindingScreenshots);
+  const itemFindings = useChecklistStore(useShallow(s => (s.activeProfileId ? s.profiles[s.activeProfileId]?.findings ?? [] : []).filter(f => f.itemId === item.id)));
+  const deleteCustomItem = useChecklistStore(s => s.deleteCustomItem);
+  const renameCustomItem = useChecklistStore(s => s.renameCustomItem);
   const status: ItemStatus = state?.status ?? "not_tested";
 
   function handleStatusChange(next: ItemStatus) {
@@ -69,47 +77,62 @@ export function ChecklistItemRow({
   }
 
   function saveFinding() {
-    if (!findingTitle.trim()) return;
+    if (!findingTitle.trim() || !findingDesc.trim()) {
+      setSaveError('Add a title and observed evidence, reproduction steps and tested limitations. A checklist label is not evidence.');
+      return;
+    }
     const { score, vector } = calcCvss(findingCvss);
-    addFinding({
+    setSaveError('');
+    try { addFinding({
       itemId: item.id,
       itemText: item.text,
       domain: domain.id,
       categoryName: category.name,
-      severity: item.severity,
+      severity: findingSeverity,
       title: findingTitle.trim(),
       description: findingDesc.trim(),
       cvss: score > 0 ? { score, vector } : undefined,
       screenshots: findingScreenshots.length > 0 ? findingScreenshots : undefined,
-    });
+      cweId: item.cweId,
+      owaspCategory: item.owaspCategory,
+      remediation: item.remediation,
+    }); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Finding was not saved'); return; }
     setFindingTitle("");
     setFindingDesc("");
     setFindingCvss(DEFAULT_CVSS);
+    setFindingSeverity('info');
     setFindingScreenshots([]);
     setShowFindingForm(false);
   }
 
   async function handleScreenshotUpload(files: FileList | null) {
     if (!files) return;
-    const urls = await Promise.all(Array.from(files).map(readFileAsDataUrl));
-    setFindingScreenshots((s) => [...s, ...urls]);
+    try {
+      if (files.length + findingScreenshots.length > MAX_SCREENSHOTS) throw new Error('Maximum four screenshots per finding');
+      for (const file of Array.from(files)) if (file.size > MAX_SCREENSHOT_BYTES || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('Use PNG, JPEG or WebP images no larger than 250 KB');
+      const urls = await Promise.all(Array.from(files).map(readFileAsDataUrl));
+      urls.forEach(url => validateScreenshot(url));
+      setFindingScreenshots((s) => [...s, ...urls].slice(0, MAX_SCREENSHOTS));
+    } catch (error) { alert(error instanceof Error ? error.message : 'Unable to read image'); }
   }
 
   return (
     <>
     {helpCommands && <CommandHelpModal commands={helpCommands} onClose={() => setHelpCommands(null)} />}
     <div className="border-b border-border/60 last:border-b-0">
+      {saveError && <p role="alert" className="px-4 py-2 text-xs text-red-300">Not saved: {saveError}</p>}
       <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
         <button
           onClick={() => setOpen((o) => !o)}
           className="mt-0.5 shrink-0 text-slate-500 hover:text-slate-300"
           aria-label="Toggle details"
+          aria-expanded={open}
         >
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
 
         <div className="min-w-0 flex-1">
-          <button onClick={() => setOpen((o) => !o)} className="block w-full text-left">
+          <button aria-expanded={open} onClick={() => setOpen((o) => !o)} className="block w-full text-left">
             <p className="text-sm text-slate-200">
               {itemIndex !== undefined && (
                 <span className="font-mono text-xs font-semibold text-slate-500 mr-1.5">
@@ -119,6 +142,11 @@ export function ChecklistItemRow({
               {item.text}
             </p>
           </button>
+          <button type="button" aria-label={state?.bookmarked ? 'Remove follow-up bookmark' : 'Bookmark for follow-up'} aria-pressed={state?.bookmarked ?? false} className="mt-1 inline-flex items-center gap-1 text-xs text-amber-300" onClick={() => {
+            try { toggleBookmark(item.id); setSaveError(''); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Bookmark was not saved'); }
+          }}><Bookmark className="h-3 w-3" fill={state?.bookmarked ? 'currentColor' : 'none'} />{state?.bookmarked ? 'Bookmarked' : 'Follow up'}</button>
+          {item.isCustom && <button type="button" className="ml-3 mt-1 text-xs text-red-400" onClick={() => { if (confirm('Delete this custom check and its progress? Saved findings will be retained.')) deleteCustomItem(category.id, item.id); }}>Delete custom check</button>}
+          {item.isCustom && <button type="button" className="ml-3 mt-1 text-xs text-slate-300" onClick={() => { const text = prompt('Rename custom check', item.text); if (text?.trim()) renameCustomItem(category.id, item.id, text); }}>Rename</button>}
 
           <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
             <SeverityBadge severity={item.severity} />
@@ -216,11 +244,11 @@ export function ChecklistItemRow({
                 <div className="space-y-1.5 rounded border border-border/60 p-2">
                   <p className="font-semibold text-slate-300">Reading the result:</p>
                   <p>
-                    <span className="font-medium text-red-400">🔴 Vulnerable if: </span>
+                    <span className="font-medium text-red-400">Candidate / supporting evidence: </span>
                     {item.expectedResponse.vulnerable}
                   </p>
                   <p>
-                    <span className="font-medium text-emerald-400">🟢 Safe if: </span>
+                    <span className="font-medium text-emerald-400">Expected protected behaviour for this test: </span>
                     {item.expectedResponse.safe}
                   </p>
                 </div>
@@ -240,6 +268,7 @@ export function ChecklistItemRow({
                 <span className="font-semibold text-slate-300">Note:</span>
                 <textarea
                   defaultValue={state?.note ?? ""}
+                  key={state?.note ?? ''}
                   onBlur={(e) => setItemNote(item.id, e.target.value)}
                   placeholder={
                     item.severity === "info"
@@ -250,6 +279,52 @@ export function ChecklistItemRow({
                   rows={2}
                 />
               </div>
+
+              {itemFindings.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="font-semibold text-slate-300">Saved findings ({itemFindings.length}):</span>
+                  {itemFindings.map((f) => (
+                    <div key={f.id} className="rounded border border-red-600/30 bg-red-950/10 p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-semibold text-red-300">{f.title}</p>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {f.cvss && (
+                            <span className="font-mono text-[10px] text-amber-400">CVSS {f.cvss.score.toFixed(1)}</span>
+                          )}
+                          <button
+                            onClick={() => { try { removeFinding(f.id); setSaveError(''); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Unable to delete finding'); } }}
+                            className="text-[10px] text-slate-500 hover:text-red-400"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      {f.description && (
+                        <p className="mt-1 whitespace-pre-wrap text-xs text-slate-400">{f.description}</p>
+                      )}
+                      {f.cvss && <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{f.cvss.vector}</p>}
+                      {f.screenshots && f.screenshots.length > 0 && (
+                        <div className="mt-1 text-[10px] text-slate-500">{f.screenshots.length} screenshot(s) attached <button className="ml-2 text-red-300" onClick={() => {
+                          if (!confirm('Remove all screenshots from this finding? Export a backup first if you need to retain them.')) return;
+                          try { clearFindingScreenshots(f.id); setSaveError(''); } catch (error) { setSaveError(error instanceof Error ? error.message : 'Unable to remove screenshots'); }
+                        }}>Remove screenshots</button></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {status === "vulnerable" && !showFindingForm && (
+                <button
+                  onClick={() => {
+                    setFindingTitle((t) => t || item.text);
+                    setShowFindingForm(true);
+                  }}
+                  className="rounded border border-red-600/40 px-3 py-1 text-xs font-medium text-red-400 hover:bg-red-950/30"
+                >
+                  + Add {itemFindings.length > 0 ? "another " : ""}finding
+                </button>
+              )}
 
               {showFindingForm && (
                 <div className="space-y-2 rounded border border-red-600/30 bg-red-950/20 p-3">
@@ -268,7 +343,18 @@ export function ChecklistItemRow({
                     className="w-full resize-y rounded border border-border/60 bg-transparent px-2 py-1 text-xs text-slate-200 outline-none"
                   />
 
-                  <CvssPicker value={findingCvss} onChange={setFindingCvss} />
+                  <CvssPicker value={findingCvss} onChange={metrics => {
+                    setFindingCvss(metrics);
+                    const score = calcCvss(metrics).score;
+                    setFindingSeverity(score === 0 ? 'info' : cvssSeverityLabel(score).toLowerCase() as Severity);
+                  }} />
+                  <label className="block text-xs text-slate-300">
+                    Researcher-assessed severity (not the checklist priority)
+                    <select aria-label="Finding severity" value={findingSeverity} onChange={event => setFindingSeverity(event.target.value as Severity)} className="mt-1 block rounded border border-border bg-slate-900 p-1">
+                      {(['info', 'low', 'medium', 'high', 'critical'] as const).map(value => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                  <p className="text-[11px] text-slate-400">CVSS updates the suggested severity. Any override needs an evidence-based explanation in the description. Zero/no score does not establish absence of a vulnerability.</p>
 
                   <div>
                     <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-border/60 px-2 py-1 text-[11px] text-slate-400 hover:text-slate-200">
@@ -339,6 +425,7 @@ export function ChecklistItemRow({
     </div>
 
     {showPlaybook && (
+      <Suspense fallback={<p role="status">Loading playbook…</p>}>
       <TestingMethodsModal
         item={item}
         category={category}
@@ -347,6 +434,7 @@ export function ChecklistItemRow({
         open={showPlaybook}
         onClose={() => setShowPlaybook(false)}
       />
+      </Suspense>
     )}
     </>
   );

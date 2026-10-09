@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronRight, CheckCircle2, RotateCcw, Plus, Trash2, ExternalLink } from "lucide-react";
 import type { ChecklistCategory, ChecklistDomain } from "../types/checklist";
 import { ChecklistItemRow } from "./ChecklistItemRow";
@@ -11,17 +11,27 @@ export function CategorySection({
   domain,
   index,
   defaultOpen = false,
+  jumpSequence,
+  filtered = false,
 }: {
   category: ChecklistCategory;
   domain: ChecklistDomain;
   index?: number;
   defaultOpen?: boolean;
+  jumpSequence?: number;
+  filtered?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [dismissedJump, setDismissedJump] = useState<number | undefined>();
+  const expanded = open || (jumpSequence !== undefined && jumpSequence !== dismissedJump);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const profile = useActiveProfile();
   const markCategoryStatus = useChecklistStore((s) => s.markCategoryStatus);
   const deleteCustomCategory = useChecklistStore((s) => s.deleteCustomCategory);
+
+  useEffect(() => {
+    if (jumpSequence !== undefined) document.getElementById(category.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [category.id, jumpSequence]);
 
   const { done, total } = profile
     ? categoryProgress(category, profile)
@@ -31,14 +41,14 @@ export function CategorySection({
 
   function handleMarkAllClean(e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm(`Mark all ${category.items.length} checks in "${category.name}" as Clean?`)) {
+    if (confirm(`Mark ${category.items.length} ${filtered ? 'shown' : ''} checks in "${category.name}" as Clean?`)) {
       markCategoryStatus(itemIds, "clean");
     }
   }
 
   function handleResetCategory(e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm(`Reset all checks in "${category.name}" to Not Tested?`)) {
+    if (confirm(`Reset ${category.items.length} ${filtered ? 'shown' : ''} checks in "${category.name}" to Not Tested?`)) {
       markCategoryStatus(itemIds, "not_tested");
     }
   }
@@ -47,12 +57,11 @@ export function CategorySection({
     <>
       <div id={category.id} className="mb-4 overflow-hidden rounded-lg border border-border bg-card">
         <div
-          onClick={() => setOpen((o) => !o)}
           className="flex cursor-pointer items-center justify-between gap-2 px-3 py-3 hover:bg-white/[0.02] sm:gap-3 sm:px-4 select-none"
         >
-          <div className="flex min-w-0 items-center gap-2">
+          <button type="button" aria-expanded={expanded} aria-controls={`${category.id}-items`} onClick={() => { setOpen(!expanded); setDismissedJump(jumpSequence); }} className="flex min-w-0 items-center gap-2 text-left">
             <ChevronRight
-              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
+              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${expanded ? "rotate-90" : ""}`}
             />
             {index !== undefined && (
               <span className="shrink-0 font-mono text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
@@ -77,7 +86,7 @@ export function CategorySection({
                 </p>
               )}
             </div>
-          </div>
+          </button>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {/* Bulk Action Buttons on hover/mobile */}
@@ -120,7 +129,7 @@ export function CategorySection({
             </div>
 
             <span className="text-xs text-slate-500 font-mono">
-              {done}/{total}
+              {done}/{total}{filtered ? ' shown' : ''}
             </span>
             <div className="h-1.5 w-10 overflow-hidden rounded-full bg-white/5 sm:w-16">
               <div
@@ -131,8 +140,9 @@ export function CategorySection({
           </div>
         </div>
 
-        {open && (
-          <div className="border-t border-border/50">
+        {expanded && (
+          <div id={`${category.id}-items`} className="border-t border-border/50">
+            {filtered && <p className="px-4 py-2 text-xs text-slate-400">Counts and bulk actions apply only to the checks shown by this filter.</p>}
             {category.reference && (
               <div className="bg-slate-900/40 px-4 py-1.5 flex items-center justify-between text-[11px] border-b border-border/40">
                 <span className="text-slate-400 truncate">{category.description}</span>
@@ -190,12 +200,12 @@ export function CategorySection({
         )}
       </div>
 
-      <AddCustomItemModal
+      {addModalOpen && <AddCustomItemModal
         categoryId={category.id}
         categoryName={category.name}
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-      />
+      />}
     </>
   );
 }

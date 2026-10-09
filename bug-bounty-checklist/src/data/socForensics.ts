@@ -1,4 +1,5 @@
 import type { ChecklistCategory } from "../types/checklist";
+import { applyContentReview } from "../lib/contentReview";
 
 export const socForensicsCategories: ChecklistCategory[] = [
   {
@@ -37,9 +38,8 @@ export const socForensicsCategories: ChecklistCategory[] = [
           "Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4688} | Where-Object {$_.Properties[5].Value -match 'powershell.exe|cmd.exe|certutil.exe|rundll32.exe'}"
         ],
         payloadNotes: [
-          "Sysmon Event 1: Records process creation with full command line, parent process name, process GUID, and hashes (SHA256).",
-          "Parent-child anomalies: cmd.exe or powershell.exe spawned by w3wp.exe (IIS Web Server) or winword.exe (Office) strongly indicates exploitation/web shell.",
-          "-EncodedCommand: Flag in PowerShell used by attackers to hide malicious scripts inside base64 strings."
+          "Sysmon Event 1 records process creation; inspect named fields and configured hashes. Encoded arguments are also used by legitimate software and need corroboration.",
+          "Security 4688 process candidates: parse named XML fields for the actual schema and correlate identity, parent process, command line and independent artifacts."
         ],
         expectedResponse: {
           vulnerable: "Processes spawn from web servers, office applications, or run encoded scripts with no logging or alerts triggered.",
@@ -56,9 +56,8 @@ export const socForensicsCategories: ChecklistCategory[] = [
           "Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4698}"
         ],
         payloadNotes: [
-          "Event ID 7045: A service was installed in the system. Attacks like PsExec, Cobalt Strike, or local persistence install rogue services with SYSTEM image paths.",
-          "Event ID 4698: A scheduled task was created. Attackers use schtasks to maintain persistence across reboots.",
-          "ImagePath analysis: Check for binaries in Temp, AppData, or unusual locations (e.g. C:\\Users\\Public\\)."
+          "7045 records service installation, not necessarily execution. Inspect image path, creator context and matching process/start artifacts against legitimate change records.",
+          "4698 records task creation; inspect action/principal and correlate a run/process event before claiming execution. User-writable paths are leads, not proof of maliciousness."
         ],
         expectedResponse: {
           vulnerable: "Services or scheduled tasks execute binaries from temporary or user-writable directories without security review.",
@@ -104,9 +103,8 @@ export const socForensicsCategories: ChecklistCategory[] = [
           "zeek -r capture.pcap (check dns.log for queries exceeding 50 characters or unusual record types: TXT, NULL)"
         ],
         payloadNotes: [
-          "DNS Tunneling: Tools like Iodine, dnscat2, or Cobalt Strike DNS beacons encode data inside subdomains (e.g. a1b2c3d4e5.attacker-domain.com).",
-          "High Entropy: Base64 or hex-encoded data exhibits high randomness compared to standard English domain names.",
-          "TXT Record flooding: Look for massive volumes of TXT query responses carrying encoded payload chunks."
+          "Offline DNS query-frequency lead. Long/high-entropy labels also occur in CDNs and telemetry; retain source/time data for attribution.",
+          "This is a Zeek analysis procedure, not a shell command with parenthesized instructions. Inspect dns.log and corroborate endpoint/data evidence before calling the pattern tunneling or exfiltration."
         ],
         expectedResponse: {
           vulnerable: "Subdomains with long, random strings are repeatedly queried to a single domain name, transmitting exfiltrated data.",
@@ -124,8 +122,9 @@ export const socForensicsCategories: ChecklistCategory[] = [
           "tshark -r capture.pcap -Y \"ldap\""
         ],
         payloadNotes: [
-          "Cleartext protocols: Any communication without TLS allows intermediate nodes or compromised switches to sniff authentication tokens.",
-          "LDAP simple bind: Carries domain username and password in cleartext if LDAP over SSL (LDAPS :636) is not enforced."
+          "Inspect actual HTTP body/header bytes and stream reassembly for a synthetic credential, not just a POST method or suspicious field name.",
+          "Inspect actual FTP USER/PASS commands in an authorized packet copy, with credential values redacted from shared evidence.",
+          "Inspect LDAP bind type and transport state: StartTLS and SASL protection differ from plaintext simple bind. LDAP packets alone do not prove credential disclosure."
         ],
         expectedResponse: {
           vulnerable: "Plaintext passwords, session cookies, API tokens, or confidential documents are visible in packet captures.",
@@ -147,13 +146,12 @@ export const socForensicsCategories: ChecklistCategory[] = [
         text: "Windows Prefetch Analysis (.pf Files)",
         how: "Examine C:\\Windows\\Prefetch files to prove binary execution, original path, run count, and exact timestamp.",
         payloads: [
-          "PECmd.exe -d C:\\Windows\\Prefetch -o C:\\Temp\\Prefetch_Output --csv",
+          "PECmd.exe -d .\\PrefetchCopy --csv .\\PrefetchOutput",
           "Get-ChildItem C:\\Windows\\Prefetch\\*.pf | Select-Object Name, LastWriteTime"
         ],
         payloadNotes: [
-          "Prefetch mechanism: Windows creates a .pf file (e.g. MIMIKATZ.EXE-A1B2C3D4.pf) when an application runs to optimize memory loading.",
-          "Forensic value: Stores the last 8 execution times (Windows 10/11), run count, volumes referenced, and files/DLLs loaded during the first 10 seconds of execution.",
-          "Evidence of execution: Even if the attacker deletes the malicious executable, the .pf file remains as proof of execution."
+          "Parse hashed read-only working copies with the OS-format-appropriate parser; --csv takes the output directory. Correlate embedded execution timestamps and paths with independent evidence.",
+          "Filesystem LastWriteTime is not an exact execution timestamp. Missing Prefetch may reflect configuration, deletion or retention rather than non-execution."
         ],
         expectedResponse: {
           vulnerable: "Prefetch files confirm unauthorized tools (mimikatz, procdump, rubeus, chiseled) were executed on the endpoint.",
@@ -182,3 +180,4 @@ export const socForensicsCategories: ChecklistCategory[] = [
     ]
   }
 ];
+applyContentReview("soc_forensics", socForensicsCategories);
