@@ -9,6 +9,7 @@
 import type { VrtIndexEntry, LearnTopic, LearnMethod, VrtPriority, Localized } from "@/learn/data/types";
 import { vrtCwe } from "@/learn/data/vrtCwe";
 import { topicContent } from "@/learn/data/topics";
+import { getToolkitForTopic } from "@/learn/data/bountyToolkit";
 
 type Tri = { en: string; simple: string; hi: string };
 
@@ -99,6 +100,8 @@ export function buildGeneratedLesson(entry: VrtIndexEntry): LearnTopic {
       ]
     : [];
 
+  const toolkit = getToolkitForTopic(path, entry.priority);
+
   return {
     id: `gen-${entry.id}`,
     name: entry.name,
@@ -118,5 +121,7 @@ export function buildGeneratedLesson(entry: VrtIndexEntry): LearnTopic {
       ...(content?.references ?? []),
       { label: "Bugcrowd Vulnerability Rating Taxonomy", url: "https://bugcrowd.com/vulnerability-rating-taxonomy" },
     ],
+    tools: toolkit.tools,
+    bountyTips: toolkit.bountyTips,
   };
 }

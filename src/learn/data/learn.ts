@@ -51,6 +51,8 @@ function isTranslated(topic: LearnTopic): boolean {
   return typeof topic.intro !== "string";
 }
 
+import { getToolkitForTopic } from "@/learn/data/bountyToolkit";
+
 /**
  * Always returns a lesson for a VRT entry — deep where it matches, generated otherwise.
  * In a non-English language, an English-only deep lesson is replaced by the trilingual
@@ -59,7 +61,15 @@ function isTranslated(topic: LearnTopic): boolean {
  */
 export function lessonForEntry(entry: VrtIndexEntry, lang: Lang = "en"): LearnTopic {
   const deep = deepLessonForEntry(entry);
-  if (deep && (lang === "en" || isTranslated(deep))) return deep;
+  const path = fullVrtPath(entry);
+  if (deep && (lang === "en" || isTranslated(deep))) {
+    const toolkit = getToolkitForTopic(path, entry.priority);
+    return {
+      ...deep,
+      tools: deep.tools ?? toolkit.tools,
+      bountyTips: deep.bountyTips ?? toolkit.bountyTips,
+    };
+  }
   return buildGeneratedLesson(entry);
 }
 
@@ -70,7 +80,20 @@ export function lessonForEntry(entry: VrtIndexEntry, lang: Lang = "en"): LearnTo
  * VRT leaf it maps to (exact path); if it maps to no VRT leaf, it stays English.
  */
 export function localizedTopic(topic: LearnTopic, lang: Lang): LearnTopic {
-  if (lang === "en" || isTranslated(topic)) return topic;
-  const entry = vrtIndex.find((e) => fullVrtPath(e) === topic.mapping.bugcrowdVrt);
-  return entry ? buildGeneratedLesson(entry) : topic;
+  let resolved: LearnTopic;
+  if (lang === "en" || isTranslated(topic)) {
+    resolved = topic;
+  } else {
+    const entry = vrtIndex.find((e) => fullVrtPath(e) === topic.mapping.bugcrowdVrt);
+    resolved = entry ? buildGeneratedLesson(entry) : topic;
+  }
+  if (!resolved.tools || !resolved.bountyTips) {
+    const toolkit = getToolkitForTopic(resolved.mapping.bugcrowdVrt, resolved.mapping.bugcrowdPriority);
+    return {
+      ...resolved,
+      tools: resolved.tools ?? toolkit.tools,
+      bountyTips: resolved.bountyTips ?? toolkit.bountyTips,
+    };
+  }
+  return resolved;
 }

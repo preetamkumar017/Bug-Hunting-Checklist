@@ -12,6 +12,9 @@ import {
   Check,
   Search,
   Library,
+  Wrench,
+  Zap,
+  Terminal,
 } from "lucide-react";
 import {
   learnGroups,
@@ -156,6 +159,116 @@ function TopicDetail({
           ))}
         </div>
       </section>
+      )}
+
+      {/* Recommended Tools & Practical Workflow */}
+      {topic.tools && topic.tools.length > 0 && (
+        <section className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+              <Wrench className="h-4 w-4 text-sky-400" /> {t("toolsTitle")}
+            </h2>
+            <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300 border border-sky-500/20">
+              Battle-Tested
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {topic.tools.map((tool, i) => (
+              <div
+                key={i}
+                className="flex flex-col justify-between rounded-xl border border-border/80 bg-card/90 p-3.5 shadow-sm transition hover:border-sky-500/40"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <span className="inline-block rounded bg-sky-950/60 border border-sky-800/40 px-1.5 py-0.5 text-[10px] font-mono text-sky-300 mb-1">
+                        {tool.category}
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                        {tool.name}
+                        {tool.link && (
+                          <a
+                            href={tool.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-400 hover:text-sky-300 transition"
+                            title="Documentation"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {tool.command && (
+                    <div className="mb-2.5 flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/90 px-2.5 py-1.5 font-mono text-[11px] text-emerald-300">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Terminal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                        <code className="truncate selection:bg-emerald-800">{tool.command}</code>
+                      </div>
+                      <CopyButton text={tool.command} />
+                    </div>
+                  )}
+
+                  <div className="text-[11px] leading-relaxed text-slate-300 bg-slate-900/40 rounded-lg p-2.5 border border-border/40">
+                    <span className="font-semibold text-slate-200 block mb-0.5">Execution Steps:</span>
+                    <p className="whitespace-pre-line">{localize(tool.steps, lang)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Bounty Hunter Pro-Tips (Maximize Your Payout) */}
+      {topic.bountyTips && (
+        <section className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+              <Zap className="h-4 w-4 text-amber-400 fill-amber-400/20" /> {t("bountyTipsTitle")}
+            </h2>
+            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+              💰 Max Payout Blueprint
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {/* 🎯 Triage Acceptance Trigger */}
+            <div className="flex flex-col rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-slate-950/60 p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-amber-300">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/20 text-xs">🎯</span>
+                <span className="text-xs font-bold">{t("triageSecretLabel")}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300 flex-1">
+                {localize(topic.bountyTips.triageSecret, lang)}
+              </p>
+            </div>
+
+            {/* ⚡ Impact Multiplier */}
+            <div className="flex flex-col rounded-xl border border-rose-500/30 bg-gradient-to-b from-rose-950/20 to-slate-950/60 p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-rose-300">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-rose-500/20 text-xs">⚡</span>
+                <span className="text-xs font-bold">{t("impactMultiplierLabel")}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300 flex-1">
+                {localize(topic.bountyTips.impactMultiplier, lang)}
+              </p>
+            </div>
+
+            {/* 🛑 Avoid Duplicates & N/A Traps */}
+            <div className="flex flex-col rounded-xl border border-sky-500/30 bg-gradient-to-b from-sky-950/20 to-slate-950/60 p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-sky-300">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-500/20 text-xs">🛑</span>
+                <span className="text-xs font-bold">{t("avoidDuplicatesLabel")}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300 flex-1">
+                {localize(topic.bountyTips.avoidDuplicates, lang)}
+              </p>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Payloads */}

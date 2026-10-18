@@ -34,7 +34,26 @@ export const LEARN_LANGS: { id: Lang; label: string; short: string }[] = [
 
 /** UI chrome strings for the Learn detail view, per language. */
 export const LEARN_UI_STRINGS: Record<
-  "back" | "whatItIs" | "howToFind" | "payloads" | "payloadsNote" | "example" | "classification" | "scoringNote" | "learnMore" | "practice" | "intigriti" | "learnCta" | "lessonCta" | "pending",
+  | "back"
+  | "whatItIs"
+  | "howToFind"
+  | "payloads"
+  | "payloadsNote"
+  | "example"
+  | "classification"
+  | "scoringNote"
+  | "learnMore"
+  | "practice"
+  | "intigriti"
+  | "learnCta"
+  | "lessonCta"
+  | "pending"
+  | "toolsTitle"
+  | "bountyTipsTitle"
+  | "triageSecretLabel"
+  | "avoidDuplicatesLabel"
+  | "impactMultiplierLabel"
+  | "copyCommand",
   Record<Lang, string>
 > = {
   back: { en: "Back to all topics", simple: "Back to all topics", hi: "सभी टॉपिक पर वापस" },
@@ -59,6 +78,12 @@ export const LEARN_UI_STRINGS: Record<
     simple: "Step-by-step hunting notes for this exact item are not written yet. Below you only see the checked facts — nothing is guessed.",
     hi: "इस exact VRT leaf के detailed hunting steps अभी लिखे नहीं गए हैं। नीचे सिर्फ़ verified classification दिख रही है — कुछ भी अंदाज़े से नहीं लिखा।",
   },
+  toolsTitle: { en: "Recommended Tools & Practical Workflow", simple: "Best Tools & Commands", hi: "अनुशंसित टूल्स और प्रैक्टिकल स्टेप्स" },
+  bountyTipsTitle: { en: "Bounty Hunter Pro-Tips (Maximize Your Payout)", simple: "How to Get the Highest Bounty", hi: "बाउंटी हंटर प्रो-टिप्स (अधिकतम बाउंटी के लिए)" },
+  triageSecretLabel: { en: "Triage Acceptance Trigger", simple: "How to write the report to get accepted", hi: "ट्राइएज अप्रूवल सीक्रेट" },
+  avoidDuplicatesLabel: { en: "Avoid Duplicate & N/A Traps", simple: "Don't waste time on these traps", hi: "Duplicate और N/A से कैसे बचें" },
+  impactMultiplierLabel: { en: "Impact Multiplier (P1/P2 Escalation)", simple: "How to turn a low bug into high payout", hi: "इम्पैक्ट मल्टीप्लायर (P1/P2 में कैसे बदलें)" },
+  copyCommand: { en: "Copy Command", simple: "Copy Command", hi: "कमांड कॉपी करें" },
 };
 
 export interface PlatformMapping {
@@ -80,6 +105,20 @@ export interface LearnMethod {
   steps: Localized[];
 }
 
+export interface LearnTool {
+  name: string;
+  category: string;
+  command?: string;
+  steps: Localized;
+  link?: string;
+}
+
+export interface BountyTips {
+  triageSecret: Localized;
+  avoidDuplicates: Localized;
+  impactMultiplier: Localized;
+}
+
 export interface LearnTopic {
   id: string;
   name: string;
@@ -97,6 +136,8 @@ export interface LearnTopic {
   /** Generated lesson whose per-leaf content is not written yet (verified facts only). */
   pending?: boolean;
   references?: { label: string; url: string }[];
+  tools?: LearnTool[];
+  bountyTips?: BountyTips;
 }
 
 /**
