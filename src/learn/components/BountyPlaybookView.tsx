@@ -38,6 +38,7 @@ import {
   REPORT_TEMPLATES,
   ATTACK_DECISION_TREES,
   HIGH_YIELD_PAYLOADS,
+  P3_P4_TECHNIQUES,
 } from "@/learn/data/playbookData";
 
 interface BountyPlaybookProps {
@@ -80,12 +81,13 @@ function CopyBtn({ text }: { text: string }) {
 export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
   const [activeTab, setActiveTab] = useState<
-    "targets" | "calculator" | "bugs" | "trees" | "chaining" | "waf" | "payloads" | "oneliners" | "automation" | "routine" | "donts" | "template"
+    "targets" | "calculator" | "bugs" | "volume" | "trees" | "chaining" | "waf" | "payloads" | "oneliners" | "automation" | "routine" | "donts" | "template"
   >("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
   const [activeChain, setActiveChain] = useState<number>(0);
   const [activeTree, setActiveTree] = useState<number>(0);
   const [activeReportTemplate, setActiveReportTemplate] = useState<number>(0);
+  const [volumeFilter, setVolumeFilter] = useState<string>("all");
   const [wafCat, setWafCat] = useState<string>("all");
   const [reconCat, setReconCat] = useState<string>("all");
   const [automationCat, setAutomationCat] = useState<string>("all");
@@ -227,6 +229,11 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       en: "🔥 Top 6 Most Common Bugs",
       simple: "🔥 6 Easiest Paid Bugs",
       hi: "🔥 टॉप 6 सबसे आम बग्स",
+    }[lang],
+    tabVolume: {
+      en: "🎯 P3 & P4 Volume Strategy",
+      simple: "🎯 Easy Volume Bugs",
+      hi: "🎯 P3 व P4 वॉल्यूम रणनीति",
     }[lang],
     tabTrees: {
       en: "🌿 Attack Decision Trees",
@@ -874,6 +881,16 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           <Flame className="h-3.5 w-3.5" /> {t.tabBugs}
         </button>
         <button
+          onClick={() => setActiveTab("volume")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "volume"
+              ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Coins className="h-3.5 w-3.5" /> {t.tabVolume}
+        </button>
+        <button
           onClick={() => setActiveTab("trees")}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "trees"
@@ -1419,6 +1436,123 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── TAB: P3 & P4 VOLUME HUNTING STRATEGY ── */}
+      {activeTab === "volume" && (
+        <div className="space-y-5">
+          {/* Header Banner */}
+          <div className="rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/30 via-slate-900/60 to-card p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-sky-400" />
+                  {lang === "hi"
+                    ? "P3 व P4 वॉल्यूम हंटिंग आर्सेनल (हाई-फ्रीक्वेंसी बाउंटी रणनीति)"
+                    : "P3 & P4 High-Volume Strategy (Consistent $150 – $800 Payouts)"}
+                </h2>
+                <p className="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+                  {lang === "hi"
+                    ? "महीनों तक एक कठिन P1 के पीछे भागने के बजाय, टॉप हंटर्स 10-15 वैध P3/P4 बग्स रिपोर्ट करके नियमित कमाई और प्लेटफॉर्म रेपुटेशन बनाते हैं। नीचे वे 6 सबसे आम इश्यूज हैं जो सबसे ज्यादा एक्सेप्ट होते हैं:"
+                    : "Instead of grinding for weeks on elusive P1 criticals, professional volume hunters report 10–15 solid P3/P4 findings to guarantee consistent monthly payouts and build elite platform reputation."}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono text-emerald-300">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <span>Hit Rate: 3x Higher Than P1s</span>
+              </div>
+            </div>
+
+            {/* Filter pills */}
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/50">
+              {["all", "Information Disclosure", "Infrastructure Misconfiguration", "Broken Access Control", "Cryptographic & Redirection Flaws", "Business Logic Flaw"].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setVolumeFilter(cat)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                    volumeFilter === cat
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                      : "border border-border bg-slate-900 text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {cat === "all" ? "All P3/P4 Categories" : cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {P3_P4_TECHNIQUES.filter((item) => volumeFilter === "all" || item.category === volumeFilter).map((item, idx) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-border bg-slate-900/60 p-4 space-y-3.5 hover:border-sky-500/30 transition shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/20 text-[10px] font-bold text-sky-300 border border-sky-500/30 shrink-0">
+                      {idx + 1}
+                    </span>
+                    <h3 className="text-xs font-bold text-slate-200 truncate">{localize(item.title, lang)}</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      item.severity.startsWith("Medium")
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                        : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                    }`}>
+                      {item.severity}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                      {item.averagePayout}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Why high volume */}
+                <div className="text-xs text-slate-300 leading-relaxed">
+                  <span className="font-semibold text-sky-400">
+                    {lang === "hi" ? "यह इतना आम क्यों है: " : "Why It's Everywhere: "}
+                  </span>
+                  {localize(item.whyHighVolume, lang)}
+                </div>
+
+                {/* How to find */}
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs space-y-1">
+                  <span className="font-semibold text-emerald-400 block text-[11px]">
+                    {lang === "hi" ? "🔍 इसे कैसे और कहाँ खोजें:" : "🔍 How & Where to Find It:"}
+                  </span>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">{localize(item.howToFind, lang)}</p>
+                </div>
+
+                {/* Test snippet / command */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono uppercase text-slate-400">
+                      {lang === "hi" ? "टेस्ट कमांड / स्निपेट:" : "Test Command / Snippet:"}
+                    </span>
+                    <CopyBtn text={item.testCommandOrSnippet} />
+                  </div>
+                  <pre className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-[11px] text-emerald-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    <code>{item.testCommandOrSnippet}</code>
+                  </pre>
+                </div>
+
+                {/* Triager Acceptance Tip */}
+                <div className="rounded-lg border border-amber-500/20 bg-amber-950/20 p-2.5 text-[11px] text-amber-200/90 flex items-start gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-amber-300">
+                      {lang === "hi" ? "ट्राइएजर एक्सेप्टेंस टिप (N/A से बचें): " : "Triager Approval Secret (Avoid N/A): "}
+                    </span>
+                    {localize(item.triagerTip, lang)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

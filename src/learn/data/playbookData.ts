@@ -1781,4 +1781,206 @@ export const HIGH_YIELD_PAYLOADS: HighYieldPayload[] = [
   },
 ];
 
+// ── 9. P3 & P4 VOLUME HUNTING STRATEGY (CONSISTENT BOUNTIES) ──────────────────
+export interface P3P4Technique {
+  id: string;
+  title: Record<Lang, string>;
+  severity: "Medium (P3)" | "Low (P4)";
+  averagePayout: string;
+  category: string;
+  whyHighVolume: Record<Lang, string>;
+  howToFind: Record<Lang, string>;
+  testCommandOrSnippet: string;
+  triagerTip: Record<Lang, string>;
+  checklistCat: string;
+}
+
+export const P3_P4_TECHNIQUES: P3P4Technique[] = [
+  {
+    id: "p3-swagger-actuator",
+    title: {
+      en: "Exposed Swagger UI & Spring Actuator Endpoints (/v2/api-docs, /actuator/env)",
+      simple: "Exposed API Documentation & Debug Routes",
+      hi: "एक्सपोज्ड स्वैगर UI और स्प्रिंग एक्चुएटर एंडपॉइंट्स (/v2/api-docs, /actuator/env)",
+    },
+    severity: "Medium (P3)",
+    averagePayout: "$250 – $750",
+    category: "Information Disclosure",
+    whyHighVolume: {
+      en: "Developers routinely leave Swagger and Spring Boot Actuator enabled in staging and production subdomains. Over 15% of regional and legacy microservices leave API specs completely unauthenticated.",
+      simple: "Developers forget to turn off Swagger and debug screens when launching new sites.",
+      hi: "डेवलपर्स अक्सर प्रोडक्शन सबडोमेन्स पर स्वैगर और स्प्रिंग एक्चुएटर को बंद करना भूल जाते हैं। 15% से ज्यादा माइक्रोसर्विसेज पर यह खुला मिल जाता है।",
+    },
+    howToFind: {
+      en: "Run path wordlists on all discovered subdomains. Look for /v2/api-docs, /swagger-ui.html, /openapi.json, /actuator, /actuator/env, or /actuator/httptrace.",
+      simple: "Scan all your subdomains for links ending with /v2/api-docs or /swagger-ui.html.",
+      hi: "सबडोमेन्स पर `/swagger-ui.html`, `/v2/api-docs`, `/openapi.json`, या `/actuator/env` पाथ्स चेक करें।",
+    },
+    testCommandOrSnippet: `# Fuzz for Swagger & Actuator across all live hosts:
+ffuf -u "https://FUZZ.target.com/v2/api-docs" -w subdomains.txt -mc 200 -s
+curl -s "https://target.com/actuator/env" | jq .
+curl -s "https://target.com/v2/api-docs" | jq '.paths | keys'`,
+    triagerTip: {
+      en: "Do NOT just report 'Swagger is exposed'. Triagers will close it as Informative unless you demonstrate that it reveals internal, unpublished admin routes or leaks secret environment variables (e.g. from /actuator/env).",
+      simple: "Prove that the Swagger page reveals hidden admin buttons or internal credentials.",
+      hi: "सिर्फ 'Swagger खुला है' रिपोर्ट न करें। दिखाएं कि इसके अंदर अनपब्लिश्ड एडमिन एंडपॉइंट्स या इंटरनल एन्वायरनमेंट वेरिएबल्स लीक हो रहे हैं।",
+    },
+    checklistCat: "web-info-disclosure",
+  },
+  {
+    id: "p3-subdomain-takeover",
+    title: {
+      en: "Dangling CNAME Subdomain Takeover (Unclaimed S3, GitHub Pages, Zendesk)",
+      simple: "Unclaimed Subdomains (Subdomain Takeover)",
+      hi: "डैंगलिंग CNAME सबडोमेन टेकओवर (लावारिस S3 बकेट, GitHub Pages, Zendesk)",
+    },
+    severity: "Medium (P3)",
+    averagePayout: "$300 – $1,200",
+    category: "Infrastructure Misconfiguration",
+    whyHighVolume: {
+      en: "Companies delete third-party services (S3 buckets, Zendesk support portals, Heroku apps) but frequently forget to delete the corresponding DNS CNAME record, leaving the subdomain vulnerable to 1-click claiming.",
+      simple: "Companies cancel old services but forget to delete their domain pointers.",
+      hi: "कंपनियां पुरानी सेवाएं (जैसे AWS S3, Zendesk, Heroku) डिलीट कर देती हैं लेकिन DNS रिकॉर्ड हटाना भूल जाती हैं, जिससे कोई भी उस नाम का नया रिसोर्स बनाकर टेकओवर कर सकता है।",
+    },
+    howToFind: {
+      en: "Run subzy or nuclei takeover templates across all enumerated subdomains. Look for 404 error signatures like 'NoSuchBucket', 'There isn't a GitHub Pages site here', or 'Help Center Closed'.",
+      simple: "Use tools like subzy to find subdomains that show 'NoSuchBucket' or 404 errors.",
+      hi: "`subzy` या `nuclei -t takeovers/` चलाएं। अगर 'NoSuchBucket' या 'There isn't a GitHub Pages site here' दिखे, तो तुरंत रिपोर्ट करें।",
+    },
+    testCommandOrSnippet: `# Scan 1,000 subdomains for dangling takeovers in 30 seconds:
+subzy run --targets live_subs.txt --hide_fails
+dig CNAME sub.target.com +short
+# Output: mybucket.s3.amazonaws.com (Check if bucket is unclaimed)`,
+    triagerTip: {
+      en: "Never claim the asset or host offensive content. Claim a harmless text file proving ownership (e.g. your hacker username) and report immediately with the dig CNAME output.",
+      simple: "Do not put anything bad on the taken-over page. Just put your username to prove you found it.",
+      hi: "कभी भी पेज पर कोई गलत कंटेंट न डालें। सिर्फ एक साधारण टेक्स्ट फाइल में अपना यूजरनेम डालकर PoC दें और `dig CNAME` का आउटपुट अटैच करें।",
+    },
+    checklistCat: "web-subdomain-takeover",
+  },
+  {
+    id: "p3-cors-misconfig",
+    title: {
+      en: "Permissive CORS with Credentials on Sensitive PII Endpoints",
+      simple: "Leaking User Data via Insecure CORS",
+      hi: "सेंसिटिव PII एंडपॉइंट्स पर परमिटिव CORS (क्रेडेंशियल्स के साथ)",
+    },
+    severity: "Medium (P3)",
+    averagePayout: "$200 – $600",
+    category: "Broken Access Control",
+    whyHighVolume: {
+      en: "Developers struggle with CORS and often configure reverse proxies to reflect the incoming Origin header blindly with Access-Control-Allow-Credentials: true on user account APIs.",
+      simple: "Websites mistakenly trust any outside website that asks for user profile data.",
+      hi: "डेवलपर्स अक्सर किसी भी Origin को ब्लाइंडली रिफ्लेक्ट कर देते हैं और साथ में `Access-Control-Allow-Credentials: true` छोड़ देते हैं।",
+    },
+    howToFind: {
+      en: "Send a request to /api/v1/user/profile or /api/me with headers: 'Origin: https://evil.com' and 'Origin: null'. Check if the response echoes your origin back with allow-credentials: true.",
+      simple: "Send request with header 'Origin: https://evil.com'. Check if server replies with 'Access-Control-Allow-Origin: https://evil.com'.",
+      hi: "प्रोफाइल API पर हेडर लगाएं: `Origin: https://evil.com`। अगर रिस्पॉन्स में `Access-Control-Allow-Origin: https://evil.com` और `credentials: true` आए, तो यह वैध P3 है।",
+    },
+    testCommandOrSnippet: `curl -s -i "https://target.com/api/v1/user/me" \\
+  -H "Origin: https://attacker.com" \\
+  -H "Authorization: Bearer <TOKEN>" | grep -iE 'access-control'`,
+    triagerTip: {
+      en: "A CORS reflection on a marketing or public page is 0-bounty N/A. Only report CORS if the endpoint returns sensitive user data (email, phone, address, invoices) when authenticated with session cookies.",
+      simple: "Only report if the endpoint reveals private user details like phone or email.",
+      hi: "पब्लिक या बिना लॉगिन वाले पेज पर CORS रिपोर्ट न करें। सिर्फ तभी रिपोर्ट करें जब प्राइवेट PII (ईमेल, फोन, बिलिंग) लीक हो रहा हो।",
+    },
+    checklistCat: "web-cors",
+  },
+  {
+    id: "p3-readonly-idor",
+    title: {
+      en: "Read-Only BOLA/IDOR on Historical Receipts, Orders & Invoices",
+      simple: "Viewing Other Users' Order Numbers & Receipts",
+      hi: "ऑर्डर हिस्ट्री, रसीद और इनवॉइस पर रीड-ओनली IDOR",
+    },
+    severity: "Medium (P3)",
+    averagePayout: "$300 – $800",
+    category: "Broken Access Control",
+    whyHighVolume: {
+      en: "While companies test write/update permissions heavily, read-only PDF generators, tracking endpoints, and export routes (/order/1042/invoice.pdf) frequently lack tenant-level authorization checks.",
+      simple: "Viewing other people's receipts is very common because developers forget to protect read-only files.",
+      hi: "कंपनियां एडिट और डिलीट बटन की सुरक्षा तो कर लेती हैं, लेकिन PDF डाउनलोड और इनवॉइस व्यू करने वाले एंडपॉइंट्स पर ओनरशिप चेक लगाना भूल जाती हैं।",
+    },
+    howToFind: {
+      en: "Place an order or generate a receipt on Account A. Note the ID or tracking code. Send the exact request using Account B's cookies/token in Burp Suite.",
+      simple: "Buy a test item in Account A, copy the receipt link, and open it using Account B.",
+      hi: "Account A में कोई ऑर्डर या रसीद बनाएं। उसकी ID नोट करें और Account B के कुकीज़ के साथ वही रिक्वेस्ट भेजें।",
+    },
+    testCommandOrSnippet: `curl -s "https://target.com/api/orders/9041/receipt.pdf" \\
+  -H "Cookie: session=<ACCOUNT_B_COOKIE>" \\
+  -o test_receipt.pdf`,
+    triagerTip: {
+      en: "Mask all PII in your report. Clearly state: 'Tested strictly between two accounts owned by me (User A ID: 9041, User B ID: 9042). Confirmed unauthorized disclosure of foreign receipt metadata.'",
+      simple: "Blur private info and prove you tested between your own two accounts.",
+      hi: "स्क्रीनशॉट में प्राइवेट डेटा ब्लर करें और रिपोर्ट में साफ लिखें कि आपने अपने ही 2 टेस्ट अकाउंट्स के बीच टेस्ट किया है।",
+    },
+    checklistCat: "web-idor",
+  },
+  {
+    id: "p4-open-redirect",
+    title: {
+      en: "Open Redirect via Parameter Normalization & Slash Confusions",
+      simple: "Unvalidated Link Redirection",
+      hi: "पैरामीटर नॉर्मलाइजेशन और स्लैश कन्फ्यूजन से ओपन रीडायरेक्ट",
+    },
+    severity: "Low (P4)",
+    averagePayout: "$100 – $300",
+    category: "Cryptographic & Redirection Flaws",
+    whyHighVolume: {
+      en: "Almost every web application contains login redirects, return_to, next, or callback parameters. Naive regex filters check for 'target.com' inside the string but fail to validate protocol boundaries.",
+      simple: "Almost every login page has a redirect link that can be tricked to send users to another website.",
+      hi: "लगभग हर लॉगिन और लॉगआउट पेज पर `redirect_to`, `return_to`, या `next` पैरामीटर होता है, जिसमें कमजोर फ़िल्टर आसानी से बाईपास हो जाते हैं।",
+    },
+    howToFind: {
+      en: "Test login and logout URLs with: `///evil.com`, `https://target.com@evil.com`, `https://target.com.evil.com`, or `/%0d%0aLocation:https://evil.com`.",
+      simple: "Test login links with ///evil.com or https://target.com.evil.com.",
+      hi: "लॉगिन URL में `?next=///evil.com` या `?redirect=https://target.com.evil.com` डालकर चेक करें कि क्या ब्राउज़र बाहरी साइट पर जाता है।",
+    },
+    testCommandOrSnippet: `# Common open redirect permutations:
+https://target.com/login?next=///attacker.com
+https://target.com/logout?redirect_to=https://target.com.attacker.com
+https://target.com/oauth/authorize?redirect_uri=https://target.com%23.attacker.com`,
+    triagerTip: {
+      en: "Never just submit 'Website redirects to google.com'. Always demonstrate realistic phishing impact: 'An attacker can send a legitimate target link that transparently redirects victims to a credential harvesting landing page.'",
+      simple: "Explain that an attacker can use this link to trick people into typing their password on a fake site.",
+      hi: "सिर्फ 'google.com पर रीडायरेक्ट होता है' न लिखें। समझाएं कि कैसे अटैकर असली डोमेन का लिंक भेजकर विक्टिम को फ़िशिंग पेज पर भेज सकता है।",
+    },
+    checklistCat: "web-open-redirect",
+  },
+  {
+    id: "p4-rate-limit-sms",
+    title: {
+      en: "Unrestricted Email / SMS Flooding on Authentication Endpoints (Toll Fraud)",
+      simple: "SMS & Email Bombing (No Rate Limits)",
+      hi: "अनरेस्ट्रिक्टेड ईमेल व SMS फ्लडिंग (टोल फ्रॉड / नो रेट लिमिट)",
+    },
+    severity: "Low (P4)",
+    averagePayout: "$100 – $350",
+    category: "Business Logic Flaw",
+    whyHighVolume: {
+      en: "Many sign-up, password reset, and contact forms lack IP and phone-number rate limiting. Sending 100+ SMS messages costs the company real money per SMS sent via third-party providers (Twilio / MSG91).",
+      simple: "Websites forget to stop users from requesting 100 SMS messages in 10 seconds, wasting the company's money.",
+      hi: "साइन-अप और रीसेट पासवर्ड फॉर्म्स पर अक्सर IP या फोन नंबर रेट-लिमिट नहीं होती, जिससे 100+ SMS भेजकर कंपनी का बिल बढ़ाया जा सकता है।",
+    },
+    howToFind: {
+      en: "Send 20-30 OTP or password reset requests to your own phone number/email using Burp Intruder or Turbo Intruder. Check if the server continues returning 200 OK without CAPTCHA or 429 status.",
+      simple: "Send 20 password reset requests to your own email to see if it blocks you.",
+      hi: "अपने ईमेल या फोन पर 20-30 रिक्वेस्ट भेजकर चेक करें कि क्या सर्वर बिना किसी CAPTCHA या 429 ब्लॉक के लगातार SMS/ईमेल भेजता रहता है।",
+    },
+    testCommandOrSnippet: `# Turbo Intruder rate-limit validation snippet:
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint, concurrentConnectionLimit=5)
+    for i in range(30):
+        engine.queue(target.req, [str(i)])`,
+    triagerTip: {
+      en: "Do NOT send 10,000 SMS messages (that violates safe harbor). Send exactly 25-30 requests to YOUR OWN number, show that 30/30 delivered within 15 seconds, and calculate the financial loss per 100,000 automated requests (Twilio SMS cost).",
+      simple: "Send only 20 to 30 SMS to your own phone. Never send thousands.",
+      hi: "कभी भी 10,000 SMS न भेजें। सिर्फ अपने नंबर पर 20-30 SMS भेजें और रिपोर्ट में समझाएं कि बिना रेट-लिमिट के ऑटोमेशन से कंपनी को सीधा आर्थिक नुकसान (SMS बिल) होगा।",
+    },
+    checklistCat: "web-rate-limiting",
+  },
+];
+
 
