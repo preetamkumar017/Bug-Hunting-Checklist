@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -45,3 +45,12 @@ jobs:
           publish_branch: deploy
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Trigger Hostinger Auto Deployment Webhook
+        if: env.HOSTINGER_WEBHOOK_URL != ''
+        env:
+          HOSTINGER_WEBHOOK_URL: ${{ secrets.HOSTINGER_WEBHOOK_URL }}
+        run: |
+          echo "Pinging Hostinger Webhook..."
+          curl -sS -X GET "$HOSTINGER_WEBHOOK_URL" || curl -sS -X POST "$HOSTINGER_WEBHOOK_URL" || true
+          echo "Hostinger webhook pinged successfully."
