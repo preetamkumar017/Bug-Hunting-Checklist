@@ -209,40 +209,27 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
 }
 
 function VrtIndexBrowser({
+  domain,
+  category,
   priority,
   lessonFor,
   onOpenLesson,
+  onResetFilters,
 }: {
+  domain: AppLearnDomain | "all";
+  category: string;
   priority: VrtPriority | "all";
   lessonFor: (entry: VrtIndexEntry) => LearnTopic | undefined;
   onOpenLesson: (topic: LearnTopic) => void;
+  onResetFilters: () => void;
 }) {
-  const [domain, setDomain] = useState<AppLearnDomain | "all">("web");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [query, setQuery] = useState("");
-
-  // Categories available for the currently selected domain & priority
-  const availableCategories = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of vrtIndex) {
-      const matchDomain = domain === "all" || e.domain === domain;
-      const matchPriority = priority === "all" || e.priority === priority;
-      if (matchDomain && matchPriority) {
-        map.set(e.category, (map.get(e.category) ?? 0) + 1);
-      }
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [domain, priority]);
-
-  const totalInDomain = useMemo(() => {
-    return availableCategories.reduce((sum, [, count]) => sum + count, 0);
-  }, [availableCategories]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return vrtIndex.filter((e) => {
       const matchDomain = domain === "all" || e.domain === domain;
-      const matchCategory = selectedCategory === "all" || e.category === selectedCategory;
+      const matchCategory = category === "all" || e.category === category;
       const matchPriority = priority === "all" || e.priority === priority;
       const matchQuery =
         !q ||
@@ -251,7 +238,7 @@ function VrtIndexBrowser({
         e.category.toLowerCase().includes(q);
       return matchDomain && matchCategory && matchPriority && matchQuery;
     });
-  }, [domain, selectedCategory, priority, query]);
+  }, [domain, category, priority, query]);
 
   const byCategory = useMemo(() => {
     const m = new Map<string, VrtIndexEntry[]>();
@@ -265,141 +252,32 @@ function VrtIndexBrowser({
 
   return (
     <div className="space-y-4">
-      {/* 1. Domain Section */}
-      <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-            <span className="text-emerald-400">Step 1:</span> Domain Section
-          </span>
-          <span className="text-[11px] text-slate-400 font-mono">
-            {domain === "all" ? "All Domains" : LEARN_DOMAINS.find((d) => d.id === domain)?.label}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
+      {/* Search */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Search in ${rows.length} VRT entries…`}
+          className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-slate-200 outline-none focus:border-emerald-500"
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+        <span>
+          Showing <strong className="text-slate-300">{rows.length}</strong> VRT entries · Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · deep lessons linked where available
+        </span>
+        {(query || category !== "all" || domain !== "all" || priority !== "all") && (
           <button
             onClick={() => {
-              setDomain("all");
-              setSelectedCategory("all");
+              setQuery("");
+              onResetFilters();
             }}
-            className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-              domain === "all"
-                ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
-                : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-            }`}
+            className="text-slate-400 hover:text-slate-200 underline"
           >
-            🗂️ All Domains ({vrtIndex.length})
+            Reset All Filters
           </button>
-          {LEARN_DOMAINS.map((d) => {
-            const n = vrtIndex.filter((e) => e.domain === d.id).length;
-            return (
-              <button
-                key={d.id}
-                onClick={() => {
-                  setDomain(d.id);
-                  setSelectedCategory("all");
-                }}
-                className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                  domain === d.id
-                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
-                    : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                }`}
-              >
-                {d.emoji} {d.label} ({n})
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 2. VRT Category Filter */}
-      <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-2.5">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-            <span className="text-violet-400">Step 2:</span> VRT Category Filter
-            <span className="ml-1 text-[11px] font-normal text-slate-400">
-              ({availableCategories.length} categories)
-            </span>
-          </span>
-          {selectedCategory !== "all" && (
-            <button
-              onClick={() => setSelectedCategory("all")}
-              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition underline underline-offset-2"
-            >
-              Show All Categories ({totalInDomain})
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-1.5 max-h-52 overflow-y-auto pr-1">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-              selectedCategory === "all"
-                ? "border-violet-500/60 bg-violet-500/20 text-violet-200 shadow-sm"
-                : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-            }`}
-          >
-            All Categories ({totalInDomain})
-          </button>
-          {availableCategories.map(([cat, count]) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`rounded-md border px-2.5 py-1 text-xs transition flex items-center gap-1.5 ${
-                  isSelected
-                    ? "border-violet-500/70 bg-violet-500/25 text-violet-100 font-semibold shadow-sm"
-                    : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-                }`}
-              >
-                <span>{cat}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                    isSelected ? "bg-violet-400/20 text-violet-200" : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Search and Quick Info */}
-      <div className="space-y-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search VRT entries in ${selectedCategory === "all" ? (domain === "all" ? "all domains" : domain) : selectedCategory}…`}
-            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-slate-200 outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
-          <span>
-            Showing <strong className="text-slate-300">{rows.length}</strong> entries
-            {selectedCategory !== "all" && (
-              <> in category <span className="text-violet-300 font-semibold">"{selectedCategory}"</span></>
-            )}
-            {" "}· Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · deep lessons linked where available
-          </span>
-          {(query || selectedCategory !== "all" || domain !== "web") && (
-            <button
-              onClick={() => {
-                setQuery("");
-                setSelectedCategory("all");
-                setDomain("web");
-              }}
-              className="text-slate-400 hover:text-slate-200 underline"
-            >
-              Reset Filters
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {byCategory.length === 0 ? (
@@ -451,10 +329,22 @@ export function LearnView({ onPractice }: LearnViewProps) {
   const [selected, setSelected] = useState<LearnTopic | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [mode, setMode] = useState<"lessons" | "index">("lessons");
+  const [domainFilter, setDomainFilter] = useState<AppLearnDomain | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<VrtPriority | "all">("all");
 
-  // Link a VRT index entry to a deep lesson in the same VRT category (exact leaf
-  // match if one exists, otherwise the category's representative lesson).
+  const handleDomainChange = (d: AppLearnDomain | "all") => {
+    setDomainFilter(d);
+    setCategoryFilter("all");
+  };
+
+  const handleResetFilters = () => {
+    setDomainFilter("all");
+    setCategoryFilter("all");
+    setPriorityFilter("all");
+  };
+
+  // Link a VRT index entry to a deep lesson in the same VRT category
   const lessonFor = useMemo(() => {
     const flat = learnGroups.flatMap((g) => g.topics.map((t) => ({ t, vrt: t.mapping.bugcrowdVrt })));
     return (entry: VrtIndexEntry): LearnTopic | undefined => {
@@ -463,30 +353,87 @@ export function LearnView({ onPractice }: LearnViewProps) {
     };
   }, []);
 
-  // Priority pill counts reflect the active mode's dataset.
-  const counts: Record<string, number> = { all: 0 };
-  if (mode === "lessons") {
-    for (const g of learnGroups) {
-      for (const t of g.topics) {
-        counts.all += 1;
-        const p = t.mapping.bugcrowdPriority;
-        counts[p] = (counts[p] ?? 0) + 1;
+  // Categories available based on active mode, domain, and priority
+  const availableCategories = useMemo(() => {
+    const map = new Map<string, number>();
+    if (mode === "index") {
+      for (const e of vrtIndex) {
+        const matchDomain = domainFilter === "all" || e.domain === domainFilter;
+        const matchPriority = priorityFilter === "all" || e.priority === priorityFilter;
+        if (matchDomain && matchPriority) {
+          map.set(e.category, (map.get(e.category) ?? 0) + 1);
+        }
+      }
+    } else {
+      for (const g of learnGroups) {
+        for (const t of g.topics) {
+          const matchPriority = priorityFilter === "all" || t.mapping.bugcrowdPriority === priorityFilter;
+          const matchDomain = domainFilter === "all" || domainFilter === "web";
+          if (matchPriority && matchDomain) {
+            const cat = t.mapping.bugcrowdVrt.split(" › ")[0];
+            map.set(cat, (map.get(cat) ?? 0) + 1);
+          }
+        }
       }
     }
-  } else {
-    for (const e of vrtIndex) {
-      counts.all += 1;
-      counts[e.priority] = (counts[e.priority] ?? 0) + 1;
-    }
-  }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [mode, domainFilter, priorityFilter]);
 
-  // Groups with topics filtered by the active VRT priority (empty groups dropped).
-  const visibleGroups =
-    priorityFilter === "all"
-      ? learnGroups
-      : learnGroups
-          .map((g) => ({ ...g, topics: g.topics.filter((t) => t.mapping.bugcrowdPriority === priorityFilter) }))
-          .filter((g) => g.topics.length > 0);
+  const totalCategoryItems = useMemo(() => {
+    return availableCategories.reduce((sum, [, count]) => sum + count, 0);
+  }, [availableCategories]);
+
+  // Priority counts based on active mode, domain, and category
+  const priorityCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: 0 };
+    if (mode === "index") {
+      for (const e of vrtIndex) {
+        const matchDomain = domainFilter === "all" || e.domain === domainFilter;
+        const matchCategory = categoryFilter === "all" || e.category === categoryFilter;
+        if (matchDomain && matchCategory) {
+          counts.all += 1;
+          counts[e.priority] = (counts[e.priority] ?? 0) + 1;
+        }
+      }
+    } else {
+      for (const g of learnGroups) {
+        for (const t of g.topics) {
+          const matchDomain = domainFilter === "all" || domainFilter === "web";
+          const topicCat = t.mapping.bugcrowdVrt.split(" › ")[0];
+          const matchCategory =
+            categoryFilter === "all" ||
+            topicCat.toLowerCase().includes(categoryFilter.toLowerCase()) ||
+            t.mapping.bugcrowdVrt.toLowerCase().includes(categoryFilter.toLowerCase());
+          if (matchDomain && matchCategory) {
+            counts.all += 1;
+            const p = t.mapping.bugcrowdPriority;
+            counts[p] = (counts[p] ?? 0) + 1;
+          }
+        }
+      }
+    }
+    return counts;
+  }, [mode, domainFilter, categoryFilter]);
+
+  // Groups with topics filtered by the active domain, category, and VRT priority
+  const visibleGroups = useMemo(() => {
+    if (mode === "index") return [];
+    return learnGroups
+      .map((g) => {
+        const topics = g.topics.filter((t) => {
+          const matchDomain = domainFilter === "all" || domainFilter === "web";
+          const matchPriority = priorityFilter === "all" || t.mapping.bugcrowdPriority === priorityFilter;
+          const topicCat = t.mapping.bugcrowdVrt.split(" › ")[0];
+          const matchCategory =
+            categoryFilter === "all" ||
+            topicCat.toLowerCase().includes(categoryFilter.toLowerCase()) ||
+            t.mapping.bugcrowdVrt.toLowerCase().includes(categoryFilter.toLowerCase());
+          return matchDomain && matchPriority && matchCategory;
+        });
+        return { ...g, topics };
+      })
+      .filter((g) => g.topics.length > 0);
+  }, [mode, domainFilter, priorityFilter, categoryFilter]);
 
   if (selected) {
     return <TopicDetail topic={selected} onBack={() => setSelected(null)} onPractice={onPractice} />;
@@ -559,39 +506,165 @@ export function LearnView({ onPractice }: LearnViewProps) {
         </button>
       </div>
 
-      {/* VRT priority filter (shared across both modes) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-[11px] font-medium text-slate-400">Filter by VRT priority:</span>
-        <button
-          onClick={() => setPriorityFilter("all")}
-          className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-            priorityFilter === "all"
-              ? "border-white/20 bg-white/10 text-slate-100"
-              : "border-border text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          All ({counts.all})
-        </button>
-        {(["P1", "P2", "P3", "P4", "P5", "varies"] as VrtPriority[])
-          .filter((p) => counts[p])
-          .map((p) => (
+      {/* ── Unified 3-Step VRT Filter Panel ── */}
+      <div className="rounded-xl border border-border bg-card/70 p-4 space-y-3.5 shadow-sm">
+        {/* Step 1: Domain Section */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/10 text-emerald-400 font-mono text-[10px]">1</span>
+              Domain Section:
+            </span>
+            <span className="text-[11px] text-slate-400 font-mono">
+              {domainFilter === "all" ? "All Domains" : LEARN_DOMAINS.find((d) => d.id === domainFilter)?.label}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             <button
-              key={p}
-              onClick={() => setPriorityFilter(p)}
+              onClick={() => handleDomainChange("all")}
               className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                priorityFilter === p
-                  ? PRIORITY_STYLES[p]
+                domainFilter === "all"
+                  ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                  : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+              }`}
+            >
+              🗂️ All Domains ({mode === "lessons" ? learnTopicCount : vrtIndex.length})
+            </button>
+            {LEARN_DOMAINS.map((d) => {
+              const n =
+                mode === "lessons"
+                  ? (d.id === "web" ? learnTopicCount : 0)
+                  : vrtIndex.filter((e) => e.domain === d.id).length;
+              if (mode === "lessons" && n === 0) return null;
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => handleDomainChange(d.id)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    domainFilter === d.id
+                      ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                      : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                  }`}
+                >
+                  {d.emoji} {d.label} ({n})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step 2: VRT Category Filter */}
+        <div className="space-y-1.5 pt-2.5 border-t border-border/60">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-500/10 text-violet-400 font-mono text-[10px]">2</span>
+              VRT Category Filter:
+              <span className="ml-1 text-[11px] font-normal text-slate-400">
+                ({availableCategories.length} categories)
+              </span>
+            </span>
+            {categoryFilter !== "all" && (
+              <button
+                onClick={() => setCategoryFilter("all")}
+                className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition underline underline-offset-2"
+              >
+                Reset to All Categories
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto pr-1">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                categoryFilter === "all"
+                  ? "border-violet-500/60 bg-violet-500/20 text-violet-200 shadow-sm"
+                  : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+              }`}
+            >
+              All Categories ({totalCategoryItems})
+            </button>
+            {availableCategories.map(([cat, count]) => {
+              const isSelected = categoryFilter === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`rounded-md border px-2.5 py-1 text-xs transition flex items-center gap-1.5 ${
+                    isSelected
+                      ? "border-violet-500/70 bg-violet-500/25 text-violet-100 font-semibold shadow-sm"
+                      : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                      isSelected ? "bg-violet-400/20 text-violet-200" : "bg-slate-800 text-slate-400"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step 3: Filter by VRT priority */}
+        <div className="space-y-1.5 pt-2.5 border-t border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-500/10 text-amber-400 font-mono text-[10px]">3</span>
+              Filter by VRT Priority:
+            </span>
+            {priorityFilter !== "all" && (
+              <button
+                onClick={() => setPriorityFilter("all")}
+                className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition underline underline-offset-2"
+              >
+                Reset Priority
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setPriorityFilter("all")}
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                priorityFilter === "all"
+                  ? "border-white/20 bg-white/10 text-slate-100"
                   : "border-border text-slate-400 hover:text-slate-200"
               }`}
             >
-              {p === "varies" ? "Varies" : p} ({counts[p]})
+              All ({priorityCounts.all})
             </button>
-          ))}
+            {(["P1", "P2", "P3", "P4", "P5", "varies"] as VrtPriority[])
+              .filter((p) => priorityCounts[p])
+              .map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPriorityFilter(p)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    priorityFilter === p
+                      ? PRIORITY_STYLES[p]
+                      : "border-border text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {p === "varies" ? "Varies" : p} ({priorityCounts[p]})
+                </button>
+              ))}
+          </div>
+        </div>
       </div>
 
       {/* Content: deep lessons or the full VRT index */}
       {mode === "index" ? (
-        <VrtIndexBrowser priority={priorityFilter} lessonFor={lessonFor} onOpenLesson={setSelected} />
+        <VrtIndexBrowser
+          domain={domainFilter}
+          category={categoryFilter}
+          priority={priorityFilter}
+          lessonFor={lessonFor}
+          onOpenLesson={setSelected}
+          onResetFilters={handleResetFilters}
+        />
       ) : visibleGroups.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-slate-400">
           No topics at this VRT priority yet.
