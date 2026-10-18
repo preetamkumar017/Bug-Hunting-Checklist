@@ -132,9 +132,15 @@ function TopicDetail({
           <BookOpen className="h-4 w-4 text-emerald-400" /> {t("whatItIs")}
         </h2>
         <p className="text-sm leading-relaxed text-slate-300">{localize(topic.intro, lang)}</p>
+        {topic.pending && (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/15 p-3 text-xs leading-relaxed text-amber-200/90">
+            {t("pending")}
+          </p>
+        )}
       </section>
 
       {/* How to find */}
+      {topic.howToFind.length > 0 && (
       <section>
         <h2 className="mb-2 text-sm font-bold text-slate-100">🔍 {t("howToFind")}</h2>
         <div className="space-y-3">
@@ -150,6 +156,7 @@ function TopicDetail({
           ))}
         </div>
       </section>
+      )}
 
       {/* Payloads */}
       {topic.payloads && topic.payloads.length > 0 && (

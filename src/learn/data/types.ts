@@ -34,7 +34,7 @@ export const LEARN_LANGS: { id: Lang; label: string; short: string }[] = [
 
 /** UI chrome strings for the Learn detail view, per language. */
 export const LEARN_UI_STRINGS: Record<
-  "back" | "whatItIs" | "howToFind" | "payloads" | "payloadsNote" | "example" | "classification" | "scoringNote" | "learnMore" | "practice" | "intigriti" | "learnCta" | "lessonCta",
+  "back" | "whatItIs" | "howToFind" | "payloads" | "payloadsNote" | "example" | "classification" | "scoringNote" | "learnMore" | "practice" | "intigriti" | "learnCta" | "lessonCta" | "pending",
   Record<Lang, string>
 > = {
   back: { en: "Back to all topics", simple: "Back to all topics", hi: "सभी टॉपिक पर वापस" },
@@ -54,6 +54,11 @@ export const LEARN_UI_STRINGS: Record<
   intigriti: { en: "typically", simple: "usually", hi: "आम तौर पर" },
   learnCta: { en: "Learn", simple: "Learn", hi: "सीखें" },
   lessonCta: { en: "Lesson", simple: "Lesson", hi: "लेसन" },
+  pending: {
+    en: "Detailed hunting steps for this exact VRT leaf are not written yet. Only the verified classification below is shown — nothing here is guessed.",
+    simple: "Step-by-step hunting notes for this exact item are not written yet. Below you only see the checked facts — nothing is guessed.",
+    hi: "इस exact VRT leaf के detailed hunting steps अभी लिखे नहीं गए हैं। नीचे सिर्फ़ verified classification दिख रही है — कुछ भी अंदाज़े से नहीं लिखा।",
+  },
 };
 
 export interface PlatformMapping {
@@ -89,6 +94,29 @@ export interface LearnTopic {
   mapping: PlatformMapping;
   /** Web checklist category id to open from "Practice on checklist". */
   checklistCategoryId?: string;
+  /** Generated lesson whose per-leaf content is not written yet (verified facts only). */
+  pending?: boolean;
+  references?: { label: string; url: string }[];
+}
+
+/**
+ * Per-leaf lesson content for a VRT entry that has no hand-written deep lesson.
+ * Lives in src/learn/data/topics/*.ts, keyed by the FULL VRT path
+ * ("Category › Subcategory › Leaf"). Every text field is trilingual.
+ * Priority, CVSS and the official CWE are NOT stored here — they come from the
+ * VRT index / vrtCwe so they can never drift from the published taxonomy.
+ */
+export interface TopicContent {
+  /** The mechanism of THIS leaf: what is broken and why it is a security issue (2–4 sentences). */
+  what: Localized;
+  /** Concrete ways to find this specific leaf (1–2 methods, 2–4 steps each). */
+  find: LearnMethod[];
+  /** What evidence triage needs for this leaf, and what makes it N/A / out of scope. */
+  proof: Localized;
+  /** How it moves to a neighbouring VRT leaf/priority — only where the VRT itself supports it. */
+  escalate?: Localized;
+  /** "CWE-xxx: Name" — only for leaves absent from Bugcrowd's official CWE mapping. */
+  cwe?: string;
   references?: { label: string; url: string }[];
 }
 

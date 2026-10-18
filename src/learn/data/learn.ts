@@ -35,19 +35,15 @@ export const learnTopicCount = learnGroups.reduce((n, g) => n + g.topics.length,
 
 // ── Lesson resolution: deep lesson on a strong match, else generated ────────
 // "Auto-generate + override": every VRT entry gets a lesson. A hand-written
-// deep lesson wins when it clearly corresponds to the leaf (exact path, or same
-// category + the leaf name appears in its VRT path); otherwise the trilingual
-// generated lesson for that exact leaf is used.
-const deepTopics: { topic: LearnTopic; vrt: string }[] = learnGroups.flatMap((g) =>
-  g.topics.map((t) => ({ topic: t, vrt: t.mapping.bugcrowdVrt })),
+// deep lesson wins only when its VRT path is exactly the entry's leaf path —
+// fuzzy name matching linked unrelated leaves (e.g. "CAPTCHA › Missing" to the
+// missing-cookie-flag lesson), so it is deliberately not used.
+const deepByPath = new Map<string, LearnTopic>(
+  learnGroups.flatMap((g) => g.topics.map((t) => [t.mapping.bugcrowdVrt, t] as const)),
 );
 
 export function deepLessonForEntry(entry: VrtIndexEntry): LearnTopic | undefined {
-  const path = fullVrtPath(entry);
-  const exact = deepTopics.find((x) => x.vrt === path);
-  if (exact) return exact.topic;
-  const sameCat = deepTopics.filter((x) => x.vrt.startsWith(entry.category));
-  return sameCat.find((x) => x.vrt.includes(entry.name))?.topic;
+  return deepByPath.get(fullVrtPath(entry));
 }
 
 /** A deep lesson is "translated" when its prose fields are trilingual objects, not plain strings. */
