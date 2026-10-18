@@ -1,13 +1,18 @@
 {
-  "name": "Antigravity Bug Bounty Checklist",
-  "short_name": "Bug Bounty",
-  "description": "Comprehensive Offensive Security, Recon, Penetration Testing & Bug Hunting Methodology Checklist",
+  "name": "Shakti Code Labs - Bug Bounty Checklist",
+  "short_name": "Shakti Bounty",
+  "description": "Comprehensive Offensive Security, Recon, Penetration Testing & Bug Hunting Methodology Checklist by Shakti Code Labs",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090d16",
   "theme_color": "#090d16",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
     {
       "src": "/favicon.svg",
       "sizes": "any",
