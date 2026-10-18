@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import {
-  Bug,
   Download,
   Upload,
   RotateCcw,
@@ -135,14 +134,19 @@ export function Sidebar({
           open ? "translate-x-0" : ""
         }`}
       >
-        <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-            <Bug className="h-5 w-5" />
-          </span>
+        <div className="mb-4 flex items-center gap-2.5">
+          <img
+            src="/shakti-logo.png"
+            alt="Shakti Code Labs"
+            className="h-9 w-auto object-contain rounded"
+          />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold leading-tight text-slate-100">Bug Bounty Checklist</p>
+            <p className="text-sm font-bold leading-tight text-slate-100 flex items-center gap-1">
+              <span>Shakti Code</span>
+              <span className="text-emerald-400">Labs</span>
+            </p>
             <p className="text-[11px] text-slate-400">
-              {totalDone} / {totalItems} completed
+              Bug Bounty Suite • {totalDone}/{totalItems}
             </p>
           </div>
           {onOpenCommandPalette && (

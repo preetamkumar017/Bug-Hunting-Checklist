@@ -101,14 +101,24 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
     <div className="space-y-6">
       {/* Top Welcome / Header Card */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            📊 Security Audit &amp; Bounty Dashboard
-          </h1>
-          <p className="text-xs text-slate-400">
-            Checklist progress and recorded findings for{" "}
-            <span className="font-semibold text-emerald-400">{profile.name}</span>.
-          </p>
+        <div className="flex items-center gap-3">
+          <img
+            src="/shakti-logo.png"
+            alt="Shakti Code Labs"
+            className="h-10 w-auto object-contain hidden sm:block rounded"
+          />
+          <div>
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <span>Shakti Code Labs</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                Bug Bounty Suite
+              </span>
+            </h1>
+            <p className="text-xs text-slate-400">
+              Security audit checklist and recorded findings for{" "}
+              <span className="font-semibold text-emerald-400">{profile.name}</span>.
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button

@@ -214,7 +214,7 @@ export default function App() {
       />
 
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setSidebarOpen(true)}
             className="shrink-0 rounded-md p-1 text-slate-300 hover:text-slate-100"
@@ -222,19 +222,29 @@ export default function App() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <p className="truncate text-sm font-bold text-slate-100">
-            {view === "checklist"
-              ? `${domain.emoji} ${domain.label}`
-              : view === "dashboard"
-              ? "📊 Dashboard"
-              : view === "scope"
-              ? "🎯 Target / Scope"
-              : view === "findings"
-              ? "🐞 Findings"
-              : view === "learn"
-              ? "🎓 Learn"
-              : "🧰 Tools"}
-          </p>
+          <img
+            src="/shakti-logo.png"
+            alt="Shakti Code Labs"
+            className="h-7 w-auto object-contain rounded"
+          />
+          <div className="truncate">
+            <p className="text-xs font-bold text-slate-100 leading-tight">
+              Shakti Code <span className="text-emerald-400">Labs</span>
+            </p>
+            <p className="text-[10px] text-slate-400 truncate leading-none">
+              {view === "checklist"
+                ? `${domain.emoji} ${domain.label}`
+                : view === "dashboard"
+                ? "📊 Dashboard"
+                : view === "scope"
+                ? "🎯 Target / Scope"
+                : view === "findings"
+                ? "🐞 Findings"
+                : view === "learn"
+                ? "🎓 Learn"
+                : "🧰 Tools"}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5">
