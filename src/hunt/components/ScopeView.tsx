@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   ShieldCheck,
   ShieldX,
@@ -17,6 +17,8 @@ import {
   Server,
   Smartphone,
   Code,
+  Upload,
+  Download,
 } from "lucide-react";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
 import type { TargetProfile, TargetAsset } from "@/shared/types/checklist";
@@ -144,6 +146,7 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
   const updateAsset = useChecklistStore((s) => s.updateAsset);
   const bulkAddAssets = useChecklistStore((s) => s.bulkAddAssets);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkText, setBulkText] = useState("");
   const [hostInput, setHostInput] = useState("");
@@ -152,6 +155,7 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
   const [techInput, setTechInput] = useState("");
   const [notesInput, setNotesInput] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const assets = profile.assets || [];
@@ -183,6 +187,71 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
     setBulkMode(false);
   }
 
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+
+      const lines: string[] = [];
+
+      if (file.name.endsWith(".json")) {
+        try {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              if (typeof item === "string") lines.push(item);
+              else if (item && typeof item === "object") {
+                if (item.host) lines.push(item.host);
+                else if (item.url) lines.push(item.url);
+                else if (item.input) lines.push(item.input);
+              }
+            }
+          } else if (parsed && typeof parsed === "object") {
+            if (Array.isArray(parsed.in_scope)) lines.push(...parsed.in_scope);
+            if (Array.isArray(parsed.targets)) lines.push(...parsed.targets);
+            if (Array.isArray(parsed.subdomains)) lines.push(...parsed.subdomains);
+          }
+        } catch {
+          lines.push(...content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean));
+        }
+      } else {
+        lines.push(...content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean));
+      }
+
+      if (lines.length > 0) {
+        bulkAddAssets(lines);
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  function handleExportScope(format: "txt" | "json") {
+    if (assets.length === 0) return;
+    let dataStr = "";
+    let filename = `${profile.name.toLowerCase().replace(/\s+/g, "_")}_assets`;
+
+    if (format === "json") {
+      dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(assets, null, 2));
+      filename += ".json";
+    } else {
+      const hosts = assets.map((a) => a.host).join("\n");
+      dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(hosts);
+      filename += ".txt";
+    }
+
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", filename);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
+
   async function copyText(text: string, id: string) {
     await navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -190,6 +259,9 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
   }
 
   const filteredAssets = assets.filter((a) => {
+    if (statusFilter !== "all" && (a.status || "Unverified") !== statusFilter) {
+      return false;
+    }
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
     return (
@@ -211,13 +283,30 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
             Track live subdomains, exposed APIs, cloud IPs, and takeover candidates for {profile.name}.
           </p>
         </div>
-        <button
-          onClick={() => setBulkMode(!bulkMode)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/5"
-        >
-          <FileSpreadsheet className="h-4 w-4 text-sky-400" />
-          {bulkMode ? "Close Bulk Paste" : "Bulk Import List"}
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".txt,.json,.csv"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/30 transition shadow-sm"
+            title="Upload Subfinder / Katana / Recon file (.txt or .json)"
+          >
+            <Upload className="h-3.5 w-3.5 text-emerald-400" />
+            Upload Recon File
+          </button>
+          <button
+            onClick={() => setBulkMode(!bulkMode)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/5"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-sky-400" />
+            {bulkMode ? "Close Bulk Paste" : "Bulk Paste"}
+          </button>
+        </div>
       </div>
 
       {bulkMode && (
@@ -320,15 +409,51 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
 
       {/* Asset Table / List */}
       <div>
-        <div className="mb-3 flex items-center justify-between">
-          <input
-            type="text"
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            placeholder="Filter assets by name, technology, or notes..."
-            className="w-72 rounded-md border border-border bg-card px-3 py-1 text-xs text-slate-200 outline-none focus:border-emerald-500"
-          />
-          <span className="text-[11px] text-slate-500">{filteredAssets.length} matching asset(s)</span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Filter assets by name, technology, or notes..."
+              className="w-64 rounded-md border border-border bg-card px-3 py-1 text-xs text-slate-200 outline-none focus:border-emerald-500"
+            />
+            <select
+              aria-label="Filter assets by status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-border bg-card px-2 py-1 text-xs text-slate-300 outline-none focus:border-emerald-500"
+            >
+              <option value="all">All Statuses</option>
+              <option value="live">Live (200)</option>
+              <option value="takeover_risk">Takeover Risk</option>
+              <option value="Unverified">Unverified</option>
+              <option value="unconfirmed">Unconfirmed</option>
+              <option value="dead">Dead / Inactive</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-500">{filteredAssets.length} matching asset(s)</span>
+            {assets.length > 0 && (
+              <div className="flex items-center gap-1 border-l border-border pl-2">
+                <button
+                  onClick={() => handleExportScope("txt")}
+                  className="inline-flex items-center gap-1 rounded bg-slate-900 border border-border px-2 py-1 text-[11px] text-slate-300 hover:text-white hover:bg-slate-800"
+                  title="Export raw hostnames as text file"
+                >
+                  <Download className="h-3 w-3 text-slate-400" /> TXT
+                </button>
+                <button
+                  onClick={() => handleExportScope("json")}
+                  className="inline-flex items-center gap-1 rounded bg-slate-900 border border-border px-2 py-1 text-[11px] text-slate-300 hover:text-white hover:bg-slate-800"
+                  title="Export full inventory as JSON"
+                >
+                  <Download className="h-3 w-3 text-emerald-400" /> JSON
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {assets.length === 0 ? (
@@ -357,8 +482,28 @@ function AssetInventoryTab({ profile }: { profile: TargetProfile }) {
                   return (
                     <tr key={asset.id} className="hover:bg-white/[0.02] transition">
                       <td className="px-4 py-2.5 font-mono text-slate-200 font-semibold">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span>{asset.host}</span>
+                          {/admin|portal|manage|dashboard/i.test(asset.host) && (
+                            <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 text-[9px] font-sans font-bold uppercase">
+                              Admin
+                            </span>
+                          )}
+                          {/api|rest|graphql|gateway|v1|v2/i.test(asset.host) && (
+                            <span className="rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 px-1.5 py-0.2 text-[9px] font-sans font-bold uppercase">
+                              API
+                            </span>
+                          )}
+                          {/auth|sso|login|oauth|idp/i.test(asset.host) && (
+                            <span className="rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 text-[9px] font-sans font-bold uppercase">
+                              Auth
+                            </span>
+                          )}
+                          {/dev|stage|staging|test|qa|internal|corp/i.test(asset.host) && (
+                            <span className="rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 px-1.5 py-0.2 text-[9px] font-sans font-bold uppercase">
+                              Dev/Internal
+                            </span>
+                          )}
                           <button
                             onClick={() => copyText(asset.host, asset.id)}
                             className="text-slate-500 hover:text-slate-300"

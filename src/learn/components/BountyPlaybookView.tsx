@@ -24,6 +24,9 @@ import {
   Flame,
   Code,
   Bot,
+  GitBranch,
+  FlaskConical,
+  Binary,
 } from "lucide-react";
 import { LEARN_LANGS, type Lang, localize } from "@/learn/data/types";
 import {
@@ -32,6 +35,9 @@ import {
   RECON_ONE_LINERS,
   MINDSET_RULES,
   AUTOMATION_HELPERS,
+  REPORT_TEMPLATES,
+  ATTACK_DECISION_TREES,
+  HIGH_YIELD_PAYLOADS,
 } from "@/learn/data/playbookData";
 
 interface BountyPlaybookProps {
@@ -74,13 +80,17 @@ function CopyBtn({ text }: { text: string }) {
 export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
   const [activeTab, setActiveTab] = useState<
-    "targets" | "calculator" | "bugs" | "chaining" | "waf" | "oneliners" | "automation" | "routine" | "donts" | "template"
+    "targets" | "calculator" | "bugs" | "trees" | "chaining" | "waf" | "payloads" | "oneliners" | "automation" | "routine" | "donts" | "template"
   >("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
   const [activeChain, setActiveChain] = useState<number>(0);
+  const [activeTree, setActiveTree] = useState<number>(0);
+  const [activeReportTemplate, setActiveReportTemplate] = useState<number>(0);
   const [wafCat, setWafCat] = useState<string>("all");
   const [reconCat, setReconCat] = useState<string>("all");
   const [automationCat, setAutomationCat] = useState<string>("all");
+  const [payloadCat, setPayloadCat] = useState<string>("all");
+  const [encoderInput, setEncoderInput] = useState<string>("admin' OR 1=1-- #");
 
   // Target ROI Calculator state
   const [calcScope, setCalcScope] = useState<"wildcard_api" | "wildcard_web" | "single_domain" | "strict_url">("wildcard_api");
@@ -116,6 +126,71 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
 
     return Math.max(10, Math.min(100, score));
   }, [calcScope, calcBounty, calcTriage, calcAge, calcMobile]);
+
+  // Live Payload Encodings Calculator
+  const encodings = useMemo(() => {
+    const raw = encoderInput || "";
+    let urlEnc = "";
+    let doubleUrlEnc = "";
+    let base64Enc = "";
+    let hexEnc = "";
+    let htmlEnc = "";
+    let unicodeEnc = "";
+
+    try {
+      urlEnc = encodeURIComponent(raw);
+    } catch {
+      urlEnc = raw;
+    }
+
+    try {
+      doubleUrlEnc = encodeURIComponent(encodeURIComponent(raw));
+    } catch {
+      doubleUrlEnc = raw;
+    }
+
+    try {
+      base64Enc = btoa(unescape(encodeURIComponent(raw)));
+    } catch {
+      base64Enc = "Encoding error";
+    }
+
+    try {
+      hexEnc = Array.from(raw)
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase())
+        .join("");
+    } catch {
+      hexEnc = raw;
+    }
+
+    try {
+      htmlEnc = Array.from(raw)
+        .map((c) => `&#${c.charCodeAt(0)};`)
+        .join("");
+    } catch {
+      htmlEnc = raw;
+    }
+
+    try {
+      unicodeEnc = Array.from(raw)
+        .map((c) => {
+          const code = c.charCodeAt(0);
+          return code >= 33 && code <= 126 ? String.fromCharCode(code + 65248) : c;
+        })
+        .join("");
+    } catch {
+      unicodeEnc = raw;
+    }
+
+    return {
+      urlEnc,
+      doubleUrlEnc,
+      base64Enc,
+      hexEnc,
+      htmlEnc,
+      unicodeEnc,
+    };
+  }, [encoderInput]);
 
   const setLang = (l: Lang) => {
     setLangState(l);
@@ -153,6 +228,11 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       simple: "🔥 6 Easiest Paid Bugs",
       hi: "🔥 टॉप 6 सबसे आम बग्स",
     }[lang],
+    tabTrees: {
+      en: "🌿 Attack Decision Trees",
+      simple: "🌿 Feature Mindmaps",
+      hi: "🌿 अटैक डिसीजन ट्रीज़",
+    }[lang],
     tabChaining: {
       en: "🔗 Vulnerability Chaining",
       simple: "🔗 Turn Small Bugs to Big Payouts",
@@ -162,6 +242,11 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       en: "🛡️ WAF & 403 Bypasses",
       simple: "🛡️ Bypass Blocked Pages",
       hi: "🛡️ WAF व 403 बाईपास गाइड",
+    }[lang],
+    tabPayloads: {
+      en: "🧪 Payloads & Live Encoder",
+      simple: "🧪 Payloads & Encoder",
+      hi: "🧪 पेलोड्स और लाइव एनकोडर",
     }[lang],
     tabOneLiners: {
       en: "⚡ Recon One-Liners",
@@ -184,9 +269,9 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       hi: "🚫 क्या नहीं करना है",
     }[lang],
     tabTemplate: {
-      en: "📝 Fast-Triage Report Template",
-      simple: "📝 Winning Report Format",
-      hi: "📝 फास्ट-ट्राइएज रिपोर्ट टेम्पलेट",
+      en: "📋 Reports & Escalators",
+      simple: "📋 Reports & Escalators",
+      hi: "📋 रिपोर्ट टेम्पलेट्स व एस्केलेटर गाइड",
     }[lang],
   };
 
@@ -789,6 +874,16 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           <Flame className="h-3.5 w-3.5" /> {t.tabBugs}
         </button>
         <button
+          onClick={() => setActiveTab("trees")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "trees"
+              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <GitBranch className="h-3.5 w-3.5" /> {t.tabTrees}
+        </button>
+        <button
           onClick={() => setActiveTab("chaining")}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "chaining"
@@ -807,6 +902,16 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           }`}
         >
           <Shield className="h-3.5 w-3.5" /> {t.tabWaf}
+        </button>
+        <button
+          onClick={() => setActiveTab("payloads")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "payloads"
+              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <FlaskConical className="h-3.5 w-3.5" /> {t.tabPayloads}
         </button>
         <button
           onClick={() => setActiveTab("oneliners")}
@@ -1317,6 +1422,127 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
         </div>
       )}
 
+      {/* ── TAB: ATTACK DECISION TREES ── */}
+      {activeTab === "trees" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-emerald-400" />
+                  {lang === "hi" ? "अटैक डिसीजन ट्रीज़ (अगर यह दिखे तो क्या करें?)" : "Visual Attack Decision Trees (Feature-to-Bounty Mindmaps)"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "जब भी आपको कोई खास फीचर (जैसे पासवर्ड रीसेट, फाइल अपलोड, ग्राफ-क्यूएल) दिखे, तो इन टेस्ट स्टेप्स को फॉलो करें:"
+                    : "Whenever you encounter a specific target feature, follow these chronological test branches for maximum hit rate:"}
+                </p>
+              </div>
+            </div>
+
+            {/* Feature Selector Tabs */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+              {ATTACK_DECISION_TREES.map((tree, idx) => {
+                const isSelected = activeTree === idx;
+                return (
+                  <button
+                    key={tree.id}
+                    onClick={() => setActiveTree(idx)}
+                    className={`flex items-center gap-2 rounded-xl p-3 text-left transition border ${
+                      isSelected
+                        ? "border-emerald-500/50 bg-emerald-950/20 shadow-md ring-1 ring-emerald-500/30"
+                        : "border-border bg-slate-900/40 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <span className="text-xl shrink-0">{tree.emoji}</span>
+                    <div className="min-w-0">
+                      <p className={`text-xs font-bold truncate ${isSelected ? "text-emerald-300" : "text-slate-200"}`}>
+                        {localize(tree.featureName, lang)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">{tree.steps.length} Attack Branches</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Tree Content */}
+            {(() => {
+              const currentTree = ATTACK_DECISION_TREES[activeTree] || ATTACK_DECISION_TREES[0];
+              return (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mb-1">
+                      <Target className="h-4 w-4" />
+                      <span>{lang === "hi" ? "ट्रिगर संदर्भ (कहाँ टेस्ट करें):" : "Trigger Context (Where to Look):"}</span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {localize(currentTree.triggerContext, lang)}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {currentTree.steps.map((step, sIdx) => (
+                      <div
+                        key={sIdx}
+                        className="rounded-xl border border-border bg-slate-900/60 p-4 space-y-3 hover:border-emerald-500/30 transition"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
+                              {sIdx + 1}
+                            </span>
+                            <span className="text-xs font-bold text-slate-200">
+                              {lang === "hi" ? "यदि स्थिति: " : "Condition: "}
+                              <span className="text-amber-300">{localize(step.condition, lang)}</span>
+                            </span>
+                          </div>
+                          <span className="rounded-full bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                            {step.payoutImpact}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div className="rounded-lg border border-slate-800/80 bg-slate-950/50 p-3 space-y-1">
+                            <div className="flex items-center gap-1.5 text-sky-400 font-semibold text-[11px]">
+                              <Zap className="h-3.5 w-3.5" />
+                              <span>{lang === "hi" ? "कदम / परीक्षण एक्शन:" : "Action / Test Method:"}</span>
+                            </div>
+                            <p className="text-slate-300 text-[11px] leading-relaxed">{localize(step.action, lang)}</p>
+                          </div>
+
+                          <div className="rounded-lg border border-slate-800/80 bg-slate-950/50 p-3 space-y-1">
+                            <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[11px]">
+                              <Check className="h-3.5 w-3.5" />
+                              <span>{lang === "hi" ? "सकारात्मक संकेत (बग कन्फर्म):" : "Positive Indicator (Bug Found):"}</span>
+                            </div>
+                            <p className="text-slate-300 text-[11px] leading-relaxed">{localize(step.positiveIndicator, lang)}</p>
+                          </div>
+                        </div>
+
+                        {step.payloadOrCommand && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-mono uppercase text-slate-400">
+                                {lang === "hi" ? "पेलोड / रिक्वेस्ट उदाहरण:" : "Payload / Request PoC:"}
+                              </span>
+                              <CopyBtn text={step.payloadOrCommand} />
+                            </div>
+                            <pre className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-[11px] text-emerald-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                              <code>{step.payloadOrCommand}</code>
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* ── TAB 4: VULNERABILITY CHAINING MATRIX ── */}
       {activeTab === "chaining" && (
         <div className="space-y-4">
@@ -1523,6 +1749,124 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
                       </span>
                       {localize(item.whyItWorks, lang)}
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: HIGH-YIELD PAYLOADS & LIVE ENCODER ── */}
+      {activeTab === "payloads" && (
+        <div className="space-y-5">
+          {/* Live Multi-Encoder Box */}
+          <div className="rounded-xl border border-cyan-500/30 bg-gradient-to-b from-cyan-950/20 to-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Binary className="h-5 w-5 text-cyan-400" />
+                  {lang === "hi" ? "लाइव मल्टी-एनकोडर (WAF बाईपास टूल)" : "Live Multi-Encoder & WAF Converter"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {lang === "hi"
+                    ? "कोई भी पेलोड या स्ट्रिंग टाइप करें — तुरंत URL, Base64, Hex, HTML Entities और Unicode बाईपास में कन्वर्ट करें:"
+                    : "Type any string or payload below to instantly generate real-time WAF bypass representations:"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                {lang === "hi" ? "कच्चा इनपुट स्ट्रिंग / पेलोड:" : "Raw Payload / String Input:"}
+              </label>
+              <input
+                type="text"
+                value={encoderInput}
+                onChange={(e) => setEncoderInput(e.target.value)}
+                placeholder="e.g. admin' OR 1=1-- # or <script>alert(1)</script>"
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2 font-mono text-xs text-cyan-300 outline-none focus:border-cyan-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {[
+                { label: "URL Encoded", val: encodings.urlEnc },
+                { label: "Double URL Encoded", val: encodings.doubleUrlEnc },
+                { label: "Base64 Encoded", val: encodings.base64Enc },
+                { label: "Hex Byte Stream", val: encodings.hexEnc },
+                { label: "HTML Numeric Entities", val: encodings.htmlEnc },
+                { label: "Unicode Fullwidth (WAF Bypass)", val: encodings.unicodeEnc },
+              ].map((item, idx) => (
+                <div key={idx} className="rounded-lg border border-slate-800 bg-slate-950/80 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">{item.label}</span>
+                    <CopyBtn text={item.val} />
+                  </div>
+                  <pre className="rounded bg-slate-900/70 p-2 font-mono text-[11px] text-slate-200 overflow-x-auto whitespace-pre truncate">
+                    <code>{item.val || "—"}</code>
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* High-Yield Payloads Cheatsheet */}
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4 text-emerald-400" />
+                  {lang === "hi" ? "हाई-यील्ड बाईपास पेलोड्स चीटशीट" : "High-Yield Bypass Payloads Cheatsheet"}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {lang === "hi"
+                    ? "फील्ड-प्रूवेन पेलोड्स जो मॉर्डन फायरवॉल्स और क्लाउड फ़िल्टर्स को बाईपास करते हैं:"
+                    : "Field-proven polyglots and link-local payloads that bypass modern web filters:"}
+                </p>
+              </div>
+
+              {/* Filter pills */}
+              <div className="flex flex-wrap gap-1">
+                {["all", "ssrf", "xss", "sqli", "ssti", "redirect"].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setPayloadCat(cat)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider transition ${
+                      payloadCat === cat
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : "border border-border bg-slate-900 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {HIGH_YIELD_PAYLOADS.filter((p) => payloadCat === "all" || p.category === payloadCat).map((item) => (
+                <div key={item.id} className="rounded-xl border border-border bg-slate-900/50 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-200">{localize(item.name, lang)}</span>
+                    <span className="text-[10px] font-mono uppercase bg-slate-950 border border-border px-2 py-0.5 rounded text-sky-400">
+                      {item.targetEnv}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-slate-400 uppercase">Payload:</span>
+                      <CopyBtn text={item.payload} />
+                    </div>
+                    <pre className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 font-mono text-xs text-emerald-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                      <code>{item.payload}</code>
+                    </pre>
+                  </div>
+
+                  <div className="text-[11px] text-slate-400 flex items-start gap-1.5 bg-slate-950/40 p-2 rounded-lg border border-slate-800/60">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>{localize(item.whyItBypasses, lang)}</span>
                   </div>
                 </div>
               ))}
@@ -1914,88 +2258,91 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
         </div>
       )}
 
-      {/* ── TAB 5: FAST-TRIAGE REPORT TEMPLATE ── */}
+      {/* ── TAB: READY-TO-SUBMIT BUG REPORT TEMPLATES & ESCALATORS ── */}
       {activeTab === "template" && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
               <div>
                 <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                   <FileText className="h-5 w-5 text-amber-400" />
-                  {lang === "hi" ? "फास्ट-ट्राइएज रिपोर्ट टेम्पलेट" : "Fast-Triage Acceptance Report Template"}
-                </h2>
-                <p className="text-xs text-slate-400">
                   {lang === "hi"
-                    ? "इस फ़ॉर्मेट को कॉपी करके अपनी रिपोर्ट बनाएं — ट्राइएज टीम 5 मिनट में अप्रूव करेगी:"
-                    : "Copy this exact structured template into your bug reports for instant triage approval:"}
+                    ? "फास्ट-ट्राइएज रिपोर्ट टेम्पलेट्स और सेवेरिटी एस्केलेटर गाइड"
+                    : "Fast-Triage Acceptance Report Templates & Severity Escalators"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "सही PoC और इम्पैक्ट स्टेटमेंट के साथ अपनी रिपोर्ट सबमिट करें ताकि ट्राइएजर तुरंत P1/P2 में एक्सेप्ट करे:"
+                    : "Use these battle-tested report templates and escalation tactics to avoid 'Informative' closures and maximize payouts:"}
                 </p>
               </div>
-              <CopyBtn
-                text={`**Title:** [P1/P2] Vulnerability Type in /path/to/endpoint leads to [Worst Business Impact]
-
-**Vulnerability Type:** Insecure Direct Object Reference (IDOR)
-**Affected Endpoint:** POST /api/v1/user/{user_id}/billing/invoices
-**Severity:** High / Critical (P1)
-
-### Summary:
-A critical access control flaw was identified in the billing endpoint. An authenticated attacker can modify, delete, or exfiltrate private financial invoices of any other user on the platform by replacing their own identifier with the victim's identifier.
-
-### Prerequisites:
-- Attacker Account ID: 10042
-- Victim Account ID: 10089
-
-### Step-by-Step Reproduction:
-1. Log into the platform using Attacker credentials (User A).
-2. Intercept the invoice export request in Burp Suite:
-\`\`\`http
-POST /api/v1/user/10042/billing/invoices HTTP/1.1
-Host: target.com
-Authorization: Bearer <ATTACKER_TOKEN>
-Content-Type: application/json
-
-{"export_format": "pdf"}
-\`\`\`
-3. Change the user_id parameter in the URL from 10042 to the Victim ID (10089).
-4. Send the modified request.
-5. Observe the 200 OK response containing Victim User B's full invoice receipt and financial PII.
-
-### Non-Destructive Testing Statement:
-Testing was strictly non-destructive and performed exclusively between my two authorized test accounts (User A: 10042 and User B: 10089). Zero production customer data was accessed, modified, or downloaded.`}
-              />
             </div>
 
-            <div className="rounded-lg border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed overflow-x-auto">
-{`**Title:** [P1/P2] Vulnerability Type in /path/to/endpoint leads to [Worst Business Impact]
-
-**Vulnerability Type:** Insecure Direct Object Reference (IDOR)
-**Affected Endpoint:** POST /api/v1/user/{user_id}/billing/invoices
-**Severity:** High / Critical (P1)
-
-### Summary:
-A critical access control flaw was identified in the billing endpoint. An authenticated attacker can modify, delete, or exfiltrate private financial invoices of any other user on the platform by replacing their own identifier with the victim's identifier.
-
-### Prerequisites:
-- Attacker Account ID: 10042
-- Victim Account ID: 10089
-
-### Step-by-Step Reproduction:
-1. Log into the platform using Attacker credentials (User A).
-2. Intercept the invoice export request in Burp Suite:
-\`\`\`http
-POST /api/v1/user/10042/billing/invoices HTTP/1.1
-Host: target.com
-Authorization: Bearer <ATTACKER_TOKEN>
-Content-Type: application/json
-
-{"export_format": "pdf"}
-\`\`\`
-3. Change the user_id parameter in the URL from 10042 to the Victim ID (10089).
-4. Send the modified request.
-5. Observe the 200 OK response containing Victim User B's full invoice receipt and financial PII.
-
-### Non-Destructive Testing Statement:
-Testing was strictly non-destructive and performed exclusively between my two authorized test accounts (User A: 10042 and User B: 10089). Zero production customer data was accessed, modified, or downloaded.`}
+            {/* Template Selector Tabs */}
+            <div className="flex flex-wrap gap-2">
+              {REPORT_TEMPLATES.map((tpl, idx) => {
+                const isSelected = activeReportTemplate === idx;
+                return (
+                  <button
+                    key={tpl.id}
+                    onClick={() => setActiveReportTemplate(idx)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition border flex items-center gap-1.5 ${
+                      isSelected
+                        ? "border-amber-500/50 bg-amber-950/30 text-amber-300 shadow-sm"
+                        : "border-border bg-slate-900/40 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    <span>{tpl.vulnType}</span>
+                    <span className="text-[10px] rounded bg-slate-800 px-1 py-0.2 text-slate-300">
+                      {tpl.severity.split(" ")[0]}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Active Report Preview */}
+            {(() => {
+              const currentTpl = REPORT_TEMPLATES[activeReportTemplate] || REPORT_TEMPLATES[0];
+              return (
+                <div className="space-y-4">
+                  {/* Severity Escalation Box */}
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Flame className="h-4 w-4 text-amber-400" />
+                        <span className="text-xs font-bold text-amber-300">
+                          {lang === "hi" ? "🔥 सेवेरिटी एस्केलेटर टिप (P3 से P1 में कैसे बदलें):" : "🔥 Severity Escalator Strategy (Upgrade to P1):"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono text-[11px]">
+                        <span className="text-slate-400">{currentTpl.cvssVector}</span>
+                        <span className="rounded bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 font-bold text-rose-300">
+                          CVSS {currentTpl.cvssScore}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {localize(currentTpl.escalatorTip, lang)}
+                    </p>
+                  </div>
+
+                  {/* Copyable Report Body */}
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="text-xs font-mono font-bold text-slate-300">
+                        {localize(currentTpl.title, lang)}
+                      </span>
+                      <CopyBtn text={currentTpl.sampleReport} />
+                    </div>
+
+                    <pre className="font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed overflow-x-auto max-h-[500px] overflow-y-auto pr-2">
+                      <code>{currentTpl.sampleReport}</code>
+                    </pre>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
