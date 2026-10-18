@@ -35,6 +35,7 @@ import {
   type VrtIndexEntry,
 } from "@/learn/data/types";
 import { vrtIndex } from "@/learn/data/vrtIndex";
+import { BountyPlaybookView } from "@/learn/components/BountyPlaybookView";
 
 const LANG_KEY = "learn.lang";
 function loadLang(): Lang {
@@ -478,7 +479,7 @@ function VrtIndexBrowser({
 export function LearnView({ onPractice }: LearnViewProps) {
   const [selected, setSelected] = useState<LearnTopic | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
-  const [mode, setMode] = useState<"lessons" | "index">("lessons");
+  const [mode, setMode] = useState<"lessons" | "index" | "playbook">("lessons");
   const [domainFilter, setDomainFilter] = useState<AppLearnDomain | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<VrtPriority | "all">("all");
@@ -568,7 +569,7 @@ export function LearnView({ onPractice }: LearnViewProps) {
 
   // Groups with topics filtered by the active domain, category, and VRT priority
   const visibleGroups = useMemo(() => {
-    if (mode === "index") return [];
+    if (mode !== "lessons") return [];
     return learnGroups
       .map((g) => {
         const topics = g.topics.filter((t) => {
@@ -656,8 +657,8 @@ export function LearnView({ onPractice }: LearnViewProps) {
         </div>
       </div>
 
-      {/* Mode: deep lessons vs the full VRT index */}
-      <div className="grid w-full grid-cols-2 gap-1 rounded-lg border border-border bg-slate-950/40 p-1 sm:inline-grid sm:w-auto">
+      {/* Mode: deep lessons vs the full VRT index vs Bounty Playbook */}
+      <div className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border bg-slate-950/40 p-1 sm:inline-grid sm:w-auto">
         <button
           onClick={() => setMode("lessons")}
           className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
@@ -674,9 +675,18 @@ export function LearnView({ onPractice }: LearnViewProps) {
         >
           <Library className="h-3.5 w-3.5" /> VRT Index ({vrtIndex.length})
         </button>
+        <button
+          onClick={() => setMode("playbook")}
+          className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+            mode === "playbook" ? "bg-amber-500/15 text-amber-300" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Zap className="h-3.5 w-3.5" /> Bounty Playbook
+        </button>
       </div>
 
       {/* ── Unified 3-Step VRT Filter Panel ── */}
+      {mode !== "playbook" && (
       <div className="rounded-xl border border-border bg-card/70 p-4 space-y-3.5 shadow-sm">
         {/* Step 1: Domain Section */}
         <div className="space-y-1.5">
@@ -824,9 +834,12 @@ export function LearnView({ onPractice }: LearnViewProps) {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Content: deep lessons or the full VRT index */}
-      {mode === "index" ? (
+      {/* Content: playbook, deep lessons or the full VRT index */}
+      {mode === "playbook" ? (
+        <BountyPlaybookView onPractice={onPractice} />
+      ) : mode === "index" ? (
         <VrtIndexBrowser
           domain={domainFilter}
           category={categoryFilter}
