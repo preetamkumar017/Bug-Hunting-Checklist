@@ -223,7 +223,7 @@ export default function App() {
             <Menu className="h-5 w-5" />
           </button>
           <img
-            src="/shakti-logo.png"
+            src="/shakti-logo.png?v=3"
             alt="Shakti Code Labs"
             className="h-7 w-auto object-contain rounded"
           />

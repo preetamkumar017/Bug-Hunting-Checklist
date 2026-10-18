@@ -136,7 +136,7 @@ export function Sidebar({
       >
         <div className="mb-4 flex items-center gap-2.5">
           <img
-            src="/shakti-logo.png"
+            src="/shakti-logo.png?v=3"
             alt="Shakti Code Labs"
             className="h-9 w-auto object-contain rounded"
           />

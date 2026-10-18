@@ -10,6 +10,52 @@
 
 export type VrtPriority = "P1" | "P2" | "P3" | "P4" | "P5" | "varies";
 
+// ── Localization ──────────────────────────────────────────────────────────
+// Lesson text can be a plain string (English only) or a trilingual object.
+// Plain strings keep every existing hand-written lesson valid; the generator
+// and newer lessons fill all three languages.
+export type Lang = "en" | "simple" | "hi";
+export type Localized = string | { en: string; simple?: string; hi?: string };
+
+/** Resolve a Localized value to one language, degrading gracefully. */
+export function localize(value: Localized | undefined, lang: Lang): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (lang === "simple") return value.simple ?? value.en;
+  if (lang === "hi") return value.hi ?? value.simple ?? value.en;
+  return value.en;
+}
+
+export const LEARN_LANGS: { id: Lang; label: string; short: string }[] = [
+  { id: "en", label: "Advanced English", short: "EN" },
+  { id: "simple", label: "Simple English", short: "Simple" },
+  { id: "hi", label: "हिंदी", short: "हिंदी" },
+];
+
+/** UI chrome strings for the Learn detail view, per language. */
+export const LEARN_UI_STRINGS: Record<
+  "back" | "whatItIs" | "howToFind" | "payloads" | "payloadsNote" | "example" | "classification" | "scoringNote" | "learnMore" | "practice" | "intigriti" | "learnCta" | "lessonCta",
+  Record<Lang, string>
+> = {
+  back: { en: "Back to all topics", simple: "Back to all topics", hi: "सभी टॉपिक पर वापस" },
+  whatItIs: { en: "What it is & why it pays", simple: "What it is & why it pays", hi: "यह क्या है और पैसे क्यों देता है" },
+  howToFind: { en: "How to find it", simple: "How to find it", hi: "इसे कैसे ढूंढें" },
+  payloads: { en: "Starter payloads", simple: "Starter payloads", hi: "शुरुआती पेलोड" },
+  payloadsNote: {
+    en: "Use only against in-scope assets. Prove impact with benign markers / OOB callbacks — never touch real data.",
+    simple: "Only use on targets that are in scope. Prove the bug with safe markers — never touch real data.",
+    hi: "सिर्फ़ scope वाले targets पर इस्तेमाल करें। impact safe markers / OOB callbacks से साबित करें — असली data कभी न छुएं।",
+  },
+  example: { en: "Real-world example", simple: "Real-world example", hi: "असल दुनिया का उदाहरण" },
+  classification: { en: "Platform classification", simple: "Platform classification", hi: "प्लेटफ़ॉर्म वर्गीकरण" },
+  scoringNote: { en: "Scoring note", simple: "Scoring note", hi: "स्कोरिंग नोट" },
+  learnMore: { en: "Learn more", simple: "Learn more", hi: "और सीखें" },
+  practice: { en: "Practice on checklist", simple: "Practice on checklist", hi: "चेकलिस्ट पर अभ्यास करें" },
+  intigriti: { en: "typically", simple: "usually", hi: "आम तौर पर" },
+  learnCta: { en: "Learn", simple: "Learn", hi: "सीखें" },
+  lessonCta: { en: "Lesson", simple: "Lesson", hi: "लेसन" },
+};
+
 export interface PlatformMapping {
   /** Bugcrowd VRT path, e.g. "Server-Side Injection › SQL Injection". */
   bugcrowdVrt: string;
@@ -21,12 +67,12 @@ export interface PlatformMapping {
   /** Severity band the CVSS-based platforms (Intigriti/YesWeHack/H1) typically land on. */
   cvssSeverity: string;
   /** Nuance a one-line band can't capture (what pushes it up or down). */
-  note?: string;
+  note?: Localized;
 }
 
 export interface LearnMethod {
-  title: string;
-  steps: string[];
+  title: Localized;
+  steps: Localized[];
 }
 
 export interface LearnTopic {
@@ -34,12 +80,12 @@ export interface LearnTopic {
   name: string;
   emoji: string;
   /** Advanced orientation: the mechanism and the edge that makes it findable/escalatable. */
-  intro: string;
+  intro: Localized;
   /** Current (2025-era) ways to find it. Multiple options where they exist. */
   howToFind: LearnMethod[];
   payloads?: string[];
   /** A concrete, realistic example of the bug landing. */
-  example?: string;
+  example?: Localized;
   mapping: PlatformMapping;
   /** Web checklist category id to open from "Practice on checklist". */
   checklistCategoryId?: string;

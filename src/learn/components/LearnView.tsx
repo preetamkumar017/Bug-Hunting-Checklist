@@ -16,12 +16,33 @@ import {
 import {
   learnGroups,
   learnTopicCount,
+  lessonForEntry,
+  localizedTopic,
   PLATFORM_LEGEND,
   type LearnTopic,
   type VrtPriority,
 } from "@/learn/data/learn";
-import { LEARN_DOMAINS, type AppLearnDomain, type VrtIndexEntry } from "@/learn/data/types";
+import {
+  LEARN_DOMAINS,
+  LEARN_LANGS,
+  LEARN_UI_STRINGS,
+  localize,
+  type AppLearnDomain,
+  type Lang,
+  type VrtIndexEntry,
+} from "@/learn/data/types";
 import { vrtIndex } from "@/learn/data/vrtIndex";
+
+const LANG_KEY = "learn.lang";
+function loadLang(): Lang {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (v === "en" || v === "simple" || v === "hi") return v;
+  } catch {
+    /* storage unavailable — fall through */
+  }
+  return "en";
+}
 
 interface LearnViewProps {
   /** Jump to the operational checklist category for this topic. */
@@ -66,12 +87,23 @@ function PriorityBadge({ p }: { p: VrtPriority }) {
   );
 }
 
-function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack: () => void; onPractice: (id: string) => void }) {
+function TopicDetail({
+  topic,
+  lang,
+  onBack,
+  onPractice,
+}: {
+  topic: LearnTopic;
+  lang: Lang;
+  onBack: () => void;
+  onPractice: (id: string) => void;
+}) {
   const m = topic.mapping;
+  const t = (k: keyof typeof LEARN_UI_STRINGS) => LEARN_UI_STRINGS[k][lang];
   return (
     <div className="space-y-5">
       <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400">
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to all topics
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("back")}
       </button>
 
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
@@ -89,7 +121,7 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
             onClick={() => onPractice(topic.checklistCategoryId!)}
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
           >
-            Practice on checklist <ArrowRight className="h-3.5 w-3.5" />
+            {t("practice")} <ArrowRight className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
@@ -97,21 +129,21 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
       {/* Intro */}
       <section>
         <h2 className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-slate-100">
-          <BookOpen className="h-4 w-4 text-emerald-400" /> What it is &amp; why it pays
+          <BookOpen className="h-4 w-4 text-emerald-400" /> {t("whatItIs")}
         </h2>
-        <p className="text-sm leading-relaxed text-slate-300">{topic.intro}</p>
+        <p className="text-sm leading-relaxed text-slate-300">{localize(topic.intro, lang)}</p>
       </section>
 
       {/* How to find */}
       <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-100">🔍 How to find it</h2>
+        <h2 className="mb-2 text-sm font-bold text-slate-100">🔍 {t("howToFind")}</h2>
         <div className="space-y-3">
           {topic.howToFind.map((method, i) => (
             <div key={i} className="rounded-lg border border-border bg-card p-3">
-              <p className="mb-1.5 text-xs font-semibold text-emerald-300">{method.title}</p>
+              <p className="mb-1.5 text-xs font-semibold text-emerald-300">{localize(method.title, lang)}</p>
               <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-slate-300">
                 {method.steps.map((s, j) => (
-                  <li key={j}>{s}</li>
+                  <li key={j}>{localize(s, lang)}</li>
                 ))}
               </ol>
             </div>
@@ -122,7 +154,7 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
       {/* Payloads */}
       {topic.payloads && topic.payloads.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-bold text-slate-100">⚡ Starter payloads</h2>
+          <h2 className="mb-2 text-sm font-bold text-slate-100">⚡ {t("payloads")}</h2>
           <div className="overflow-hidden rounded-lg border border-border bg-slate-950/60">
             {topic.payloads.map((p, i) => (
               <div key={i} className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0">
@@ -131,16 +163,16 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
               </div>
             ))}
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">Use only against in-scope assets. Prove impact with benign markers / OOB callbacks — never touch real data.</p>
+          <p className="mt-1.5 text-[11px] text-slate-500">{t("payloadsNote")}</p>
         </section>
       )}
 
       {/* Example */}
       {topic.example && (
         <section>
-          <h2 className="mb-1.5 text-sm font-bold text-slate-100">💡 Real-world example</h2>
+          <h2 className="mb-1.5 text-sm font-bold text-slate-100">💡 {t("example")}</h2>
           <p className="rounded-lg border border-sky-500/20 bg-sky-950/15 p-3 text-xs leading-relaxed text-slate-300">
-            {topic.example}
+            {localize(topic.example, lang)}
           </p>
         </section>
       )}
@@ -148,7 +180,7 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
       {/* Platform mapping */}
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-slate-100">
-          <Target className="h-4 w-4 text-violet-400" /> Platform classification
+          <Target className="h-4 w-4 text-violet-400" /> {t("classification")}
         </h2>
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-left text-xs">
@@ -171,12 +203,12 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
               </tr>
               <tr className="bg-card">
                 <th className="px-3 py-2 align-top font-semibold text-slate-400">Intigriti / YesWeHack</th>
-                <td className="px-3 py-2 text-slate-300">CVSS-based · typically <span className="font-semibold text-slate-200">{m.cvssSeverity}</span></td>
+                <td className="px-3 py-2 text-slate-300">CVSS-based · {t("intigriti")} <span className="font-semibold text-slate-200">{m.cvssSeverity}</span></td>
               </tr>
               {m.note && (
                 <tr className="bg-amber-950/10">
-                  <th className="px-3 py-2 align-top font-semibold text-amber-400">Scoring note</th>
-                  <td className="px-3 py-2 text-amber-200/90">{m.note}</td>
+                  <th className="px-3 py-2 align-top font-semibold text-amber-400">{t("scoringNote")}</th>
+                  <td className="px-3 py-2 text-amber-200/90">{localize(m.note, lang)}</td>
                 </tr>
               )}
             </tbody>
@@ -187,7 +219,7 @@ function TopicDetail({ topic, onBack, onPractice }: { topic: LearnTopic; onBack:
       {/* References */}
       {topic.references && topic.references.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-bold text-slate-100">📚 Learn more</h2>
+          <h2 className="mb-2 text-sm font-bold text-slate-100">📚 {t("learnMore")}</h2>
           <ul className="space-y-1">
             {topic.references.map((r, i) => (
               <li key={i}>
@@ -212,14 +244,14 @@ function VrtIndexBrowser({
   domain,
   category,
   priority,
-  lessonFor,
+  lang,
   onOpenLesson,
   onResetFilters,
 }: {
   domain: AppLearnDomain | "all";
   category: string;
   priority: VrtPriority | "all";
-  lessonFor: (entry: VrtIndexEntry) => LearnTopic | undefined;
+  lang: Lang;
   onOpenLesson: (topic: LearnTopic) => void;
   onResetFilters: () => void;
 }) {
@@ -265,7 +297,7 @@ function VrtIndexBrowser({
 
       <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
         <span>
-          Showing <strong className="text-slate-300">{rows.length}</strong> VRT entries · Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · deep lessons linked where available
+          Showing <strong className="text-slate-300">{rows.length}</strong> VRT entries · Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · every entry has a lesson
         </span>
         {(query || category !== "all" || domain !== "all" || priority !== "all") && (
           <button
@@ -292,7 +324,7 @@ function VrtIndexBrowser({
             </h3>
             <div className="overflow-hidden rounded-lg border border-border">
               {items.map((e) => {
-                const lesson = lessonFor(e);
+                const lesson = lessonForEntry(e, lang);
                 return (
                   <div
                     key={e.id}
@@ -306,14 +338,12 @@ function VrtIndexBrowser({
                         {e.cvss ? ` · ${e.cvss}` : ""}
                       </p>
                     </div>
-                    {lesson && (
-                      <button
-                        onClick={() => onOpenLesson(lesson)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-500/30 px-2 py-0.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-950/30"
-                      >
-                        Lesson <ArrowRight className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onOpenLesson(lesson)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded border border-emerald-500/30 px-2 py-0.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-950/30"
+                    >
+                      {LEARN_UI_STRINGS.lessonCta[lang]} <ArrowRight className="h-3 w-3" />
+                    </button>
                   </div>
                 );
               })}
@@ -332,6 +362,16 @@ export function LearnView({ onPractice }: LearnViewProps) {
   const [domainFilter, setDomainFilter] = useState<AppLearnDomain | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<VrtPriority | "all">("all");
+  const [lang, setLangState] = useState<Lang>(loadLang);
+
+  const setLang = (l: Lang) => {
+    setLangState(l);
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {
+      /* storage unavailable — keep in-memory only */
+    }
+  };
 
   const handleDomainChange = (d: AppLearnDomain | "all") => {
     setDomainFilter(d);
@@ -343,15 +383,6 @@ export function LearnView({ onPractice }: LearnViewProps) {
     setCategoryFilter("all");
     setPriorityFilter("all");
   };
-
-  // Link a VRT index entry to a deep lesson in the same VRT category
-  const lessonFor = useMemo(() => {
-    const flat = learnGroups.flatMap((g) => g.topics.map((t) => ({ t, vrt: t.mapping.bugcrowdVrt })));
-    return (entry: VrtIndexEntry): LearnTopic | undefined => {
-      const sameCat = flat.filter((x) => x.vrt.startsWith(entry.category));
-      return (sameCat.find((x) => x.vrt.includes(entry.name)) ?? sameCat[0])?.t;
-    };
-  }, []);
 
   // Categories available based on active mode, domain, and priority
   const availableCategories = useMemo(() => {
@@ -436,7 +467,7 @@ export function LearnView({ onPractice }: LearnViewProps) {
   }, [mode, domainFilter, priorityFilter, categoryFilter]);
 
   if (selected) {
-    return <TopicDetail topic={selected} onBack={() => setSelected(null)} onPractice={onPractice} />;
+    return <TopicDetail topic={selected} lang={lang} onBack={() => setSelected(null)} onPractice={onPractice} />;
   }
 
   return (
@@ -484,6 +515,25 @@ export function LearnView({ onPractice }: LearnViewProps) {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Language: trilingual lesson content */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">🌐 Language</span>
+        <div className="inline-grid grid-cols-3 gap-1 rounded-lg border border-border bg-slate-950/40 p-1">
+          {LEARN_LANGS.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLang(l.id)}
+              title={l.label}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                lang === l.id ? "bg-sky-500/15 text-sky-300" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {l.short}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Mode: deep lessons vs the full VRT index */}
@@ -661,7 +711,7 @@ export function LearnView({ onPractice }: LearnViewProps) {
           domain={domainFilter}
           category={categoryFilter}
           priority={priorityFilter}
-          lessonFor={lessonFor}
+          lang={lang}
           onOpenLesson={setSelected}
           onResetFilters={handleResetFilters}
         />
@@ -679,23 +729,26 @@ export function LearnView({ onPractice }: LearnViewProps) {
             <p className="text-[11px] leading-relaxed text-slate-400">{group.blurb}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {group.topics.map((topic) => (
+            {group.topics.map((topic) => {
+              const shown = localizedTopic(topic, lang);
+              return (
               <button
                 key={topic.id}
-                onClick={() => setSelected(topic)}
+                onClick={() => setSelected(shown)}
                 className="group flex flex-col rounded-xl border border-border bg-card p-4 text-left transition hover:border-emerald-500/50 hover:bg-white/5"
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-lg">{topic.emoji}</span>
-                  <PriorityBadge p={topic.mapping.bugcrowdPriority} />
+                  <span className="text-lg">{shown.emoji}</span>
+                  <PriorityBadge p={shown.mapping.bugcrowdPriority} />
                 </div>
-                <h3 className="text-sm font-bold text-slate-100">{topic.name}</h3>
-                <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-400">{topic.intro}</p>
+                <h3 className="text-sm font-bold text-slate-100">{shown.name}</h3>
+                <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-400">{localize(shown.intro, lang)}</p>
                 <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
-                  Learn <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
+                  {LEARN_UI_STRINGS.learnCta[lang]} <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
                 </span>
               </button>
-            ))}
+              );
+            })}
           </div>
         </section>
         ))

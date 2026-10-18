@@ -103,7 +103,7 @@ export function DashboardView({ onSelectDomain, onSelectView }: DashboardViewPro
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
         <div className="flex items-center gap-3">
           <img
-            src="/shakti-logo.png"
+            src="/shakti-logo.png?v=3"
             alt="Shakti Code Labs"
             className="h-10 w-auto object-contain hidden sm:block rounded"
           />
