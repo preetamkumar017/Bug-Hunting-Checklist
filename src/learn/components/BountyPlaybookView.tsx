@@ -23,6 +23,7 @@ import {
   Brain,
   Flame,
   Code,
+  Bot,
 } from "lucide-react";
 import { LEARN_LANGS, type Lang, localize } from "@/learn/data/types";
 import {
@@ -30,6 +31,7 @@ import {
   WAF_BYPASS_DATA,
   RECON_ONE_LINERS,
   MINDSET_RULES,
+  AUTOMATION_HELPERS,
 } from "@/learn/data/playbookData";
 
 interface BountyPlaybookProps {
@@ -72,12 +74,13 @@ function CopyBtn({ text }: { text: string }) {
 export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
   const [activeTab, setActiveTab] = useState<
-    "targets" | "calculator" | "bugs" | "chaining" | "waf" | "oneliners" | "routine" | "donts" | "template"
+    "targets" | "calculator" | "bugs" | "chaining" | "waf" | "oneliners" | "automation" | "routine" | "donts" | "template"
   >("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
   const [activeChain, setActiveChain] = useState<number>(0);
   const [wafCat, setWafCat] = useState<string>("all");
   const [reconCat, setReconCat] = useState<string>("all");
+  const [automationCat, setAutomationCat] = useState<string>("all");
 
   // Target ROI Calculator state
   const [calcScope, setCalcScope] = useState<"wildcard_api" | "wildcard_web" | "single_domain" | "strict_url">("wildcard_api");
@@ -164,6 +167,11 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       en: "⚡ Recon One-Liners",
       simple: "⚡ Copy Commands",
       hi: "⚡ रिकॉन वन-लाइनर्स",
+    }[lang],
+    tabAutomation: {
+      en: "🤖 Automation Scripts",
+      simple: "🤖 Automation Tools",
+      hi: "🤖 ऑटोमेशन स्क्रिप्ट्स",
     }[lang],
     tabRoutine: {
       en: "🧠 Daily Routine & Mindset",
@@ -809,6 +817,16 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           }`}
         >
           <Terminal className="h-3.5 w-3.5" /> {t.tabOneLiners}
+        </button>
+        <button
+          onClick={() => setActiveTab("automation")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "automation"
+              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Bot className="h-3.5 w-3.5" /> {t.tabAutomation}
         </button>
         <button
           onClick={() => setActiveTab("routine")}
@@ -1591,6 +1609,100 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           </div>
         </div>
       )}
+
+      {/* ── TAB 7: WORKFLOW AUTOMATION SCRIPTS & HELPERS ── */}
+      {activeTab === "automation" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-emerald-400" />
+                  {lang === "hi"
+                    ? "वर्कफ़्लो ऑटोमेशन स्क्रिप्ट्स व हेल्पर्स (Console & Burp)"
+                    : "Workflow Automation Scripts & Helpers"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "बार-बार किए जाने वाले कामों को ऑटोमेट करें: DevTools स्निपेट्स, Burp Suite रूल्स और लोकल वर्कस्पेस पार्सर:"
+                    : "Ready-to-use client-side browser console snippets, Burp Suite background rules, and local CLI scope parsers."}
+                </p>
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "devtools", label: "Browser DevTools" },
+                  { id: "burp", label: "Burp Suite" },
+                  { id: "cli_importer", label: "CLI Utility" },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setAutomationCat(c.id)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                      automationCat === c.id
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Automation Helpers List */}
+            <div className="space-y-4">
+              {AUTOMATION_HELPERS.filter((h) => automationCat === "all" || h.category === automationCat).map((helper) => (
+                <div key={helper.id} className="rounded-lg border border-border/80 bg-slate-950/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      {localize(helper.title, lang)}
+                    </h3>
+                    <span className="text-[10px] font-mono uppercase bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 px-2 py-0.5 rounded">
+                      {helper.badge}
+                    </span>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-300">{localize(helper.description, lang)}</p>
+
+                  {/* Code box */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono uppercase text-emerald-400">
+                        {helper.category === "cli_importer"
+                          ? "Terminal Command:"
+                          : helper.category === "burp"
+                          ? "Configuration Instructions:"
+                          : "JavaScript Console Snippet:"}
+                      </span>
+                      <CopyBtn text={helper.codeOrInstructions} />
+                    </div>
+                    <pre className="rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-emerald-300 overflow-x-auto leading-relaxed max-h-72">
+                      <code>{helper.codeOrInstructions}</code>
+                    </pre>
+                  </div>
+
+                  {/* How to use */}
+                  <div className="rounded-md border border-slate-800 bg-slate-900/60 p-2.5 text-xs text-slate-300 flex items-start gap-2">
+                    <Terminal className="h-3.5 w-3.5 text-sky-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-slate-200">
+                        {lang === "hi" ? "कैसे इस्तेमाल करें: " : "How to run: "}
+                      </span>
+                      {localize(helper.howToUse, lang)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 8: DAILY ROUTINE ── */}
       {activeTab === "routine" && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">

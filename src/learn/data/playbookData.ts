@@ -710,3 +710,270 @@ export const MINDSET_RULES: MindsetRule[] = [
     ],
   },
 ];
+
+// ── 5. AUTOMATION HELPERS & WORKFLOW SCRIPTS ──────────────────────────────────
+export interface AutomationHelper {
+  id: string;
+  title: Record<Lang, string>;
+  category: "devtools" | "burp" | "cli_importer";
+  badge: string;
+  description: Record<Lang, string>;
+  codeOrInstructions: string;
+  howToUse: Record<Lang, string>;
+  outputExample?: string;
+}
+
+export const AUTOMATION_HELPERS: AutomationHelper[] = [
+  {
+    id: "helper-devtools-endpoints",
+    title: {
+      en: "DOM Endpoint & Hidden Route Scraper (Console Snippet)",
+      simple: "Browser Snippet: Find Hidden Links",
+      hi: "DOM एंडपॉइंट व हिडन रूट्स स्क्रैपर (DevTools स्निपेट)",
+    },
+    category: "devtools",
+    badge: "BROWSER DEVTOOLS",
+    description: {
+      en: "Scrapes the current DOM, inline scripts, link tags, and form actions to extract all API endpoints (/api/..., /v1/..., /graphql) and renders a clean sorted console table.",
+      simple: "Paste this into your browser console to automatically find all hidden web links and API routes on the page.",
+      hi: "पेज के DOM, इनलाइन स्क्रिप्ट्स और फॉर्म्स से सभी API एंडपॉइंट्स (`/api/...`, `/graphql`) निकालता है और DevTools कंसोल में टेबल बनाकर दिखाता है।",
+    },
+    codeOrInstructions: `(() => {
+  const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+  const links = Array.from(document.querySelectorAll('a[href], link[href], form[action]'))
+    .map(el => el.href || el.action)
+    .filter(Boolean);
+
+  const regex = /(['"])((\\/api\\/|\\/v[0-9]\\/|\\/graphql|\\/oauth|\\/user\\/|\\/admin\\/)[a-zA-Z0-9_\\-\\/]+)\\1/g;
+  const matches = new Set();
+
+  document.querySelectorAll('script:not([src])').forEach(s => {
+    let match;
+    while ((match = regex.exec(s.textContent)) !== null) {
+      matches.add(match[2]);
+    }
+  });
+
+  console.group("%c🎯 Target DOM Discovered Endpoints", "color:#10b981;font-weight:bold;font-size:13px;");
+  console.log("%cTotal External Scripts:", "color:#38bdf8;", scripts.length);
+  console.log("%cDiscovered Internal API Routes:", "color:#f59e0b;font-weight:bold;");
+  console.table(Array.from(matches).sort().map(endpoint => ({ "Endpoint Path": endpoint })));
+  console.groupEnd();
+})();`,
+    howToUse: {
+      en: "Open DevTools (F12 or Cmd+Option+I) -> click 'Console' tab -> paste code and hit Enter.",
+      simple: "Press F12, open Console, paste the script and press Enter.",
+      hi: "ब्राउज़र में F12 दबाकर Console टैब खोलें, कोड पेस्ट करें और Enter दबाएं।",
+    },
+    outputExample: "Console prints a formatted table of all discovered API paths.",
+  },
+  {
+    id: "helper-devtools-unhide",
+    title: {
+      en: "Unhide Hidden Inputs & Unlock Disabled Buttons",
+      simple: "Browser Snippet: Reveal Hidden Form Fields",
+      hi: "हिडन फॉर्म इनपुट्स और डिसेबल्ड बटन अनलॉक स्निपेट",
+    },
+    category: "devtools",
+    badge: "BROWSER DEVTOOLS",
+    description: {
+      en: "Converts all <input type='hidden'> to visible highlighted text fields and strips 'disabled' and 'readonly' attributes from all buttons and controls for fast unauthorized submission testing.",
+      simple: "Makes all hidden form fields visible on screen and enables all grayed-out buttons so you can test them.",
+      hi: "पेज पर छिपे हुए सभी hidden इनपुट्स को स्क्रीन पर विजिबल बनाता है और डिसेबल्ड बटन्स को अनलॉक करता है ताकि आप पैरामीटर्स टेस्ट कर सकें।",
+    },
+    codeOrInstructions: `(() => {
+  let unhidden = 0;
+  let unlocked = 0;
+
+  document.querySelectorAll('input[type="hidden"]').forEach(el => {
+    el.type = 'text';
+    el.style.border = '2px dashed #f59e0b';
+    el.style.backgroundColor = '#1e1b4b';
+    el.style.color = '#38bdf8';
+    el.style.padding = '4px';
+    el.style.margin = '2px';
+    el.placeholder = 'HIDDEN: ' + (el.name || el.id || 'param');
+    unhidden++;
+  });
+
+  document.querySelectorAll('[disabled], [readonly]').forEach(el => {
+    el.removeAttribute('disabled');
+    el.removeAttribute('readonly');
+    el.style.outline = '2px solid #10b981';
+    unlocked++;
+  });
+
+  console.log(\`%c[+] Automation: Unhidden \${unhidden} hidden inputs, Unlocked \${unlocked} disabled controls!\`, "color:#10b981;font-weight:bold;font-size:12px;");
+})();`,
+    howToUse: {
+      en: "Paste into Console on any complex form page (checkout, profile settings, or role management).",
+      simple: "Paste into Console on any page with forms or buttons.",
+      hi: "चेकआउट या प्रोफाइल पेज पर Console में पेस्ट करें — सारे हिडन इनपुट्स स्क्रीन पर दिखने लगेंगे।",
+    },
+  },
+  {
+    id: "helper-devtools-storage",
+    title: {
+      en: "Client Storage & JWT Token Security Inspector",
+      simple: "Browser Snippet: Inspect JWT & Tokens",
+      hi: "क्लाइंट स्टोरेज व JWT टोकन इंस्पेक्टर स्निपेट",
+    },
+    category: "devtools",
+    badge: "BROWSER DEVTOOLS",
+    description: {
+      en: "Scans localStorage, sessionStorage, and document cookies, automatically identifies JWT tokens, base64-decodes the payload claims, and audits role and expiration properties.",
+      simple: "Reads local storage and automatically decodes login tokens and user roles.",
+      hi: "ब्राउज़र के localStorage और sessionStorage में मौजूद JWT टोकन्स को ऑटो-डिकोड करके यूज़र रोल्स और एक्सपायरी दिखाता है।",
+    },
+    codeOrInstructions: `(() => {
+  const parseJwt = token => {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    } catch { return null; }
+  };
+
+  const results = [];
+  const checkItem = (source, key, val) => {
+    if (!val || typeof val !== 'string') return;
+    const jwt = parseJwt(val);
+    if (jwt) {
+      results.push({ Source: source, Key: key, Role: jwt.role || jwt.roles || jwt.scope || 'N/A', Expiry: jwt.exp ? new Date(jwt.exp * 1000).toLocaleString() : 'No Exp', "JWT Payload": jwt });
+    } else if (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth') || key.toLowerCase().includes('user')) {
+      results.push({ Source: source, Key: key, Value: val.substring(0, 50) + '...', "Type": "Plain Token/User" });
+    }
+  };
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    checkItem('localStorage', k, localStorage.getItem(k));
+  }
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const k = sessionStorage.key(i);
+    checkItem('sessionStorage', k, sessionStorage.getItem(k));
+  }
+
+  console.group("%c🔐 Client Storage Security Audit", "color:#a855f7;font-weight:bold;font-size:13px;");
+  if (results.length > 0) {
+    console.table(results);
+  } else {
+    console.log("No sensitive JWTs or Auth keys found in window storage.");
+  }
+  console.groupEnd();
+})();`,
+    howToUse: {
+      en: "Run in Console after logging into the target application to inspect session tokens.",
+      simple: "Run in Console while logged in to check your session permissions.",
+      hi: "टारगेट पर लॉगिन करने के बाद Console में चलाएं ताकि सेशन टोकन्स और रोल्स का विश्लेषण हो सके।",
+    },
+  },
+  {
+    id: "helper-burp-autorize",
+    title: {
+      en: "Burp Suite Autorize Hands-Free IDOR Automation",
+      simple: "Burp Tool: Automatic Permission Checker",
+      hi: "Burp Suite Autorize हैंड्स-फ्री IDOR ऑटोमेशन सेटअप",
+    },
+    category: "burp",
+    badge: "BURP EXTENSION",
+    description: {
+      en: "Step-by-step setup to automatically audit authorization and privilege escalation in the background across every click in your browser without manually changing cookies.",
+      simple: "Setup Burp to automatically test for authorization bugs while you browse normally.",
+      hi: "Burp Suite में Autorize एक्सटेंशन सेटअप करके बैकग्राउंड में हर क्लिक पर अपने आप IDOR टेस्ट करने का तरीका।",
+    },
+    codeOrInstructions: `# Step 1: Install "Autorize" from Burp BApp Store (Extensions -> BApp Store -> Autorize).
+# Step 2: Open Target Application:
+#   - Browser 1 (Normal): Log in as Account A (Attacker)
+#   - Browser 2 (Incognito): Log in as Account B (Victim)
+# Step 3: Copy Account B's Cookie header from Burp HTTP History:
+#   Cookie: session_id=VICTIM_COOKIE_HERE; auth_token=XYZ
+# Step 4: Paste cookie into Autorize tab -> check "Autorize is on".
+# Step 5: Browse the application normally as Account A.
+#
+# Reading Results:
+#   🟢 [Bypassed!] (Green): High-severity IDOR! Account B executed Account A's action.
+#   🟠 [Warning] (Orange): Length difference detected, inspect in Repeater.
+#   🔴 [Enforced] (Red): Correctly blocked (401/403).`,
+    howToUse: {
+      en: "Configure once in Burp Suite and browse normally. Investigate any green highlighted rows.",
+      simple: "Turn it on in Burp Suite and watch for green rows.",
+      hi: "Burp Suite में एक बार सेट करें और सामान्य ब्राउज़िंग करें। ग्रीन रो दिखते ही IDOR रिपोर्ट करें।",
+    },
+  },
+  {
+    id: "helper-burp-match-replace",
+    title: {
+      en: "Burp Suite Match & Replace WAF & Proxy Spoofing Rules",
+      simple: "Burp Rules: Auto-Inject Bypass Headers",
+      hi: "Burp Suite मैच व रिप्लेस WAF स्पूफिंग रूल्स",
+    },
+    category: "burp",
+    badge: "BURP CONFIGURATION",
+    description: {
+      en: "Automatically injects localhost and internal proxy headers into every outgoing request through Burp Proxy to test for 403 Forbidden bypasses automatically.",
+      simple: "Burp rules to automatically send fake admin headers with every single web request.",
+      hi: "Burp Proxy से जाने वाली हर रिक्वेस्ट में ऑटोमैटिकली `X-Forwarded-For: 127.0.0.1` जैसे हेडर्स जोड़ने के नियम।",
+    },
+    codeOrInstructions: `Navigate to: Burp Suite -> Settings -> Proxy -> "Match and replace rules":
+
+Rule 1 (Loopback Client-IP):
+- Type: Request header
+- Match: (leave empty to add new header)
+- Replace: X-Forwarded-For: 127.0.0.1
+- Enabled: [x]
+
+Rule 2 (Custom Authorization Bypass):
+- Type: Request header
+- Match: (leave empty)
+- Replace: X-Custom-IP-Authorization: 127.0.0.1
+- Enabled: [x]
+
+Rule 3 (Original URL Rewriting):
+- Type: Request header
+- Match: (leave empty)
+- Replace: X-Original-URL: /admin
+- Enabled: [x]
+
+Rule 4 (Bug Bounty Disclosure Attribution):
+- Type: Request header
+- Match: (leave empty)
+- Replace: X-Bug-Bounty: your_hackerone_username
+- Enabled: [x]`,
+    howToUse: {
+      en: "Add these 4 rules in Burp Settings -> Proxy -> Match and replace.",
+      simple: "Add these headers into Burp Proxy Settings under Match and Replace.",
+      hi: "Burp Proxy Settings में Match and Replace सेक्शन में ये 4 हेडर्स एक्टिवेट करें।",
+    },
+  },
+  {
+    id: "helper-cli-importer",
+    title: {
+      en: "Recon Asset Importer & Normalizer CLI Script",
+      simple: "Workspace Script: Import Subdomain Lists",
+      hi: "रिकॉन एसेट इंपोर्टर व नॉर्मलाइज़र CLI स्क्रिप्ट",
+    },
+    category: "cli_importer",
+    badge: "WORKSPACE UTILITY",
+    description: {
+      en: "Local Node.js automation script that parses raw subfinder / httpx text files, removes duplicate hosts, categorizes in-scope vs out-of-scope assets, and exports clean JSON for the workspace.",
+      simple: "Run this script in terminal to clean and import your subdomain lists into the workspace.",
+      hi: "लोकल Node.js स्क्रिप्ट जो subfinder/httpx की लिस्ट से डुप्लीकेट्स हटाकर स्कोप के हिसाब से क्लीन JSON तैयार करती है।",
+    },
+    codeOrInstructions: `# 1. Parse an existing recon output file:
+node scripts/import-recon.mjs --input live_subs.txt --target target.com
+
+# 2. Pipe directly from subfinder:
+subfinder -d target.com -silent | node scripts/import-recon.mjs --target target.com --out scope_import.json
+
+# 3. View options and help:
+node scripts/import-recon.mjs --help`,
+    howToUse: {
+      en: "Run in your terminal inside the project directory: `node scripts/import-recon.mjs`.",
+      simple: "Run in your command terminal inside this project folder.",
+      hi: "प्रोजेक्ट फोल्डर के टर्मिनल में चलाएं: `node scripts/import-recon.mjs`।",
+    },
+    outputExample: "Outputs scope_import.json with deduplicated in-scope hostnames and protocols.",
+  },
+];
+
