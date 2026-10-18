@@ -217,21 +217,41 @@ function VrtIndexBrowser({
   lessonFor: (entry: VrtIndexEntry) => LearnTopic | undefined;
   onOpenLesson: (topic: LearnTopic) => void;
 }) {
-  const [domain, setDomain] = useState<AppLearnDomain>("web");
+  const [domain, setDomain] = useState<AppLearnDomain | "all">("web");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [query, setQuery] = useState("");
+
+  // Categories available for the currently selected domain & priority
+  const availableCategories = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of vrtIndex) {
+      const matchDomain = domain === "all" || e.domain === domain;
+      const matchPriority = priority === "all" || e.priority === priority;
+      if (matchDomain && matchPriority) {
+        map.set(e.category, (map.get(e.category) ?? 0) + 1);
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [domain, priority]);
+
+  const totalInDomain = useMemo(() => {
+    return availableCategories.reduce((sum, [, count]) => sum + count, 0);
+  }, [availableCategories]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return vrtIndex.filter(
-      (e) =>
-        e.domain === domain &&
-        (priority === "all" || e.priority === priority) &&
-        (!q ||
-          e.name.toLowerCase().includes(q) ||
-          e.path.toLowerCase().includes(q) ||
-          e.category.toLowerCase().includes(q)),
-    );
-  }, [domain, priority, query]);
+    return vrtIndex.filter((e) => {
+      const matchDomain = domain === "all" || e.domain === domain;
+      const matchCategory = selectedCategory === "all" || e.category === selectedCategory;
+      const matchPriority = priority === "all" || e.priority === priority;
+      const matchQuery =
+        !q ||
+        e.name.toLowerCase().includes(q) ||
+        e.path.toLowerCase().includes(q) ||
+        e.category.toLowerCase().includes(q);
+      return matchDomain && matchCategory && matchPriority && matchQuery;
+    });
+  }, [domain, selectedCategory, priority, query]);
 
   const byCategory = useMemo(() => {
     const m = new Map<string, VrtIndexEntry[]>();
@@ -245,40 +265,142 @@ function VrtIndexBrowser({
 
   return (
     <div className="space-y-4">
-      {/* Domain pills */}
-      <div className="flex flex-wrap gap-1.5">
-        {LEARN_DOMAINS.map((d) => {
-          const n = vrtIndex.filter((e) => e.domain === d.id).length;
-          return (
+      {/* 1. Domain Section */}
+      <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <span className="text-emerald-400">Step 1:</span> Domain Section
+          </span>
+          <span className="text-[11px] text-slate-400 font-mono">
+            {domain === "all" ? "All Domains" : LEARN_DOMAINS.find((d) => d.id === domain)?.label}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => {
+              setDomain("all");
+              setSelectedCategory("all");
+            }}
+            className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+              domain === "all"
+                ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+            }`}
+          >
+            🗂️ All Domains ({vrtIndex.length})
+          </button>
+          {LEARN_DOMAINS.map((d) => {
+            const n = vrtIndex.filter((e) => e.domain === d.id).length;
+            return (
+              <button
+                key={d.id}
+                onClick={() => {
+                  setDomain(d.id);
+                  setSelectedCategory("all");
+                }}
+                className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                  domain === d.id
+                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                    : "border-border text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                }`}
+              >
+                {d.emoji} {d.label} ({n})
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. VRT Category Filter */}
+      <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <span className="text-violet-400">Step 2:</span> VRT Category Filter
+            <span className="ml-1 text-[11px] font-normal text-slate-400">
+              ({availableCategories.length} categories)
+            </span>
+          </span>
+          {selectedCategory !== "all" && (
             <button
-              key={d.id}
-              onClick={() => setDomain(d.id)}
-              className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                domain === d.id
-                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-border text-slate-400 hover:text-slate-200"
-              }`}
+              onClick={() => setSelectedCategory("all")}
+              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 transition underline underline-offset-2"
             >
-              {d.emoji} {d.label} ({n})
+              Show All Categories ({totalInDomain})
             </button>
-          );
-        })}
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 max-h-52 overflow-y-auto pr-1">
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+              selectedCategory === "all"
+                ? "border-violet-500/60 bg-violet-500/20 text-violet-200 shadow-sm"
+                : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+            }`}
+          >
+            All Categories ({totalInDomain})
+          </button>
+          {availableCategories.map(([cat, count]) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`rounded-md border px-2.5 py-1 text-xs transition flex items-center gap-1.5 ${
+                  isSelected
+                    ? "border-violet-500/70 bg-violet-500/25 text-violet-100 font-semibold shadow-sm"
+                    : "border-border bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                }`}
+              >
+                <span>{cat}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    isSelected ? "bg-violet-400/20 text-violet-200" : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search VRT entries…"
-          className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-slate-200 outline-none focus:border-emerald-500"
-        />
-      </div>
+      {/* 3. Search and Quick Info */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search VRT entries in ${selectedCategory === "all" ? (domain === "all" ? "all domains" : domain) : selectedCategory}…`}
+            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-slate-200 outline-none focus:border-emerald-500"
+          />
+        </div>
 
-      <p className="text-[11px] text-slate-500">
-        {rows.length} entries · Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · deep lessons linked where available
-      </p>
+        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+          <span>
+            Showing <strong className="text-slate-300">{rows.length}</strong> entries
+            {selectedCategory !== "all" && (
+              <> in category <span className="text-violet-300 font-semibold">"{selectedCategory}"</span></>
+            )}
+            {" "}· Bugcrowd VRT {PLATFORM_LEGEND.vrtRelease} · deep lessons linked where available
+          </span>
+          {(query || selectedCategory !== "all" || domain !== "web") && (
+            <button
+              onClick={() => {
+                setQuery("");
+                setSelectedCategory("all");
+                setDomain("web");
+              }}
+              className="text-slate-400 hover:text-slate-200 underline"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      </div>
 
       {byCategory.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-slate-400">
