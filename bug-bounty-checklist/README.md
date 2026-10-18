@@ -69,7 +69,7 @@ npm install
 npm run dev
 ```
 
-App will run at `http://localhost:5173/checklist/` (the configured deployment base is `/checklist/`).
+App will run at `http://localhost:5173/` (deployment base is `/`). Each section has its own path: `/` (dashboard), `/checklist`, `/learn`, `/tools`, `/findings`, `/scope`.
 
 ### Production Build & Linting
 

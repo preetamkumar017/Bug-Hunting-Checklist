@@ -6,35 +6,52 @@ import {
   X,
   FolderPlus,
   Wrench,
-  Zap,
   Command,
-  Database,
-  Sparkles,
 } from "lucide-react";
-import { domains } from "./data/domains";
-import type { Domain, ItemStatus } from "./types/checklist";
-import { Sidebar } from "./components/Sidebar";
-import { CategorySection } from "./components/CategorySection";
-import { FindingsView } from "./components/FindingsView";
-import { ScopeView } from "./components/ScopeView";
-import { DashboardView } from "./components/DashboardView";
-import { ChecklistItemRow } from "./components/ChecklistItemRow";
-import { AddCustomCategoryModal } from "./components/AddCustomCategoryModal";
-import { CommandPaletteModal } from "./components/CommandPaletteModal";
-import { useActiveProfile, useChecklistStore } from "./store/useChecklistStore";
-import { effectiveCategories, effectiveCatalogue } from './lib/catalogue';
-const HackerToolsModal = lazy(() => import('./components/HackerToolsModal').then(m => ({ default: m.HackerToolsModal })));
-const HttpAnalyzerModal = lazy(() => import('./components/HttpAnalyzerModal').then(m => ({ default: m.HttpAnalyzerModal })));
-const WordlistsModal = lazy(() => import('./components/WordlistsModal').then(m => ({ default: m.WordlistsModal })));
-const DorkGeneratorModal = lazy(() => import('./components/DorkGeneratorModal').then(m => ({ default: m.DorkGeneratorModal })));
-const BurpRulesModal = lazy(() => import('./components/BurpRulesModal').then(m => ({ default: m.BurpRulesModal })));
-const ReportDrafterModal = lazy(() => import('./components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
+import { domains } from "@/hunt/data/domains";
+import type { Domain, ItemStatus } from "@/shared/types/checklist";
+import { Sidebar } from "@/shared/components/Sidebar";
+import { CategorySection } from "@/hunt/components/CategorySection";
+import { FindingsView } from "@/hunt/components/FindingsView";
+import { ScopeView } from "@/hunt/components/ScopeView";
+import { DashboardView } from "@/dashboard/DashboardView";
+import { ToolsView } from "@/tools/components/ToolsView";
+import { LearnView } from "@/learn/components/LearnView";
+import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
+import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
+import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
+import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
+import { effectiveCategories, effectiveCatalogue } from '@/shared/lib/catalogue';
+const HackerToolsModal = lazy(() => import('@/tools/components/HackerToolsModal').then(m => ({ default: m.HackerToolsModal })));
+const HttpAnalyzerModal = lazy(() => import('@/tools/components/HttpAnalyzerModal').then(m => ({ default: m.HttpAnalyzerModal })));
+const WordlistsModal = lazy(() => import('@/tools/components/WordlistsModal').then(m => ({ default: m.WordlistsModal })));
+const DorkGeneratorModal = lazy(() => import('@/tools/components/DorkGeneratorModal').then(m => ({ default: m.DorkGeneratorModal })));
+const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').then(m => ({ default: m.BurpRulesModal })));
+const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn";
+
+// Per-section URL routing. Dashboard is the root; every other view gets its own
+// path so the URL reflects the section and back/forward + direct links work.
+const VIEW_PATH: Record<View, string> = {
+  dashboard: "/",
+  checklist: "/checklist",
+  learn: "/learn",
+  tools: "/tools",
+  findings: "/findings",
+  scope: "/scope",
+};
+
+function pathToView(pathname: string): View {
+  const clean = pathname.replace(/\/+$/, "") || "/";
+  const match = (Object.entries(VIEW_PATH) as [View, string][]).find(([, p]) => p === clean);
+  return match ? match[0] : "dashboard";
+}
 
 export default function App() {
   const [activeDomain, setActiveDomain] = useState<Domain>("web");
-  const [view, setView] = useState<"checklist" | "dashboard" | "findings" | "scope">("checklist");
+  const [view, setView] = useState<View>(() => pathToView(window.location.pathname));
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -50,7 +67,6 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profile = useActiveProfile();
   const storageError = useChecklistStore(s => s.storageError);
-  const storageWarning = useChecklistStore(s => s.storageWarning);
   const [jump, setJump] = useState<{ id: string; sequence: number } | null>(null);
 
   // Keyboard shortcut listener: Cmd/Ctrl+K for Command Palette, / for search
@@ -76,6 +92,23 @@ export default function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [query]);
+
+  // Keep the URL in sync with the active section (push a history entry on change).
+  useEffect(() => {
+    const target = VIEW_PATH[view];
+    if (window.location.pathname !== target) {
+      window.history.pushState({ view }, "", target);
+    }
+  }, [view]);
+
+  // Reflect browser back/forward into the active section.
+  useEffect(() => {
+    function onPopState() {
+      setView(pathToView(window.location.pathname));
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const domain = domains.find((d) => d.id === activeDomain)!;
 
@@ -173,12 +206,6 @@ export default function App() {
         }}
         view={view}
         onSelectView={setView}
-        onOpenTools={() => setToolsOpen(true)}
-        onOpenAnalyzer={() => setAnalyzerOpen(true)}
-        onOpenWordlists={() => setWordlistsOpen(true)}
-        onOpenDorks={() => setDorksOpen(true)}
-        onOpenBurpRules={() => setBurpRulesOpen(true)}
-        onOpenReportDrafter={() => setReportDrafterOpen(true)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onOpenAddCategory={() => setAddCatOpen(true)}
         onJumpToCategory={jumpToCategory}
@@ -196,7 +223,17 @@ export default function App() {
             <Menu className="h-5 w-5" />
           </button>
           <p className="truncate text-sm font-bold text-slate-100">
-            {domain.emoji} {domain.label}
+            {view === "checklist"
+              ? `${domain.emoji} ${domain.label}`
+              : view === "dashboard"
+              ? "📊 Dashboard"
+              : view === "scope"
+              ? "🎯 Target / Scope"
+              : view === "findings"
+              ? "🐞 Findings"
+              : view === "learn"
+              ? "🎓 Learn"
+              : "🧰 Tools"}
           </p>
         </div>
 
@@ -209,14 +246,8 @@ export default function App() {
             <Command className="h-3 w-3" /> ⌘K
           </button>
           <button
-            onClick={() => setAnalyzerOpen(true)}
-            title="Open Raw HTTP Request Analyzer"
-            className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-emerald-300 hover:bg-slate-700"
-          >
-            <Zap className="h-3 w-3" />
-          </button>
-          <button
-            onClick={() => setToolsOpen(true)}
+            onClick={() => setView("tools")}
+            title="Open the Tools section"
             className="flex items-center gap-1 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-amber-300 hover:bg-slate-700"
           >
             <Wrench className="h-3 w-3" />
@@ -226,87 +257,64 @@ export default function App() {
 
       <main key={`content:${profile?.id ?? 'no-profile'}`} className="min-w-0 flex-1 overflow-y-auto">
         {storageError && <p role="alert" className="bg-red-950 p-4 text-red-200">Changes were not saved: {storageError}</p>}
-        {storageWarning && <p role="status" className="bg-amber-950 p-4 text-amber-200">{storageWarning}</p>}
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-          {/* Search bar & Action triggers */}
-          <div className="relative mb-5 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                ref={searchInputRef}
-                aria-label="Search checks, payloads, notes and categories"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search across all checks & payloads... (Press '/' to search)"
-                className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-14 text-sm text-slate-200 outline-none focus:border-emerald-500"
-              />
-              <button
-                type="button"
-                onClick={() => setCommandPaletteOpen(true)}
-                title="Spotlight Command Palette (⌘K / Ctrl+K)"
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded border border-border bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 hover:bg-slate-700 hover:text-slate-200"
-              >
-                <Command className="h-3 w-3 text-purple-400" />
-                <span>⌘K</span>
-              </button>
-              {query && (
+          {/* Search bar — only on the checklist, where it searches checks & payloads */}
+          {view === "checklist" && (
+            <div className="relative mb-5 flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  ref={searchInputRef}
+                  aria-label="Search checks, payloads, notes and categories"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search across all checks & payloads... (Press '/' to search)"
+                  className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-14 text-sm text-slate-200 outline-none focus:border-emerald-500"
+                />
                 <button
-                  onClick={() => setQuery("")}
-                  className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-200"
+                  type="button"
+                  onClick={() => setCommandPaletteOpen(true)}
+                  title="Spotlight Command Palette (⌘K / Ctrl+K)"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded border border-border bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 hover:bg-slate-700 hover:text-slate-200"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Command className="h-3 w-3 text-purple-400" />
+                  <span>⌘K</span>
                 </button>
-              )}
+                {query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-200"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => setView("tools")}
+                title="Open the Tools section"
+                className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-emerald-400"
+              >
+                <Wrench className="h-3.5 w-3.5 text-amber-400" />
+                <span>Tools</span>
+              </button>
             </div>
-
-            <button
-              onClick={() => setWordlistsOpen(true)}
-              title="Curated Fuzzing Wordlists & Payloads"
-              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-950/20 px-3 py-2 text-xs font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200"
-            >
-              <Database className="h-3.5 w-3.5 text-blue-400" />
-              <span>Wordlists</span>
-            </button>
-
-            <button
-              onClick={() => setDorksOpen(true)}
-              title="Google Dork Generator"
-              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-950/20 px-3 py-2 text-xs font-medium text-violet-300 hover:bg-violet-900/30 hover:text-violet-200"
-            >
-              <Search className="h-3.5 w-3.5 text-violet-400" />
-              <span>Dorks</span>
-            </button>
-
-            <button
-              onClick={() => setReportDrafterOpen(true)}
-              title="Smart Vulnerability Report Drafter"
-              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-900/30 hover:text-amber-200"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>Report Drafter</span>
-            </button>
-
-            <button
-              onClick={() => setAnalyzerOpen(true)}
-              title="Open Raw HTTP Request & Vulnerability Analyzer"
-              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-900/30 hover:text-emerald-200"
-            >
-              <Zap className="h-3.5 w-3.5 text-emerald-400" />
-              <span>HTTP Analyzer</span>
-            </button>
-
-            <button
-              onClick={() => setToolsOpen(true)}
-              title="Open Swiss Army Knife Tools"
-              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-emerald-400"
-            >
-              <Wrench className="h-3.5 w-3.5 text-amber-400" />
-              <span>Tools</span>
-            </button>
-          </div>
+          )}
 
           {view === "dashboard" ? (
             <DashboardView onSelectDomain={setActiveDomain} onSelectView={setView} />
+          ) : view === "learn" ? (
+            <LearnView onPractice={jumpToCategory} />
+          ) : view === "tools" ? (
+            <ToolsView
+              onOpenAnalyzer={() => setAnalyzerOpen(true)}
+              onOpenWordlists={() => setWordlistsOpen(true)}
+              onOpenDorks={() => setDorksOpen(true)}
+              onOpenReportDrafter={() => setReportDrafterOpen(true)}
+              onOpenBurpRules={() => setBurpRulesOpen(true)}
+              onOpenTools={() => setToolsOpen(true)}
+              onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            />
           ) : view === "findings" ? (
             <FindingsView />
           ) : view === "scope" ? (
