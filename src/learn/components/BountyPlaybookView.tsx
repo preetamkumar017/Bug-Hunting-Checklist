@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Target,
   Zap,
@@ -17,8 +17,20 @@ import {
   Ban,
   ShieldAlert,
   XCircle,
+  Calculator,
+  Link2,
+  Shield,
+  Brain,
+  Flame,
+  Code,
 } from "lucide-react";
-import { LEARN_LANGS, type Lang } from "@/learn/data/types";
+import { LEARN_LANGS, type Lang, localize } from "@/learn/data/types";
+import {
+  VULN_CHAINS,
+  WAF_BYPASS_DATA,
+  RECON_ONE_LINERS,
+  MINDSET_RULES,
+} from "@/learn/data/playbookData";
 
 interface BountyPlaybookProps {
   onPractice?: (categoryId: string) => void;
@@ -59,8 +71,48 @@ function CopyBtn({ text }: { text: string }) {
 
 export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
-  const [activeTab, setActiveTab] = useState<"targets" | "bugs" | "routine" | "donts" | "template">("targets");
+  const [activeTab, setActiveTab] = useState<
+    "targets" | "calculator" | "bugs" | "chaining" | "waf" | "oneliners" | "routine" | "donts" | "template"
+  >("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
+  const [activeChain, setActiveChain] = useState<number>(0);
+  const [wafCat, setWafCat] = useState<string>("all");
+  const [reconCat, setReconCat] = useState<string>("all");
+
+  // Target ROI Calculator state
+  const [calcScope, setCalcScope] = useState<"wildcard_api" | "wildcard_web" | "single_domain" | "strict_url">("wildcard_api");
+  const [calcBounty, setCalcBounty] = useState<"p1_5k_plus" | "p1_2k_5k" | "p1_sub_2k" | "vdp_swag">("p1_5k_plus");
+  const [calcTriage, setCalcTriage] = useState<"fast_24h" | "medium_week" | "slow_month" | "painful_delayed">("fast_24h");
+  const [calcAge, setCalcAge] = useState<"new_7days" | "updated_month" | "mature_year" | "saturated_5yr">("new_7days");
+  const [calcMobile, setCalcMobile] = useState<boolean>(true);
+
+  // Dynamic Viability Score calculation (0 - 100)
+  const calcScore = useMemo(() => {
+    let score = 0;
+    if (calcScope === "wildcard_api") score += 32;
+    else if (calcScope === "wildcard_web") score += 24;
+    else if (calcScope === "single_domain") score += 12;
+    else if (calcScope === "strict_url") score -= 5;
+
+    if (calcBounty === "p1_5k_plus") score += 25;
+    else if (calcBounty === "p1_2k_5k") score += 18;
+    else if (calcBounty === "p1_sub_2k") score += 10;
+    else if (calcBounty === "vdp_swag") score += 12;
+
+    if (calcTriage === "fast_24h") score += 23;
+    else if (calcTriage === "medium_week") score += 14;
+    else if (calcTriage === "slow_month") score += 4;
+    else if (calcTriage === "painful_delayed") score -= 15;
+
+    if (calcAge === "new_7days") score += 20;
+    else if (calcAge === "updated_month") score += 12;
+    else if (calcAge === "mature_year") score += 4;
+    else if (calcAge === "saturated_5yr") score -= 10;
+
+    if (calcMobile) score += 10;
+
+    return Math.max(10, Math.min(100, score));
+  }, [calcScope, calcBounty, calcTriage, calcAge, calcMobile]);
 
   const setLang = (l: Lang) => {
     setLangState(l);
@@ -84,24 +136,44 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       hi: "अधिकतम हिट-रेट के लिए फील्ड-टेस्टेड रणनीति: डुप्लीकेट से कैसे बचें, सबसे कॉमन 6 बग्स कैसे ढूंढें और P1/P2 पेआउट्स कैसे पाएं।",
     }[lang],
     tabTargets: {
-      en: "🎯 Target Selection Strategy",
-      simple: "🎯 How to Pick Targets",
-      hi: "🎯 टारगेट सिलेक्शन रणनीति",
+      en: "🎯 Target Strategy",
+      simple: "🎯 Pick Targets",
+      hi: "🎯 टारगेट रणनीति",
+    }[lang],
+    tabCalculator: {
+      en: "📊 Target ROI Calculator",
+      simple: "📊 Target Score Tool",
+      hi: "📊 टारगेट ROI कैलकुलेटर",
     }[lang],
     tabBugs: {
       en: "🔥 Top 6 Most Common Bugs",
       simple: "🔥 6 Easiest Paid Bugs",
       hi: "🔥 टॉप 6 सबसे आम बग्स",
     }[lang],
+    tabChaining: {
+      en: "🔗 Vulnerability Chaining",
+      simple: "🔗 Turn Small Bugs to Big Payouts",
+      hi: "🔗 वल्नरेबिलिटी चेनिंग (P1 Multiplier)",
+    }[lang],
+    tabWaf: {
+      en: "🛡️ WAF & 403 Bypasses",
+      simple: "🛡️ Bypass Blocked Pages",
+      hi: "🛡️ WAF व 403 बाईपास गाइड",
+    }[lang],
+    tabOneLiners: {
+      en: "⚡ Recon One-Liners",
+      simple: "⚡ Copy Commands",
+      hi: "⚡ रिकॉन वन-लाइनर्स",
+    }[lang],
     tabRoutine: {
-      en: "⚡ Daily 'Confirm Hit' Routine",
-      simple: "⚡ Daily Hunting Plan",
-      hi: "⚡ 'बग कन्फर्म' डेली रूटीन",
+      en: "🧠 Daily Routine & Mindset",
+      simple: "🧠 Daily Plan & Mindset",
+      hi: "🧠 डेली रूटीन और हंटर माइंडसेट",
     }[lang],
     tabDonts: {
-      en: "🚫 What NOT To Do (Avoid Bans)",
-      simple: "🚫 What NOT To Do (Avoid Mistakes)",
-      hi: "🚫 क्या नहीं करना है (गलतियों से बचें)",
+      en: "🚫 What NOT To Do",
+      simple: "🚫 What NOT To Do",
+      hi: "🚫 क्या नहीं करना है",
     }[lang],
     tabTemplate: {
       en: "📝 Fast-Triage Report Template",
@@ -677,56 +749,96 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       </div>
 
       {/* Main Tab Navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
         <button
           onClick={() => setActiveTab("targets")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "targets"
               ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
               : "border border-border bg-card text-slate-400 hover:text-slate-200"
           }`}
         >
-          {t.tabTargets}
+          <Target className="h-3.5 w-3.5" /> {t.tabTargets}
+        </button>
+        <button
+          onClick={() => setActiveTab("calculator")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "calculator"
+              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Calculator className="h-3.5 w-3.5" /> {t.tabCalculator}
         </button>
         <button
           onClick={() => setActiveTab("bugs")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "bugs"
               ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
               : "border border-border bg-card text-slate-400 hover:text-slate-200"
           }`}
         >
-          {t.tabBugs}
+          <Flame className="h-3.5 w-3.5" /> {t.tabBugs}
         </button>
         <button
-          onClick={() => setActiveTab("routine")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
-            activeTab === "routine"
+          onClick={() => setActiveTab("chaining")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "chaining"
+              ? "bg-violet-500/20 text-violet-300 border border-violet-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Link2 className="h-3.5 w-3.5" /> {t.tabChaining}
+        </button>
+        <button
+          onClick={() => setActiveTab("waf")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "waf"
+              ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Shield className="h-3.5 w-3.5" /> {t.tabWaf}
+        </button>
+        <button
+          onClick={() => setActiveTab("oneliners")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "oneliners"
               ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
               : "border border-border bg-card text-slate-400 hover:text-slate-200"
           }`}
         >
-          {t.tabRoutine}
+          <Terminal className="h-3.5 w-3.5" /> {t.tabOneLiners}
+        </button>
+        <button
+          onClick={() => setActiveTab("routine")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+            activeTab === "routine"
+              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Brain className="h-3.5 w-3.5" /> {t.tabRoutine}
         </button>
         <button
           onClick={() => setActiveTab("donts")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "donts"
               ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm"
               : "border border-border bg-card text-slate-400 hover:text-slate-200"
           }`}
         >
-          {t.tabDonts}
+          <Ban className="h-3.5 w-3.5" /> {t.tabDonts}
         </button>
         <button
           onClick={() => setActiveTab("template")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             activeTab === "template"
               ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
               : "border border-border bg-card text-slate-400 hover:text-slate-200"
           }`}
         >
-          {t.tabTemplate}
+          <FileText className="h-3.5 w-3.5" /> {t.tabTemplate}
         </button>
       </div>
 
@@ -823,7 +935,270 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
         </div>
       )}
 
-      {/* ── TAB 2: TOP 6 MOST COMMON BUGS ── */}
+      {/* ── TAB 2: TARGET ROI & VIABILITY CALCULATOR ── */}
+      {activeTab === "calculator" && (
+        <div className="space-y-5">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Calculator className="h-5 w-5 text-emerald-400" />
+                  {lang === "hi"
+                    ? "टारगेट वायबिलिटी और बाउंटी ROI कैलकुलेटर"
+                    : "Target Viability & Bounty ROI Calculator"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "टारगेट के पैरामीटर्स चुनें और लाइव स्कोर देखें कि क्या इस टारगेट पर समय देना वर्थ-इट है या नहीं:"
+                    : "Configure target parameters to calculate expected payout yield, duplicate probability, and estimated time-to-first-bounty."}
+                </p>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 mr-1">Presets:</span>
+                <button
+                  onClick={() => {
+                    setCalcScope("wildcard_api");
+                    setCalcBounty("p1_5k_plus");
+                    setCalcTriage("fast_24h");
+                    setCalcAge("new_7days");
+                    setCalcMobile(true);
+                  }}
+                  className="rounded-md bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40 transition"
+                >
+                  🔥 Fresh Fintech
+                </button>
+                <button
+                  onClick={() => {
+                    setCalcScope("wildcard_web");
+                    setCalcBounty("p1_2k_5k");
+                    setCalcTriage("medium_week");
+                    setCalcAge("mature_year");
+                    setCalcMobile(false);
+                  }}
+                  className="rounded-md bg-amber-950/40 border border-amber-800/40 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-900/40 transition"
+                >
+                  ⚖️ E-Commerce
+                </button>
+                <button
+                  onClick={() => {
+                    setCalcScope("single_domain");
+                    setCalcBounty("p1_5k_plus");
+                    setCalcTriage("painful_delayed");
+                    setCalcAge("saturated_5yr");
+                    setCalcMobile(false);
+                  }}
+                  className="rounded-md bg-rose-950/40 border border-rose-800/40 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900/40 transition"
+                >
+                  ⚠️ Giant Saturated
+                </button>
+              </div>
+            </div>
+
+            {/* Score & Verdict Card */}
+            <div className="rounded-xl border border-border/80 bg-slate-950/60 p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border text-xl font-bold font-mono ${
+                    calcScore >= 80
+                      ? "border-emerald-500/50 bg-emerald-950/50 text-emerald-300 shadow-lg shadow-emerald-950/50"
+                      : calcScore >= 55
+                      ? "border-amber-500/50 bg-amber-950/50 text-amber-300 shadow-lg shadow-amber-950/50"
+                      : "border-rose-500/50 bg-rose-950/50 text-rose-300 shadow-lg shadow-rose-950/50"
+                  }`}
+                >
+                  {calcScore}
+                  <span className="text-[10px] font-normal text-slate-400 ml-0.5">/100</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Viability Verdict</span>
+                  <p className="text-sm font-bold text-slate-100">
+                    {calcScore >= 80
+                      ? lang === "hi" ? "🔥 गोल्डमाइन टारगेट (तुरंत हंट करें)" : "🔥 Goldmine Target (Hunt Now)"
+                      : calcScore >= 55
+                      ? lang === "hi" ? "⚖️ सामान्य स्कोप (मैन्युअल लॉजिक)" : "⚖️ Moderate (Manual Logic Focus)"
+                      : lang === "hi" ? "⚠️ हाई फ्रिक्शन (अत्यधिक कॉम्पिटिशन)" : "⚠️ High Friction (Avoid / Saturated)"}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {calcScore >= 80
+                      ? lang === "hi" ? "फर्स्ट बग संभावना: 2 – 6 घंटे" : "Est. First Bug: 2 – 6 Hours"
+                      : calcScore >= 55
+                      ? lang === "hi" ? "फर्स्ट बग संभावना: 1 – 2 दिन" : "Est. First Bug: 1 – 2 Days"
+                      : lang === "hi" ? "फर्स्ट बग संभावना: 1+ हफ्ता (डुप्लीकेट रिस्क)" : "Est. First Bug: 1+ Week (Duplicate Risk)"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar and guidance */}
+              <div className="md:col-span-2 space-y-2">
+                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      calcScore >= 80 ? "bg-emerald-500" : calcScore >= 55 ? "bg-amber-500" : "bg-rose-500"
+                    }`}
+                    style={{ width: `${calcScore}%` }}
+                  />
+                </div>
+                <p className="text-xs leading-relaxed text-slate-300">
+                  {calcScore >= 80
+                    ? lang === "hi"
+                      ? "नया प्रोग्राम + वाइल्डकार्ड स्कोप + फास्ट ट्राइएज। सबफाइंडर चलाएं और मोबाइल API एक्सट्रेक्ट करें — P1/P2 मिलने की सबसे ज्यादा संभावना है।"
+                      : "Fresh program with wide scope and fast triage. Subdomain brute-forcing and mobile API testing will likely yield high payouts quickly."
+                    : calcScore >= 55
+                    ? lang === "hi"
+                      ? "हेल्दी टारगेट। बेसिक स्कैनर्स न चलाएं क्योंकि सबने चला लिया है। 2 अकाउंट्स बनाकर ऑथराइजेशन और बिज़नेस लॉजिक पर फोकस करें।"
+                      : "Healthy target. Automated recon is already drained. Focus on multi-role authorization, checkout logic, and parallel race conditions."
+                    : lang === "hi"
+                      ? "अत्यधिक संतृप्त या धीमी ट्राइएज। डुप्लीकेट्स का खतरा 80%+ है। जब तक आपके पास कस्टम 0-डे या प्राइवेट एक्सप्लॉइट न हो, समय न लगाएं।"
+                      : "Heavy saturation or slow triage. Duplicate probability exceeds 80%. Not recommended for beginners unless testing zero-day vectors."}
+                </p>
+              </div>
+            </div>
+
+            {/* Config Controls Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Option 1: Scope Type */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 block">
+                  1. {lang === "hi" ? "स्कोप का प्रकार (Scope Type)" : "Scope Attack Surface"}
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: "wildcard_api", label: "Wildcard + Mobile API (*)", desc: "Max surface (+32 pts)" },
+                    { id: "wildcard_web", label: "Wildcard Web Only (*)", desc: "Regional subs (+24 pts)" },
+                    { id: "single_domain", label: "Single Domain (www)", desc: "Narrow (+12 pts)" },
+                    { id: "strict_url", label: "Strict Single URL/App", desc: "Hardened (-5 pts)" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setCalcScope(s.id as any)}
+                      className={`text-left rounded-lg p-2.5 border transition ${
+                        calcScope === s.id
+                          ? "border-emerald-500/50 bg-emerald-950/25 text-emerald-300 font-semibold"
+                          : "border-border/80 bg-slate-950/40 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <span className="text-xs block">{s.label}</span>
+                      <span className="text-[10px] text-slate-400 block">{s.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option 2: Bounty Table */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 block">
+                  2. {lang === "hi" ? "बाउंटी पेआउट टेबल (P1 Max Payout)" : "Bounty Table Payouts"}
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: "p1_5k_plus", label: "P1 > $5,000", desc: "Top tier (+25 pts)" },
+                    { id: "p1_2k_5k", label: "P1 $2,000 – $5,000", desc: "Standard (+18 pts)" },
+                    { id: "p1_sub_2k", label: "P1 < $2,000", desc: "Low payout (+10 pts)" },
+                    { id: "vdp_swag", label: "VDP / Swag / HoF", desc: "Reputation only (+12 pts)" },
+                  ].map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => setCalcBounty(b.id as any)}
+                      className={`text-left rounded-lg p-2.5 border transition ${
+                        calcBounty === b.id
+                          ? "border-emerald-500/50 bg-emerald-950/25 text-emerald-300 font-semibold"
+                          : "border-border/80 bg-slate-950/40 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <span className="text-xs block">{b.label}</span>
+                      <span className="text-[10px] text-slate-400 block">{b.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option 3: Triage Speed */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 block">
+                  3. {lang === "hi" ? "ट्राइएज और रिस्पॉन्स स्पीड" : "Average Triage & Response Speed"}
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: "fast_24h", label: "< 24 Hours", desc: "Lightning fast (+23 pts)" },
+                    { id: "medium_week", label: "2 – 7 Days", desc: "Acceptable (+14 pts)" },
+                    { id: "slow_month", label: "2 – 4 Weeks", desc: "Slow triage (+4 pts)" },
+                    { id: "painful_delayed", label: "> 1 Month", desc: "Painful delay (-15 pts)" },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setCalcTriage(t.id as any)}
+                      className={`text-left rounded-lg p-2.5 border transition ${
+                        calcTriage === t.id
+                          ? "border-emerald-500/50 bg-emerald-950/25 text-emerald-300 font-semibold"
+                          : "border-border/80 bg-slate-950/40 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <span className="text-xs block">{t.label}</span>
+                      <span className="text-[10px] text-slate-400 block">{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option 4: Program Age */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 block">
+                  4. {lang === "hi" ? "प्रोग्राम आयु व कॉम्पिटिशन" : "Program Age & Saturation"}
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: "new_7days", label: "Last 7 Days (Fresh)", desc: "Zero duplicates (+20 pts)" },
+                    { id: "updated_month", label: "Updated < 30 Days", desc: "New assets (+12 pts)" },
+                    { id: "mature_year", label: "Active 1 – 2 Years", desc: "Tested (+4 pts)" },
+                    { id: "saturated_5yr", label: "Active 5+ Years", desc: "Hyper saturated (-10 pts)" },
+                  ].map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => setCalcAge(a.id as any)}
+                      className={`text-left rounded-lg p-2.5 border transition ${
+                        calcAge === a.id
+                          ? "border-emerald-500/50 bg-emerald-950/25 text-emerald-300 font-semibold"
+                          : "border-border/80 bg-slate-950/40 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <span className="text-xs block">{a.label}</span>
+                      <span className="text-[10px] text-slate-400 block">{a.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Checkbox Bonus */}
+            <div className="pt-2 flex items-center justify-between border-t border-border/60">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={calcMobile}
+                  onChange={(e) => setCalcMobile(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0"
+                />
+                <span>
+                  {lang === "hi"
+                    ? "टारगेट के पास Android / iOS मोबाइल ऐप स्कोप में है (+10 Bonus)"
+                    : "Target has dedicated Android / iOS Mobile App in scope (+10 Bonus)"}
+                </span>
+              </label>
+
+              <button
+                onClick={() => setActiveTab("oneliners")}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition shadow-sm"
+              >
+                {lang === "hi" ? "इस टारगेट का रिकॉन शुरू करें" : "Start Recon for Target"} <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: TOP 6 MOST COMMON BUGS ── */}
       {activeTab === "bugs" && (
         <div className="space-y-4">
           {/* Bug selector pill bar */}
@@ -924,7 +1299,298 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
         </div>
       )}
 
-      {/* ── TAB 3: DAILY ROUTINE ── */}
+      {/* ── TAB 4: VULNERABILITY CHAINING MATRIX ── */}
+      {activeTab === "chaining" && (
+        <div className="space-y-4">
+          {/* Chain selector pills */}
+          <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-card p-1.5">
+            {VULN_CHAINS.map((c, i) => (
+              <button
+                key={c.id}
+                onClick={() => setActiveChain(i)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5 ${
+                  activeChain === i
+                    ? "bg-violet-500/20 text-violet-300 border border-violet-500/40 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                <span>{localize(c.title, lang).split(" = ")[0]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Active Chain Details */}
+          {(() => {
+            const chain = VULN_CHAINS[activeChain];
+            return (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/80 pb-3">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-violet-400 bg-violet-950/50 border border-violet-800/40 px-2 py-0.5 rounded">
+                      {chain.category}
+                    </span>
+                    <h2 className="text-base font-bold text-slate-100 mt-1 flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-violet-400" /> {localize(chain.title, lang)}
+                    </h2>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase text-slate-400 block">Payout Multiplier</span>
+                    <span className="text-sm font-bold text-emerald-400 font-mono">{chain.payoutBoost}</span>
+                  </div>
+                </div>
+
+                {/* Formula Badge */}
+                <div className="rounded-lg border border-violet-500/30 bg-violet-950/20 px-3 py-2 font-mono text-xs text-violet-300">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Exploit Formula:</span>
+                  {chain.formula}
+                </div>
+
+                {/* Summary */}
+                <p className="text-xs leading-relaxed text-slate-300 bg-slate-950/40 rounded-lg p-3 border border-border/40">
+                  {localize(chain.summary, lang)}
+                </p>
+
+                {/* 3 Steps */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-slate-200">
+                    {lang === "hi" ? "एक्सप्लॉइट चेन के स्टेप्स:" : "Step-by-Step Chain Anatomy:"}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    {chain.steps.map((st, sIdx) => (
+                      <div key={sIdx} className="rounded-lg border border-border/70 bg-slate-950/40 p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-100">{localize(st.name, lang)}</span>
+                          <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded">
+                            {st.severity}
+                          </span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-slate-300">{localize(st.desc, lang)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* PoC Snippet */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Code className="h-3.5 w-3.5 text-sky-400" />
+                      {lang === "hi" ? "कॉपी करने योग्य PoC / रिक्वेस्ट:" : "Copyable PoC Template:"}
+                    </h3>
+                    <CopyBtn text={chain.pocTemplate} />
+                  </div>
+                  <pre className="rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-emerald-300 overflow-x-auto leading-relaxed">
+                    <code>{chain.pocTemplate}</code>
+                  </pre>
+                </div>
+
+                {/* Title Recommendation Box */}
+                <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-3 flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-sky-400 block mb-0.5">
+                      {lang === "hi" ? "ट्राइएज-विनिंग रिपोर्ट टाइटल:" : "Recommended Report Title (Pass Triage):"}
+                    </span>
+                    <span className="font-mono text-xs text-sky-200 font-semibold">{chain.reportTitle}</span>
+                  </div>
+                  <CopyBtn text={chain.reportTitle} />
+                </div>
+
+                {/* Pro tip */}
+                <div className="rounded-xl border border-amber-500/30 bg-amber-950/15 p-3.5 flex items-start gap-2.5">
+                  <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-300 mb-0.5">
+                      {lang === "hi" ? "प्रो-टिप (पेआउट मैक्सिमाइज़र):" : "Hunter Pro-Tip:"}
+                    </h4>
+                    <p className="text-xs leading-relaxed text-slate-300">{localize(chain.proTip, lang)}</p>
+                  </div>
+                </div>
+
+                {/* Practice on checklist */}
+                {onPractice && (
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      onClick={() => onPractice(chain.checklistCat)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition shadow-sm"
+                    >
+                      {lang === "hi" ? "चेकलिस्ट पर अभ्यास करें" : "Practice on Checklist"} <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── TAB 5: WAF & 403 BYPASSES ── */}
+      {activeTab === "waf" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-sky-400" />
+                  {lang === "hi"
+                    ? "WAF और 403 Forbidden बाईपास गाइड (Cloudflare / Akamai)"
+                    : "WAF & 403 Forbidden Bypass Arsenal"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "70% हंटर्स 403 Forbidden देखकर टारगेट छोड़ देते हैं। इन तकनीकों से WAF को पूरी तरह बाईपास करें:"
+                    : "80% of hunters give up when they see 403 Forbidden. Use these direct origin and header techniques to bypass firewalls."}
+                </p>
+              </div>
+
+              {/* Category selector */}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "origin_ip", label: "Origin IP" },
+                  { id: "header_bypass", label: "403 Headers" },
+                  { id: "path_tampering", label: "URL Syntax" },
+                  { id: "encoding", label: "Encodings" },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setWafCat(c.id)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                      wafCat === c.id
+                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Techniques list */}
+            <div className="space-y-4">
+              {WAF_BYPASS_DATA.filter((w) => wafCat === "all" || w.category === wafCat).map((item, idx) => (
+                <div key={idx} className="rounded-lg border border-border/80 bg-slate-950/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-950 border border-sky-800 text-[10px] font-mono text-sky-300">
+                        {idx + 1}
+                      </span>
+                      {localize(item.title, lang)}
+                    </h3>
+                    <span className="text-[10px] font-mono uppercase bg-slate-900 text-slate-400 border border-border px-2 py-0.5 rounded">
+                      {item.category.replace("_", " ")}
+                    </span>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-300">{localize(item.description, lang)}</p>
+
+                  {/* Command / Payload Box */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono uppercase text-sky-400">Payload / Command:</span>
+                      <CopyBtn text={item.commandOrPayload} />
+                    </div>
+                    <pre className="rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-emerald-300 overflow-x-auto leading-relaxed">
+                      <code>{item.commandOrPayload}</code>
+                    </pre>
+                  </div>
+
+                  {/* Why it works */}
+                  <div className="rounded-md border border-slate-800 bg-slate-900/60 p-2.5 text-xs text-slate-300 flex items-start gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-slate-200">
+                        {lang === "hi" ? "यह क्यों काम करता है: " : "Why this works: "}
+                      </span>
+                      {localize(item.whyItWorks, lang)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 6: RECON TERMINAL ONE-LINERS ── */}
+      {activeTab === "oneliners" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-amber-400" />
+                  {lang === "hi"
+                    ? "रिकॉन टर्मिनल वन-लाइनर्स आर्सेनल (Copy & Paste)"
+                    : "Elite Recon Terminal One-Liners & Pipes"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === "hi"
+                    ? "डेली हंटिंग में समय बचाने के लिए फील्ड-टेस्टेड बैश पाइप्स — 1-क्लिक में कॉपी करें:"
+                    : "Piped terminal command chains tested for high discovery yield. Click copy and run in your terminal:"}
+                </p>
+              </div>
+
+              {/* Category selector */}
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "subdomains", label: "Subdomains" },
+                  { id: "javascript", label: "JavaScript" },
+                  { id: "secrets", label: "Secrets" },
+                  { id: "parameters", label: "Parameters" },
+                  { id: "bypasses", label: "403 Bypasses" },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setReconCat(c.id)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                      reconCat === c.id
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Commands list */}
+            <div className="space-y-3.5">
+              {RECON_ONE_LINERS.filter((r) => reconCat === "all" || r.category === reconCat).map((cmd) => (
+                <div key={cmd.id} className="rounded-lg border border-border/80 bg-slate-950/40 p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                      <Terminal className="h-3.5 w-3.5 text-amber-400" />
+                      {localize(cmd.title, lang)}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      {cmd.toolsUsed.map((tool) => (
+                        <span key={tool} className="text-[10px] font-mono bg-slate-900 border border-border text-emerald-400 px-1.5 py-0.5 rounded">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-300">{localize(cmd.explanation, lang)}</p>
+
+                  <div className="relative">
+                    <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 font-mono text-xs text-emerald-300 overflow-x-auto">
+                      <code>{cmd.command}</code>
+                      <div className="ml-2 pl-2 border-l border-slate-800">
+                        <CopyBtn text={cmd.command} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {activeTab === "routine" && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -988,6 +1654,62 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
                     : "Never download customer records. Verify solely between your own test accounts. Provide exact copyable cURL commands and clear non-destructive impact statements."}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Mindset & Psychological Stamina */}
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Brain className="h-5 w-5 text-violet-400" />
+                {lang === "hi"
+                  ? "हंटर माइंडसेट और बर्नआउट गाइड (Psychological Stamina)"
+                  : "Hunter Mindset, Burnout Prevention & Note-Taking"}
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                {lang === "hi"
+                  ? "बाउंटी हंटिंग में 50% खेल मानसिक धैर्य का है। जब 2 हफ्ते तक बग न मिले तो क्या करें:"
+                  : "50% of full-time bug bounty is psychological resilience. How top earners navigate dry spells and timeboxing:"}
+              </p>
+            </div>
+
+            <div className="space-y-3.5">
+              {MINDSET_RULES.map((rule) => (
+                <div key={rule.id} className="rounded-lg border border-border/80 bg-slate-950/40 p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      {localize(rule.title, lang)}
+                    </h3>
+                    <span className="text-[10px] font-mono uppercase bg-violet-950/40 border border-violet-800/40 text-violet-300 px-2 py-0.5 rounded">
+                      {localize(rule.badge, lang)}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-400 italic">{localize(rule.subtitle, lang)}</p>
+
+                  <div className="rounded-md border border-slate-800 bg-slate-900/60 p-3 text-xs leading-relaxed text-slate-300">
+                    <span className="font-bold text-slate-100 block mb-1">
+                      {lang === "hi" ? "💡 मुख्य सीख:" : "💡 Core Rule:"}
+                    </span>
+                    {localize(rule.coreLesson, lang)}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold block">
+                      {lang === "hi" ? "एक्शन स्टेप्स:" : "Immediate Action Steps:"}
+                    </span>
+                    <ul className="space-y-1 text-xs text-slate-300">
+                      {rule.actionSteps.map((step, sIdx) => (
+                        <li key={sIdx} className="flex items-start gap-2">
+                          <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="text-[11px] leading-relaxed">{localize(step, lang)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
