@@ -1,6 +1,32 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+*.local
+.omnirush/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
 # Per-engagement bug bounty data — contains test-account credentials, decompiled apps,
-# evidence, and other client-confidential material. Must never be pushed to the public
-# Bug-Hunting-Checklist repo.
+# evidence, and other client-confidential material. Must never be pushed to the public repo.
 targets/
 findings/
 
@@ -8,7 +34,6 @@ findings/
 # not meant for the public repo.
 CLAUDE.md
 notes/
-bug-bounty-checklist/public/claude-log.json
-bug-bounty-checklist/public/claude-checklists/
+public/claude-log.json
+public/claude-checklists/
 
-.DS_Store
