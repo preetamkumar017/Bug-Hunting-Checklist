@@ -13,6 +13,10 @@ import {
   RefreshCw,
   Globe,
   Radio,
+  AlertTriangle,
+  Ban,
+  ShieldAlert,
+  XCircle,
 } from "lucide-react";
 import { LEARN_LANGS, type Lang } from "@/learn/data/types";
 
@@ -55,7 +59,7 @@ function CopyBtn({ text }: { text: string }) {
 
 export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
-  const [activeTab, setActiveTab] = useState<"targets" | "bugs" | "routine" | "template">("targets");
+  const [activeTab, setActiveTab] = useState<"targets" | "bugs" | "routine" | "donts" | "template">("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
 
   const setLang = (l: Lang) => {
@@ -93,6 +97,11 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
       en: "⚡ Daily 'Confirm Hit' Routine",
       simple: "⚡ Daily Hunting Plan",
       hi: "⚡ 'बग कन्फर्म' डेली रूटीन",
+    }[lang],
+    tabDonts: {
+      en: "🚫 What NOT To Do (Avoid Bans)",
+      simple: "🚫 What NOT To Do (Avoid Mistakes)",
+      hi: "🚫 क्या नहीं करना है (गलतियों से बचें)",
     }[lang],
     tabTemplate: {
       en: "📝 Fast-Triage Report Template",
@@ -254,6 +263,352 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
     },
   ];
 
+  const dontsCategories = [
+    {
+      id: "legal-bans",
+      icon: ShieldAlert,
+      badge: {
+        en: "CRITICAL · BAN RISK",
+        simple: "DANGER · ACCOUNT BAN",
+        hi: "खतरा · लीगल और अकाउंट बैन",
+      }[lang],
+      badgeColor: "border-rose-500/40 bg-rose-950/40 text-rose-300",
+      title: {
+        en: "1. Legal Violations & Account Ban Traps",
+        simple: "1. Things That Get You Banned or Sued",
+        hi: "1. कानूनी खतरे और अकाउंट बैन करने वाली गलतियां",
+      }[lang],
+      intro: {
+        en: "Violating any of these rules destroys legal Safe Harbor protections and results in an immediate, permanent platform ban, alongside potential criminal liability under CFAA / IT Act.",
+        simple: "Never do these things or your account will be permanently banned and police could get involved.",
+        hi: "इन नियमों को तोड़ा तो आपका बाउंटी अकाउंट हमेशा के लिए सस्पेंड हो जाएगा और IT Act/CFAA के तहत कानूनी केस हो सकता है।",
+      }[lang],
+      items: [
+        {
+          what: {
+            en: "Testing Out-of-Scope Assets or 3rd-Party Vendors",
+            simple: "Attacking Websites Not in Scope",
+            hi: "स्कोप से बाहर या थर्ड-पार्टी वेंडर्स पर टेस्टिंग करना",
+          }[lang],
+          never: {
+            en: "NEVER run attacks on third-party services like target.zendesk.com, target.shopify.com, or AWS/Stripe infrastructure unless explicitly stated in the in-scope policy.",
+            simple: "Do NOT attack support or store services run by other companies.",
+            hi: "कभी भी `zendesk`, `shopify`, `stripe` या स्कोप में न लिखे हुए सबडोमेन्स पर हमला न करें। सिर्फ वही टेस्ट करें जो 'In-Scope' टेबल में है।",
+          }[lang],
+          correct: {
+            en: "Check the program's 'Scope' table. Look for explicit wildcards or specific subdomains. If in doubt, ask program support before testing.",
+            simple: "Read the scope list carefully before starting any scan.",
+            hi: "हमेशा प्रोग्राम की 'Scope' टेबल पहले पढ़ें। अगर ज़रा सा भी संशय हो तो प्रोग्राम सपोर्ट से पूछें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Dumping Real Customer Data (Mass Exfiltration)",
+            simple: "Stealing Real Users' Private Information",
+            hi: "असली यूज़र्स का डेटा बल्क में डाउनलोड/डंप करना",
+          }[lang],
+          never: {
+            en: "NEVER dump 5,000 credit cards, patient medical records, or user emails to 'prove impact'. Viewing 1 record of your own test account is security research; downloading 10,000 records is a felony.",
+            simple: "Do NOT download lots of customer files to prove a bug. That is illegal.",
+            hi: "IDOR साबित करने के लिए 10,000 लोगों का प्राइवेट डेटा या क्रेडिट कार्ड कभी डाउनलोड न करें। 1 रिकॉर्ड अपने टेस्ट अकाउंट का देखना रिसर्च है, 10,000 डाउनलोड करना जुर्म है।",
+          }[lang],
+          correct: {
+            en: "Stop at the very first record. Mask all PII (e.g. `jo****@example.com`). Test strictly between two accounts that YOU own (User A attacking User B).",
+            simple: "Test only between two accounts you made yourself. Blur all private names and numbers.",
+            hi: "सिर्फ अपने बनाए हुए 2 टेस्ट अकाउंट्स (User A और User B) के बीच टेस्ट करें और स्क्रीनशॉट में सेंसिटिव डेटा मास्क करें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Aggressive Automated Denial of Service (High Fuzzing)",
+            simple: "Flooding the Server Until It Crashes",
+            hi: "हाई-थ्रेड ऑटोमेटेड अटैक चलाकर सर्वर क्रैश करना (DoS)",
+          }[lang],
+          never: {
+            en: "NEVER run tools like ffuf, dirsearch, or sqlmap with 200+ concurrent threads. Crashing production servers, taking down payment gateways, or exhausting cloud budgets violates safe harbor.",
+            simple: "Do NOT send thousands of requests per second. It crashes the site.",
+            hi: "ffuf, gobuster या sqlmap को 200-500 threads पर न चलाएं। सर्वर डाउन होना या पेमेंट गेटवे चोक होना प्रोग्राम गाइडलाइन्स का उल्लंघन है। WAF आपका IP भी ब्लॉक कर देगा।",
+          }[lang],
+          correct: {
+            en: "Throttle requests: limit tools to 5–15 requests/second (`ffuf -rate 10`). Add a custom header like `-H 'X-Bug-Bounty: your-username'` if required by the target policy.",
+            simple: "Slow down your tools to 5 to 10 requests per second.",
+            hi: "टूल्स में रेट लिमिट सेट करें (`ffuf -rate 10`) और प्रोग्राम पॉलिसी के अनुसार अपना कस्टम हेडर लगाएं।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Destructive Testing on Production (Deleting Live Data)",
+            simple: "Deleting Things You Don't Own",
+            hi: "प्रोडक्शन पर डेटा डिलीट करना या अकाउंट्स लॉक करना",
+          }[lang],
+          never: {
+            en: "NEVER trigger actions that delete production inventory, lock out legitimate users, or place unpaid fraudulent orders on live platforms.",
+            simple: "Do NOT delete real store items or block real people from logging in.",
+            hi: "असली ग्राहकों के अकाउंट्स का पासवर्ड रीसेट ट्रिगर करके उन्हें लॉक न करें और न ही लाइव ऑर्डर्स या डेटाबेस रिकॉर्ड्स डिलीट करें।",
+          }[lang],
+          correct: {
+            en: "Perform read-only proof or use staging environments (`dev.target.com`). In reports, explain theoretical impact without executing destructive calls.",
+            simple: "Prove the bug safely without breaking anything.",
+            hi: "सिर्फ रीड-ओनली प्रूफ दें या स्टेजिंग एनवायरनमेंट पर टेस्ट करें। रिपोर्ट में थ्योरीटिकल डिस्ट्रक्टिव इम्पैक्ट समझाएं।",
+          }[lang],
+        },
+      ],
+    },
+    {
+      id: "na-waste",
+      icon: Ban,
+      badge: {
+        en: "0 BOUNTY · TIME WASTERS",
+        simple: "NO MONEY · TIME WASTED",
+        hi: "0 रुपये · समय बर्बाद करने वाले इश्यूज",
+      }[lang],
+      badgeColor: "border-amber-500/40 bg-amber-950/40 text-amber-300",
+      title: {
+        en: "2. Common 0-Bounty & N/A Issues to NEVER Report",
+        simple: "2. Bugs That Will NOT Get You Paid (N/A / Informative)",
+        hi: "2. वे इश्यूज जिन्हें कभी रिपोर्ट न करें (100% N/A या डुप्लीकेट)",
+      }[lang],
+      intro: {
+        en: "Triagers close these in 10 seconds as 'Informative' or 'Not Applicable'. Submitting them drops your platform reputation score and blocks you from getting private invites.",
+        simple: "Security teams will reject these immediately without paying any bounty.",
+        hi: "ट्राइएजर्स इन रिपोर्ट्स को 10 सेकंड में N/A या Informative बंद कर देते हैं। इससे आपका रेपुटेशन स्कोर गिरता है और नए इनवाइट्स बंद हो जाते हैं:",
+      }[lang],
+      items: [
+        {
+          what: {
+            en: "Missing Security Headers (HSTS, CSP, X-Frame-Options)",
+            simple: "Missing Security Headers",
+            hi: "मिसिंग सिक्योरिटी हेडर्स (HSTS, CSP, X-Frame-Options)",
+          }[lang],
+          never: {
+            en: "Do NOT report missing X-Frame-Options, CSP, or HSTS on marketing sites or public pages. 99% of programs explicitly classify this as Out-of-Scope.",
+            simple: "Do not report missing headers like X-Frame-Options or CSP on normal pages.",
+            hi: "बिना किसी एक्सप्लॉइट के सिर्फ 'HSTS या X-Frame-Options missing है' रिपोर्ट न करें — 99% प्रोग्राम्स में यह आउट-ऑफ-स्कोप होता है।",
+          }[lang],
+          correct: {
+            en: "Only report Clickjacking if you can demonstrate a sensitive state-changing action in the iframe (e.g., 1-click Transfer Funds or 1-click Delete Account).",
+            simple: "Only report if you can trick a user into deleting their account in one click.",
+            hi: "सिर्फ तभी रिपोर्ट करें जब आप iframe में कोई संवेदनशील एक्शन (जैसे One-Click Transfer या Account Delete) साबित कर सकें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Self-XSS Without CSRF or Delivery Chain",
+            simple: "Self-XSS (Alert Popup Only for Yourself)",
+            hi: "सेल्फ-XSS (सिर्फ खुद के ब्राउज़र में alert() आना)",
+          }[lang],
+          never: {
+            en: "Do NOT report XSS that only executes when you type payloads into your own user profile or browser console. If an attacker cannot deliver it to a victim, it is not a bug.",
+            simple: "Do not report XSS if only you see the alert popup on your own account.",
+            hi: "अगर XSS सिर्फ आपके अपने प्रोफ़ाइल में या कंसोल में दिख रहा है और किसी दूसरे विक्टिम को भेजा नहीं जा सकता, तो यह 0 वैल्यू है।",
+          }[lang],
+          correct: {
+            en: "Chain Self-XSS with CSRF or Response Manipulation to show a victim can be infected with 1 click.",
+            simple: "Chain it with another bug so a victim gets attacked when opening a link.",
+            hi: "सेल्फ-XSS को CSRF या किसी लिंक के साथ चेन करें ताकि विक्टिम के क्लिक करते ही पेलोड चले।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Missing SPF / DMARC / DKIM Records",
+            simple: "Missing Email SPF / DMARC Records",
+            hi: "सबडोमेन्स पर मिसिंग SPF / DMARC / DKIM रिकॉर्ड्स",
+          }[lang],
+          never: {
+            en: "Do NOT report missing SPF/DMARC on subdomains (e.g. `dev.target.com`) or claim 'Email Spoofing is possible'. Almost all programs mark this Informative.",
+            simple: "Do not report email spoofing because of missing SPF records.",
+            hi: "सबडोमेन्स पर SPF/DMARC न होने पर 'Email Spoofing possible' की रिपोर्ट न भेजें — यह सीधे Informative बंद होती है।",
+          }[lang],
+          correct: {
+            en: "Focus on actual email verification logic bypasses (e.g. logging in without verifying email, or account takeover via unverified email change).",
+            simple: "Look for account takeovers where you can sign up with someone else's email.",
+            hi: "ईमेल वेरिफिकेशन बाईपास या अनवेरिफाइड ईमेल से अकाउंट टेकओवर ढूंढें — उसपर $1,000+ मिलते हैं।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Host Header Injection Without Demonstrable Exploit Chain",
+            simple: "Host Header Injection With No Real Impact",
+            hi: "होस्ट हेडर इंजेक्शन बिना किसी वास्तविक इम्पैक्ट के",
+          }[lang],
+          never: {
+            en: "Do NOT submit a report just because changing `Host: evil.com` reflects `evil.com` in a 301 redirect or error page. Without a victim exploit, it has zero impact.",
+            simple: "Do not report host header reflection unless you can steal password reset tokens.",
+            hi: "सिर्फ Host हेडर बदलने पर `evil.com` रिफ्लेक्ट होने पर रिपोर्ट न डालें। जब तक पासवर्ड रीसेट लिंक या वेब कैश पॉइज़निंग साबित न हो, कोई रिवॉर्ड नहीं मिलता।",
+          }[lang],
+          correct: {
+            en: "Chain it: prove that triggering password reset sends an email containing `https://evil.com/reset?token=XYZ` to steal the token.",
+            simple: "Prove the reset password email sends the secret link to your evil website.",
+            hi: "साबित करें कि पासवर्ड रीसेट करने पर विक्टिम के ईमेल में `evil.com/reset?token=...` जा रहा है।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Automated Scanner Dumps & Open Port Lists",
+            simple: "Copy-Pasting Scanner Dumps",
+            hi: "ऑटोमेटेड स्कैनर डंप (Nmap/Nessus) भेजना",
+          }[lang],
+          never: {
+            en: "Do NOT copy-paste raw output from Nikto, Nessus, or Nmap saying 'Port 80 is open' or 'Apache version 2.4.41 detected'.",
+            simple: "Do not send raw scanner reports showing open ports or software versions.",
+            hi: "Nikto, Nessus या Nmap का आउटपुट कॉपी-पेस्ट करके 'Apache version leak' या 'Port 22 open' रिपोर्ट न करें।",
+          }[lang],
+          correct: {
+            en: "Find a known CVE with an active exploit for that version that allows RCE, Auth Bypass, or SSRF.",
+            simple: "Find a real working exploit for that software version.",
+            hi: "उस स्पेसिफिक वर्जन के लिए एक्टिव CVE एक्सप्लॉइट खोजें जिससे RCE या डेटा एक्सेस साबित हो सके।",
+          }[lang],
+        },
+      ],
+    },
+    {
+      id: "triage-etiquette",
+      icon: AlertTriangle,
+      badge: {
+        en: "COMMUNICATION · TRIAGE REPUTATION",
+        simple: "BE POLITE · GET FASTER BOUNTY",
+        hi: "कम्युनिकेशन · ट्राइएज रेपुटेशन",
+      }[lang],
+      badgeColor: "border-sky-500/40 bg-sky-950/40 text-sky-300",
+      title: {
+        en: "3. Triage & Communication Mistakes (Avoid Downvotes)",
+        simple: "3. How to Talk to Triagers (Get Paid Faster)",
+        hi: "3. ट्राइएज और कम्युनिकेशन की गलतियां (डाउनवोट से बचें)",
+      }[lang],
+      intro: {
+        en: "How you write and communicate determines whether you get the maximum bounty or a dispute. Avoid these professional killers:",
+        simple: "Writing bad reports makes triagers annoyed. Follow these golden rules to get respected and rewarded:",
+        hi: "आपकी रिपोर्ट लिखने का तरीका तय करता है कि आपको फुल बाउंटी मिलेगी या डिस्प्यूट। इन गलतियों से बचें:",
+      }[lang],
+      items: [
+        {
+          what: {
+            en: "Submitting Without Reproduction Steps or cURL",
+            simple: "Reports With Missing Steps",
+            hi: "बिना स्टेप्स या cURL के अधूरी रिपोर्ट भेजना",
+          }[lang],
+          never: {
+            en: "Never write 'Please check your login page it has high security bug' without sending the exact HTTP request, parameter, and endpoint.",
+            simple: "Never say 'Your site has a bug' without showing the exact clicks and requests.",
+            hi: "कभी भी सिर्फ 'आपकी साइट पर बग है' न लिखें। बिना सटीक HTTP रिक्वेस्ट, एंडपॉइंट और पैरामीटर के रिपोर्ट रिजेक्ट हो जाएगी।",
+          }[lang],
+          correct: {
+            en: "Always provide clean step-by-step reproduction (1, 2, 3) and a copy-pasteable cURL command with dummy tokens.",
+            simple: "Give 1-2-3 steps and a working cURL command.",
+            hi: "हमेशा 1, 2, 3 स्टेप्स और कॉपी-पेस्ट करने योग्य cURL कमांड दें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Begging for P1 Severity or Money",
+            simple: "Begging for Money or High Rating",
+            hi: "ट्राइएजर से P1 रेटिंग या पैसों की भीख मांगना",
+          }[lang],
+          never: {
+            en: "Never write messages like 'Please sir award maximum bounty I am a student sir mark P1'. Triagers follow strict CVSS matrices, not emotional pleas.",
+            simple: "Never beg for a higher bounty or say you need money.",
+            hi: "कभी भी 'Sir please mark P1 sir I need money' जैसे मैसेज न लिखें। ट्राइएज टीम CVSS मैट्रिक्स से काम करती है, इमोशनल मैसेजेस से नहीं।",
+          }[lang],
+          correct: {
+            en: "Use technical CVSS v3.1 / v4.0 metrics to objectively argue your case: explain Confidentiality, Integrity, and User Interaction clearly.",
+            simple: "Explain the technical damage to user privacy or business money.",
+            hi: "CVSS स्कोर और बिज़नेस इम्पैक्ट के आधार पर निष्पक्ष रूप से अपनी बात रखें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Threatening Public Disclosure or Extortion",
+            simple: "Threatening to Leak the Bug Online",
+            hi: "पब्लिक डिस्क्लोज़र या लीक करने की धमकी देना",
+          }[lang],
+          never: {
+            en: "NEVER threaten: 'If you don't reward me in 48 hours I will tweet this on X/Twitter or publish on Medium'. This destroys legal Safe Harbor and results in an immediate permanent ban on all platforms.",
+            simple: "NEVER threaten to publish the bug on social media if they don't pay you.",
+            hi: "कभी भी 'अगर 2 दिन में पैसे नहीं दिए तो मैं Twitter/LinkedIn पर डाल दूंगा' की धमकी न दें। यह Safe Harbor को खत्म कर देता है और प्लेटफॉर्म पर परमानेंट बैन लगता है।",
+          }[lang],
+          correct: {
+            en: "Wait for the remediation period (typically 90 days). Request coordinated disclosure respectfully through the platform's official disclosure workflow.",
+            simple: "Ask politely for permission to publish after the bug is fixed.",
+            hi: "बग फिक्स होने का इंतज़ार करें (आमतौर पर 90 दिन) और प्लेटफॉर्म के Coordinated Disclosure सिस्टम के जरिए अनुमति मांगें।",
+          }[lang],
+        },
+      ],
+    },
+    {
+      id: "strategy-mistakes",
+      icon: XCircle,
+      badge: {
+        en: "STRATEGY · ROADBLOCKS",
+        simple: "COMMON MISTAKES · ZERO REWARDS",
+        hi: "रणनीति · क्यों 90% हंटर्स खाली हाथ रहते हैं",
+      }[lang],
+      badgeColor: "border-violet-500/40 bg-violet-950/40 text-violet-300",
+      title: {
+        en: "4. Strategic Mindset Mistakes (Why 90% of Hunters Make $0)",
+        simple: "4. Why Most Beginners Never Find a Bug",
+        hi: "4. रणनीतिक गलतियां (क्यों 90% बिगिनर्स को कोई बाउंटी नहीं मिलती)",
+      }[lang],
+      intro: {
+        en: "Success in bug bounty is 90% strategy and persistence. Avoid these common traps:",
+        simple: "Bug bounty is about patience and picking the right battles. Do not fall into these traps:",
+        hi: "बाउंटी हंटिंग में 90% खेल सही स्ट्रेटेजी और धैर्य का है। इन गलतियों से बचें:",
+      }[lang],
+      items: [
+        {
+          what: {
+            en: "Picking Hyper-Saturated Targets on Day 1 (Google, Apple, Meta)",
+            simple: "Hunting on Huge Companies as a Beginner",
+            hi: "पहले ही दिन Google, Apple, या Meta जैसे बड़े टारगेट्स चुनना",
+          }[lang],
+          never: {
+            en: "Do NOT start your journey on top-tier targets that have had 100,000+ elite researchers testing them for 10 years. Low-hanging fruit is literally zero.",
+            simple: "Do not hunt on Google or Apple first. They have been tested by thousands of experts.",
+            hi: "शुरुआत में ही Google या Apple जैसे टारगेट्स पर न कूदें जहाँ पिछले 10 सालों से लाखों रिसर्चर्स हर सेकंड टेस्ट कर रहे हैं।",
+          }[lang],
+          correct: {
+            en: "Hunt on newly launched wildcard programs, recent acquisitions, or regional fintech/e-commerce platforms with smaller researcher pools.",
+            simple: "Pick new programs, small shopping sites, or wildcard targets.",
+            hi: "हाल ही में लॉन्च हुए नए प्रोग्राम्स, हाल ही में अधिग्रहित कंपनियों या वाइल्डकार्ड स्कोप्स पर हंट करें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Quitting After 30 Minutes of Running Automated Tools",
+            simple: "Giving Up Too Quickly",
+            hi: "30 मिनट टूल चलाकर निराश हो जाना और टारगेट छोड़ देना",
+          }[lang],
+          never: {
+            en: "Do NOT run subfinder + nuclei, see zero findings in 20 minutes, and switch targets. Automated recon finds what everyone else already found.",
+            simple: "Do not switch targets after running one scanner for 20 minutes.",
+            hi: "subfinder और nuclei चलाकर 20 मिनट में कुछ न दिखने पर टारगेट न बदलें। टूल्स वही दिखाते हैं जो सबने देख लिया है।",
+          }[lang],
+          correct: {
+            en: "Spend at least 3–5 hours deeply testing one application's multi-role authorization, checkout flows, and mobile API endpoints.",
+            simple: "Spend a few hours clicking all buttons and testing account permissions.",
+            hi: "कम से कम 3-5 घंटे एक ऐप के फीचर्स, रोल्स (Admin vs User), और मोबाइल API को गहराई से समझें।",
+          }[lang],
+        },
+        {
+          what: {
+            en: "Ignoring Target Release Notes and Changelogs",
+            simple: "Not Checking New Features",
+            hi: "टारगेट के नए फीचर्स और रिलीज नोट्स को इग्नोर करना",
+          }[lang],
+          never: {
+            en: "Never hunt blindly on old static pages that haven't changed in 5 years while ignoring the company's newly deployed features.",
+            simple: "Do not test old unchanged pages while ignoring brand new features.",
+            hi: "उन पुराने static पेजों पर समय न गंवाएं जो 5 साल से नहीं बदले हैं।",
+          }[lang],
+          correct: {
+            en: "Subscribe to target app updates on Google Play / App Store, watch Github releases, and test brand new features within 24 hours of release.",
+            simple: "Test new buttons, new payment options, and mobile app updates as soon as they launch.",
+            hi: "टारगेट के ऐप अपडेट्स और नए फीचर्स पर नज़र रखें — नए कोड में हमेशा नए बग्स होते हैं।",
+          }[lang],
+        },
+      ],
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -352,6 +707,16 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
           }`}
         >
           {t.tabRoutine}
+        </button>
+        <button
+          onClick={() => setActiveTab("donts")}
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+            activeTab === "donts"
+              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm"
+              : "border border-border bg-card text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          {t.tabDonts}
         </button>
         <button
           onClick={() => setActiveTab("template")}
@@ -628,7 +993,94 @@ export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
         </div>
       )}
 
-      {/* ── TAB 4: FAST-TRIAGE REPORT TEMPLATE ── */}
+      {/* ── TAB 4: WHAT NOT TO DO (AVOID BANS & N/A) ── */}
+      {activeTab === "donts" && (
+        <div className="space-y-6">
+          {/* Top Danger Warning Banner */}
+          <div className="rounded-xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-slate-950/60 to-slate-900/40 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-rose-500/20 p-2 text-rose-300 shrink-0 mt-0.5">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-sm font-bold text-rose-200 flex items-center gap-2">
+                  <span>{lang === "hi" ? "द बाउंटी ब्लैकलिस्ट: ये गलतियां कभी न करें" : "The Hall of Shame & Blacklist Rules"}</span>
+                </h2>
+                <p className="text-xs leading-relaxed text-slate-300">
+                  {lang === "hi"
+                    ? "बाउंटी हंटिंग में क्या 'ढूंढना' है, उससे भी ज़्यादा ज़रूरी है यह जानना कि क्या 'नहीं करना' है। नीचे दी गई गलतियों के कारण 90% बिगिनर्स का समय बर्बाद होता है, रिपोर्ट N/A बंद होती है या कानूनी नोटिस / परमानेंट बैन लगता है।"
+                    : "Knowing what NOT to do is more critical than knowing tools. Breaking these rules will get your account permanently suspended, trigger legal trouble, or waste weeks on 0-bounty N/A closures."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Categorized Sections */}
+          <div className="space-y-6">
+            {dontsCategories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <div key={cat.id} className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm">
+                  {/* Category Header */}
+                  <div className="border-b border-border/80 pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 border border-border text-slate-300">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-100">{cat.title}</h3>
+                      </div>
+                      <span className={`text-[10px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-bold ${cat.badgeColor}`}>
+                        {cat.badge}
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-400 pl-9">{cat.intro}</p>
+                  </div>
+
+                  {/* Items List */}
+                  <div className="grid grid-cols-1 gap-3.5">
+                    {cat.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="rounded-lg border border-border/70 bg-slate-950/40 p-3.5 space-y-2.5 hover:border-slate-700/80 transition"
+                      >
+                        <h4 className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-mono text-slate-400">
+                            {idx + 1}
+                          </span>
+                          {item.what}
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+                          {/* NEVER DO THIS (Red box) */}
+                          <div className="rounded-md border border-rose-900/50 bg-rose-950/25 p-2.5 space-y-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-400">
+                              <Ban className="h-3 w-3" />
+                              {lang === "hi" ? "गलती (कभी न करें)" : "NEVER DO THIS"}
+                            </span>
+                            <p className="text-[11px] leading-relaxed text-rose-200/90">{item.never}</p>
+                          </div>
+
+                          {/* DO THIS INSTEAD (Green box) */}
+                          <div className="rounded-md border border-emerald-900/50 bg-emerald-950/25 p-2.5 space-y-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                              <Check className="h-3 w-3" />
+                              {lang === "hi" ? "सही तरीका (PRO METHOD)" : "DO THIS INSTEAD"}
+                            </span>
+                            <p className="text-[11px] leading-relaxed text-emerald-200/90">{item.correct}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 5: FAST-TRIAGE REPORT TEMPLATE ── */}
       {activeTab === "template" && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
