@@ -25,15 +25,14 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Per-engagement bug bounty data — contains test-account credentials, decompiled apps,
-# evidence, and other client-confidential material. Must never be pushed to the public repo.
+# Per-engagement bug bounty data, targets, notes, and local instructions
+hunting-data/
 targets/
 findings/
-
-# Local workspace notes and generated log/checklist mirrors — engagement-specific,
-# not meant for the public repo.
-CLAUDE.md
 notes/
+CLAUDE.md
+
+# Local workspace generated log/checklist mirrors
 public/claude-log.json
 public/claude-checklists/
 
