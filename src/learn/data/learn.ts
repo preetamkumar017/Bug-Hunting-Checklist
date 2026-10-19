@@ -16,6 +16,7 @@ import { ssrfRedirectGroup } from "@/learn/data/groups/ssrf-redirect";
 import { csrfCorsGroup } from "@/learn/data/groups/csrf-cors";
 import { serverMisconfigGroup } from "@/learn/data/groups/server-misconfig";
 import { infoExposureGroup } from "@/learn/data/groups/info-exposure";
+import { LEAF_BOUNTY_TIPS } from "@/learn/data/leafBountyTips";
 
 export type { LearnGroup, LearnTopic, LearnMethod, PlatformMapping, VrtPriority } from "@/learn/data/types";
 export { PLATFORM_LEGEND } from "@/learn/data/types";
@@ -67,7 +68,7 @@ export function lessonForEntry(entry: VrtIndexEntry, lang: Lang = "en"): LearnTo
     return {
       ...deep,
       tools: deep.tools ?? toolkit.tools,
-      bountyTips: deep.bountyTips ?? toolkit.bountyTips,
+      bountyTips: deep.bountyTips ?? LEAF_BOUNTY_TIPS[deep.id] ?? toolkit.bountyTips,
     };
   }
   return buildGeneratedLesson(entry);
@@ -92,7 +93,7 @@ export function localizedTopic(topic: LearnTopic, lang: Lang): LearnTopic {
     return {
       ...resolved,
       tools: resolved.tools ?? toolkit.tools,
-      bountyTips: resolved.bountyTips ?? toolkit.bountyTips,
+      bountyTips: resolved.bountyTips ?? LEAF_BOUNTY_TIPS[resolved.id] ?? toolkit.bountyTips,
     };
   }
   return resolved;
