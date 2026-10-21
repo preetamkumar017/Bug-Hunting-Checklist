@@ -17,6 +17,14 @@ import { csrfCorsGroup } from "@/learn/data/groups/csrf-cors";
 import { serverMisconfigGroup } from "@/learn/data/groups/server-misconfig";
 import { infoExposureGroup } from "@/learn/data/groups/info-exposure";
 import { LEAF_BOUNTY_TIPS } from "@/learn/data/leafBountyTips";
+import { ADVANCED_PAYLOADS } from "@/learn/data/advancedPayloads";
+
+/** Append a topic's advanced payload/technique variants onto its base list. */
+function withAdvancedPayloads(id: string, base?: string[]): string[] | undefined {
+  const extra = ADVANCED_PAYLOADS[id];
+  if (!extra) return base;
+  return [...(base ?? []), ...extra];
+}
 
 export type { LearnGroup, LearnTopic, LearnMethod, PlatformMapping, VrtPriority } from "@/learn/data/types";
 export { PLATFORM_LEGEND } from "@/learn/data/types";
@@ -67,6 +75,7 @@ export function lessonForEntry(entry: VrtIndexEntry, lang: Lang = "en"): LearnTo
     const toolkit = getToolkitForTopic(path, entry.priority);
     return {
       ...deep,
+      payloads: withAdvancedPayloads(deep.id, deep.payloads),
       tools: deep.tools ?? toolkit.tools,
       bountyTips: deep.bountyTips ?? LEAF_BOUNTY_TIPS[deep.id] ?? toolkit.bountyTips,
     };
@@ -88,13 +97,15 @@ export function localizedTopic(topic: LearnTopic, lang: Lang): LearnTopic {
     const entry = vrtIndex.find((e) => fullVrtPath(e) === topic.mapping.bugcrowdVrt);
     resolved = entry ? buildGeneratedLesson(entry) : topic;
   }
+  const payloads = withAdvancedPayloads(resolved.id, resolved.payloads);
   if (!resolved.tools || !resolved.bountyTips) {
     const toolkit = getToolkitForTopic(resolved.mapping.bugcrowdVrt, resolved.mapping.bugcrowdPriority);
     return {
       ...resolved,
+      payloads,
       tools: resolved.tools ?? toolkit.tools,
       bountyTips: resolved.bountyTips ?? LEAF_BOUNTY_TIPS[resolved.id] ?? toolkit.bountyTips,
     };
   }
-  return resolved;
+  return { ...resolved, payloads };
 }
