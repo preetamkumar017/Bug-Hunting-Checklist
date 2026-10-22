@@ -323,6 +323,132 @@ export const TARGET_RECON_GROUPS: TargetReconGroup[] = [
   },
 ];
 
+// ─── TARGET FINDER ────────────────────────────────────────────────────────────
+// These dorks help you DISCOVER good hunting targets — websites that have
+// bug bounty programs, VDPs, or high probability of containing bugs.
+// Unlike DORK_GROUPS, these do NOT require a specific target domain.
+// Optional token: {keyword} = sector / technology filter (e.g. "fintech", "healthcare")
+// Leave input blank to get the generic version of each dork.
+
+export interface TargetFinderGroup {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  dorks: Array<{
+    query: string;
+    what: string;
+    severity: "critical" | "high" | "medium" | "low" | "info";
+    engine?: DorkEngine;
+    tip?: string; // extra hunting tip shown in UI
+  }>;
+}
+
+export const TARGET_FINDER_GROUPS: TargetFinderGroup[] = [
+  {
+    id: "finder-securitytxt",
+    name: "security.txt Programs",
+    emoji: "📄",
+    description: "Sites that publicly declare a bug bounty / responsible disclosure contact via security.txt — these are OPTED-IN targets.",
+    dorks: [
+      { query: "inurl:\"/.well-known/security.txt\" \"bug bounty\" | \"bounty\"", what: "Sites with security.txt advertising a bounty program", severity: "info", tip: "security.txt at /.well-known/security.txt is the RFC 9116 standard — these companies WANT reports." },
+      { query: "inurl:\"/security.txt\" \"Contact:\" \"Expires:\"", what: "Properly formatted security.txt files indexed by Google", severity: "info" },
+      { query: "inurl:\"security.txt\" \"Policy:\" \"https://hackerone.com\"", what: "Sites pointing their security.txt to HackerOne", severity: "info", tip: "Policy: field pointing to H1 means they have an active managed program." },
+      { query: "inurl:\"security.txt\" \"Policy:\" \"https://bugcrowd.com\"", what: "Sites pointing security.txt to Bugcrowd", severity: "info" },
+      { query: "inurl:\"security.txt\" \"Policy:\" \"https://intigriti.com\" | \"https://yeswehack.com\"", what: "European platforms (Intigriti / YesWeHack) programs", severity: "info" },
+      { query: "filetype:txt \"Acknowledgments:\" \"Contact:\" \"Expires:\" inurl:security", what: "security.txt with acknowledgment page — active program with past payouts", severity: "info", tip: "If they have an Acknowledgments page, they've paid researchers before." },
+      { query: "inurl:\"security.txt\" \"{keyword}\"", what: "security.txt files matching your sector/keyword", severity: "info" },
+    ],
+  },
+  {
+    id: "finder-bounty-pages",
+    name: "Bug Bounty Pages on Sites",
+    emoji: "🏆",
+    description: "Companies that host their own bounty page on their domain — not always on H1/Bugcrowd.",
+    dorks: [
+      { query: "inurl:\"/security\" | inurl:\"/bug-bounty\" | inurl:\"/responsible-disclosure\" intext:\"reward\" | intext:\"bounty\"", what: "Self-hosted bug bounty pages with reward info", severity: "info" },
+      { query: "intitle:\"Bug Bounty\" | intitle:\"Responsible Disclosure\" | intitle:\"Vulnerability Disclosure\" intext:\"report\" | intext:\"submit\"", what: "Dedicated bounty landing pages", severity: "info" },
+      { query: "inurl:\"/security\" intext:\"Hall of Fame\" | intext:\"Acknowledgements\" | intext:\"Thank you\"", what: "Sites with HOF — confirmed active program with past reporters", severity: "info", tip: "Hall of Fame = real bugs get acknowledged. Higher chance they have undiscovered ones too." },
+      { query: "intext:\"responsible disclosure\" intext:\"reward\" | intext:\"gift card\" | intext:\"swag\" -site:hackerone.com -site:bugcrowd.com", what: "Self-managed programs with rewards (often less competitive)", severity: "info" },
+      { query: "intext:\"we do not offer monetary rewards\" intext:\"responsible disclosure\"", what: "VDP-only (no bounty) — less competition, easier to find bugs", severity: "info", tip: "VDPs have fewer hunters since no monetary reward — more bugs left unfound." },
+      { query: "inurl:\"/security\" intext:\"scope\" intext:\"out of scope\" \"{keyword}\"", what: "Bounty pages in your keyword sector with scope defined", severity: "info" },
+    ],
+  },
+  {
+    id: "finder-platforms",
+    name: "Platform Program Discovery",
+    emoji: "🎯",
+    description: "Find programs listed on major bug bounty platforms — filter by sector or tech stack.",
+    dorks: [
+      { query: "site:hackerone.com/programs \"{keyword}\"", what: "HackerOne programs matching keyword/sector", severity: "info", tip: "Add keywords like 'fintech', 'crypto', 'healthcare', 'saas' to filter." },
+      { query: "site:bugcrowd.com/programs \"{keyword}\"", what: "Bugcrowd programs matching keyword", severity: "info" },
+      { query: "site:intigriti.com/programs \"{keyword}\"", what: "Intigriti programs (European companies — less crowded)", severity: "info", tip: "Intigriti has many European targets with fewer hunters than H1/Bugcrowd." },
+      { query: "site:yeswehack.com/programs \"{keyword}\"", what: "YesWeHack programs (French platform — less competition)", severity: "info" },
+      { query: "site:federacy.com | site:openbugbounty.org \"{keyword}\"", what: "Smaller platforms — significantly less competition", severity: "info", tip: "OpenBugBounty lists VDPs across thousands of sites — mostly uncontested." },
+      { query: "site:hackerone.com/programs intext:\"private\" | intext:\"invite only\"", what: "Private program references indexed — request invites", severity: "info" },
+      { query: "site:hackenproof.com/programs \"{keyword}\"", what: "HackenProof programs (crypto / Web3 focused)", severity: "info" },
+    ],
+  },
+  {
+    id: "finder-vdp",
+    name: "VDP — Gov & Edu Targets",
+    emoji: "🏛️",
+    description: "Government and university sites often run VDPs (no cash but legal protection). Less competition, more bugs.",
+    dorks: [
+      { query: "site:.gov intext:\"responsible disclosure\" | intext:\"vulnerability disclosure\" | intext:\"security.txt\"", what: "US government sites with disclosure programs", severity: "info", tip: "Govt sites have mandatory VDPs under CISA directive — legally safe to hunt." },
+      { query: "site:.gov.uk | site:.gov.au | site:.gov.in intext:\"responsible disclosure\"", what: "UK / AU / IN government VDPs", severity: "info" },
+      { query: "site:.edu intext:\"responsible disclosure\" | intext:\"bug bounty\" | inurl:security.txt", what: "University sites with disclosure programs", severity: "info", tip: "Universities often run old, unpatched software — high bug density." },
+      { query: "site:hackerone.com/programs site:.gov | site:.mil", what: "US Federal / Military programs on HackerOne (H1 govt programs)", severity: "info" },
+      { query: "intext:\"coordinated vulnerability disclosure\" site:.gov | site:.edu intext:\"contact\"", what: "CVD programs — government standard for responsible reporting", severity: "info" },
+      { query: "inurl:\"/.well-known/security.txt\" site:.gov | site:.edu", what: "Govt/Edu sites with properly set-up security.txt", severity: "info" },
+    ],
+  },
+  {
+    id: "finder-highprob",
+    name: "High Bug-Probability Targets",
+    emoji: "🐛",
+    description: "Sites showing signs of weak security hygiene — exposed panels, outdated software, misconfigured servers.",
+    dorks: [
+      { query: "inurl:wp-login.php -site:wordpress.com intitle:\"WordPress\" intext:\"Remember Me\"", what: "WordPress sites (check for CVE-prone outdated plugins)", severity: "medium", tip: "Find the WP version via /readme.html or /wp-admin/js/common.js, then check for unpatched CVEs." },
+      { query: "intitle:\"Joomla!\" inurl:/administrator/index.php -site:joomla.org", what: "Joomla admin panels — often outdated", severity: "medium" },
+      { query: "intitle:\"phpMyAdmin\" inurl:\"/phpmyadmin/\" -site:phpmyadmin.net", what: "Exposed phpMyAdmin instances (DB access, SQLi, auth bypass)", severity: "high", tip: "phpMyAdmin exposed = potential unauthenticated DB access or auth bypass CVEs." },
+      { query: "intitle:\"Laravel\" intext:\"Whoops\" | intext:\"APP_DEBUG=true\" | intext:\"Stack trace\"", what: "Laravel apps in debug mode — route list, env vars exposed", severity: "high", tip: "Laravel debug = full stack trace with DB creds, .env contents, and internal paths." },
+      { query: "inurl:\"/actuator/health\" | inurl:\"/actuator/env\" | inurl:\"/actuator/mappings\"", what: "Spring Boot Actuator exposed — internal config, heap dumps, routes", severity: "high" },
+      { query: "intitle:\"Grafana\" inurl:\"/login\" -site:grafana.com | intitle:\"Kibana\" inurl:\":5601\"", what: "Exposed Grafana / Kibana dashboards (often default creds)", severity: "high" },
+      { query: "inurl:\"/cgi-bin/\" inurl:admin | inurl:login | inurl:manage -site:github.com", what: "Legacy CGI admin interfaces (old tech = more bugs)", severity: "medium" },
+      { query: "intitle:\"index of\" inurl:backup | inurl:old | inurl:archive -site:github.com -site:archive.org", what: "Open directory with backup/archive files (high value data)", severity: "high" },
+    ],
+  },
+  {
+    id: "finder-new-programs",
+    name: "New & Low-Competition Programs",
+    emoji: "🆕",
+    description: "Recently launched programs or sectors with fewer hunters — higher chance of finding first bugs.",
+    dorks: [
+      { query: "\"we launched our bug bounty\" | \"starting our bug bounty\" | \"announcing our bug bounty\" site:medium.com | site:blog.*", what: "Companies announcing new programs (bugs not yet picked)", severity: "info", tip: "First week of a new program = highest bug density. Monitor these announcements." },
+      { query: "site:hackerone.com \"program launched\" | \"just launched\" inurl:/reports", what: "HackerOne activity logs showing newly launched programs", severity: "info" },
+      { query: "\"bug bounty\" site:twitter.com | site:x.com intext:\"launched\" | intext:\"new program\" after:2024-01-01", what: "Twitter/X announcements of new bug bounty programs", severity: "info" },
+      { query: "site:intigriti.com/programs \"new\" | \"launching\"", what: "New Intigriti programs (European — lower competition)", severity: "info" },
+      { query: "intext:\"bug bounty\" intext:\"$50\" | intext:\"$100\" | intext:\"up to $500\" -site:hackerone.com -site:bugcrowd.com", what: "Small self-managed programs with low payouts = almost no hunters", severity: "info", tip: "Low payout = less competition. A $50 XSS is still a valid finding and builds your reputation." },
+      { query: "\"responsible disclosure\" intext:\"first\" | intext:\"initial\" intext:\"report\" site:medium.com | site:blog.*", what: "Companies writing about receiving their first vuln report = new program", severity: "info" },
+    ],
+  },
+  {
+    id: "finder-sector",
+    name: "Sector-Specific Programs",
+    emoji: "🏢",
+    description: "Target a specific industry vertical — fintech, crypto, SaaS, healthcare — to specialize your hunting.",
+    dorks: [
+      { query: "site:hackerone.com/programs \"{keyword}\" intext:\"$\" | intext:\"bounty\"", what: "HackerOne programs in your target sector with payouts", severity: "info" },
+      { query: "intext:\"bug bounty\" | intext:\"responsible disclosure\" site:.io \"{keyword}\"", what: "SaaS / startup .io domains in your sector (often newer, fewer hunters)", severity: "info", tip: ".io startups often have younger codebases with more injection/auth bugs." },
+      { query: "intext:\"security.txt\" | intext:\"responsible disclosure\" \"{keyword}\" intext:\"fintech\" | intext:\"crypto\" | intext:\"blockchain\"", what: "Fintech / crypto sector programs (higher bounties)", severity: "info" },
+      { query: "\"{keyword}\" intext:\"bug bounty\" site:linkedin.com/company", what: "LinkedIn company pages in sector mentioning bug bounty program", severity: "info" },
+      { query: "intext:\"hall of fame\" | intext:\"acknowledgements\" \"{keyword}\" -site:hackerone.com -site:bugcrowd.com", what: "Self-hosted HOF pages in your sector — confirmed active programs", severity: "info" },
+      { query: "\"{keyword}\" site:openbugbounty.org", what: "OpenBugBounty sector listings — no signup needed, report directly", severity: "info", tip: "OpenBugBounty = instant submission, no invitation needed. Good for beginners." },
+    ],
+  },
+];
+
 /** Strip scheme/path/wildcard so "https://*.Example.com/x" -> "example.com". */
 export function normalizeDomain(input: string): string {
   return input
