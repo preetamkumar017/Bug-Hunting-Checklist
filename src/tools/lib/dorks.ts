@@ -6,6 +6,8 @@ export interface Dork {
   what: string; // what a hit means
   severity: "critical" | "high" | "medium" | "low" | "info";
   engine?: DorkEngine; // defaults to google
+  tip?: string;
+  explanation?: string;
 }
 
 export interface DorkGroup {

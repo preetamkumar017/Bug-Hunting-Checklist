@@ -418,7 +418,7 @@ const XSS_PROFILE: ToolkitProfile = {
     {
       name: "Burp Suite Intruder",
       category: "Context Fuzzing & WAF Evasion",
-      command: "Fuzz characters: < > ' \" \` ; / \\ with PortSwigger XSS cheat sheet",
+      command: "Fuzz characters: < > ' \" ` ; / \\ with PortSwigger XSS cheat sheet",
       steps: tri(
         "1. Send reflected parameter to Intruder. 2. Test allowed HTML tags and event handlers (svg onload, img onerror, details ontoggle). 3. Identify unescaped characters.",
         "1. Send reflection point to Intruder. 2. Test which HTML tags and quotes are allowed. 3. Craft working payload from unescaped characters.",

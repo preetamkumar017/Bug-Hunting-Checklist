@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
   X, Copy, Check, ExternalLink, SearchCode,
-  Target, ShieldAlert, Crosshair, Lightbulb, ChevronDown, ChevronUp,
+  Target, ShieldAlert, Crosshair, Lightbulb, ChevronDown, ChevronUp, Sparkles,
 } from "lucide-react";
 import {
   DORK_GROUPS,
@@ -14,6 +14,7 @@ import {
   type TargetReconGroup,
   type TargetFinderGroup,
 } from "@/tools/lib/dorks";
+import { getDorkExplanation } from "@/tools/lib/dorkExplanation";
 
 interface DorkGeneratorModalProps {
   open: boolean;
@@ -43,7 +44,7 @@ function buildFinderQuery(template: string, keyword: string): string {
   return template.replace(/\{keyword\}/g, keyword.trim());
 }
 
-// ─── Expandable Dork Card ─────────────────────────────────────────────────────
+// ─── Expandable Dork Card with In-Depth Explanation ──────────────────────────
 function DorkCard({
   query,
   what,
@@ -55,6 +56,7 @@ function DorkCard({
   cardKey,
   onCopy,
   copiedKey,
+  forceExpandExplain,
 }: {
   query: string;
   what: string;
@@ -66,31 +68,60 @@ function DorkCard({
   cardKey: string;
   onCopy: (text: string, key: string) => void;
   copiedKey: string | null;
+  forceExpandExplain?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [prevForce, setPrevForce] = useState(forceExpandExplain);
+  const [showExplain, setShowExplain] = useState(false);
   const sev = SEVERITY_STYLE[severity] ?? SEVERITY_STYLE.info;
+
+  if (forceExpandExplain !== prevForce) {
+    setPrevForce(forceExpandExplain);
+    setShowExplain(Boolean(forceExpandExplain));
+  }
+
+  const explanation = useMemo(
+    () => getDorkExplanation(query, what, severity, engine, tip),
+    [query, what, severity, engine, tip]
+  );
 
   return (
     <div className={`rounded-lg border border-border border-l-2 ${sev.accent} bg-slate-950 overflow-hidden`}>
-      {/* ── Top row: severity + what ── */}
-      <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2">
+      {/* ── Top row: severity + what + explain button ── */}
+      <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-2">
         <div className="flex items-start gap-2 min-w-0">
           <span className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sev.badge}`}>
             {severity}
           </span>
-          <p className="text-[11px] font-medium text-slate-300 leading-relaxed">{what}</p>
+          <p className="text-[11.5px] font-semibold text-slate-200 leading-snug">{what}</p>
         </div>
-        {/* expand toggle (mobile) */}
-        <button
-          onClick={() => setExpanded((p) => !p)}
-          className="shrink-0 rounded p-1 text-slate-500 hover:bg-white/5 hover:text-slate-300 md:hidden"
-          aria-label="Toggle dork"
-        >
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Explain toggle button */}
+          <button
+            onClick={() => setShowExplain((p) => !p)}
+            className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-medium transition ${
+              showExplain
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10"
+                : "text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 border border-slate-800"
+            }`}
+            title="View in-depth explanation, operators, and bug bounty hunting tips"
+          >
+            <Lightbulb className="h-3 w-3 text-amber-400" />
+            <span className="hidden xs:inline">Explain</span>
+            {showExplain ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+          </button>
+          {/* expand toggle (mobile query toggle) */}
+          <button
+            onClick={() => setExpanded((p) => !p)}
+            className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-slate-300 md:hidden"
+            aria-label="Toggle query code"
+          >
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
 
-      {/* ── Query + actions (hidden on mobile unless expanded) ── */}
+      {/* ── Query + actions ── */}
       <div className={`px-3 pb-3 ${expanded ? "block" : "hidden md:block"}`}>
         <div className="flex items-start justify-between gap-2">
           <code className={`break-all select-all font-mono text-[11px] leading-relaxed ${codeColor}`}>
@@ -118,8 +149,65 @@ function DorkCard({
           </div>
         </div>
 
-        {/* Tip card */}
-        {tip && (
+        {/* ── In-depth Explanation Card ── */}
+        {showExplain && (
+          <div className="mt-2.5 space-y-2.5 rounded-lg border border-amber-500/25 bg-amber-950/15 p-3 text-[11px] leading-relaxed">
+            {/* Header: Vulnerability Class & What it does */}
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  How This Dork Works
+                </span>
+                <span className="rounded bg-slate-900 border border-slate-800 px-1.5 py-0.5 text-[9px] font-mono text-amber-200/90">
+                  {explanation.vulnClass}
+                </span>
+              </div>
+              <p className="text-slate-200 leading-relaxed font-medium">{explanation.whatItDoes}</p>
+              <p className="mt-1 text-slate-400 text-[10.5px] leading-relaxed">{explanation.whyItMatters}</p>
+            </div>
+
+            {/* Syntax Breakdown / Operators */}
+            {explanation.operators.length > 0 && (
+              <div className="border-t border-amber-500/15 pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90 mb-1.5">
+                  Query Syntax Breakdown
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {explanation.operators.map((op, i) => (
+                    <div key={i} className="rounded border border-slate-800/90 bg-slate-900/80 p-2 text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-amber-300">{op.op}</span>
+                        <span className="text-slate-400 font-medium">({op.label})</span>
+                      </div>
+                      <p className="mt-0.5 text-slate-400 leading-tight">{op.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Hunter Action & Checklist */}
+            {explanation.hunterTips.length > 0 && (
+              <div className="border-t border-amber-500/15 pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/90 mb-1">
+                  🎯 Bug Hunter Action & Testing Checklist
+                </p>
+                <ul className="space-y-1 text-[10.5px] text-slate-300">
+                  {explanation.hunterTips.map((tipItem, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-emerald-400 shrink-0 font-bold">✓</span>
+                      <span className="leading-tight">{tipItem}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tip fallback (if explain not open and tip exists) */}
+        {!showExplain && tip && (
           <div className="mt-2.5 flex items-start gap-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-2.5 py-2">
             <Lightbulb className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" />
             <p className="text-[10px] leading-relaxed text-amber-300/80">{tip}</p>
@@ -181,6 +269,7 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
   const [activeRecon, setActiveRecon] = useState(TARGET_RECON_GROUPS[0].id);
   const [activeFinder, setActiveFinder] = useState(TARGET_FINDER_GROUPS[0].id);
   const [copiedKey, setCopiedKey]     = useState<string | null>(null);
+  const [expandAllTips, setExpandAllTips] = useState(false);
 
   useEffect(() => {
     if (open && !input && defaultDomain && defaultDomain.includes(".")) {
@@ -218,13 +307,28 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
             <h3 className="text-sm font-bold text-slate-200">{group.name}</h3>
             <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">{group.description}</p>
           </div>
-          <button
-            onClick={() => copy(allQ, "all")}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
-          >
-            {copiedKey === "all" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-            Copy all ({dorks.length})
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setExpandAllTips((p) => !p)}
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                expandAllTips
+                  ? "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                  : "border-border bg-card text-slate-300 hover:bg-white/5"
+              }`}
+              title="Toggle detailed explanations for all dorks in this group"
+            >
+              <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+              <span className="hidden xs:inline">{expandAllTips ? "Collapse Explanations" : "Explain All"}</span>
+              <span className="xs:hidden">{expandAllTips ? "Collapse" : "Explain All"}</span>
+            </button>
+            <button
+              onClick={() => copy(allQ, "all")}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+            >
+              {copiedKey === "all" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              Copy all ({dorks.length})
+            </button>
+          </div>
         </div>
         {/* Cards */}
         <div className="flex-1 space-y-2 overflow-y-auto pr-0.5 pb-1">
@@ -235,11 +339,13 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
               what={d.what}
               severity={d.severity}
               engine={d.engine ?? "google"}
+              tip={d.tip}
               codeColor={codeColor}
               engineBtnClass={ENGINE_STYLE[d.engine ?? "google"]}
               cardKey={`${group.id}-${idx}`}
               onCopy={copy}
               copiedKey={copiedKey}
+              forceExpandExplain={expandAllTips}
             />
           ))}
         </div>
@@ -263,13 +369,28 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
             <h3 className="text-sm font-bold text-slate-200">{group.emoji} {group.name}</h3>
             <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">{group.description}</p>
           </div>
-          <button
-            onClick={() => copy(allQ, "all")}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
-          >
-            {copiedKey === "all" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-            Copy all ({dorks.length})
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setExpandAllTips((p) => !p)}
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                expandAllTips
+                  ? "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                  : "border-border bg-card text-slate-300 hover:bg-white/5"
+              }`}
+              title="Toggle detailed explanations for all dorks in this group"
+            >
+              <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+              <span className="hidden xs:inline">{expandAllTips ? "Collapse Explanations" : "Explain All"}</span>
+              <span className="xs:hidden">{expandAllTips ? "Collapse" : "Explain All"}</span>
+            </button>
+            <button
+              onClick={() => copy(allQ, "all")}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+            >
+              {copiedKey === "all" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              Copy all ({dorks.length})
+            </button>
+          </div>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto pr-0.5 pb-1">
           {dorks.map((d, idx) => (
@@ -285,6 +406,7 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
               cardKey={`${group.id}-${idx}`}
               onCopy={copy}
               copiedKey={copiedKey}
+              forceExpandExplain={expandAllTips}
             />
           ))}
         </div>
