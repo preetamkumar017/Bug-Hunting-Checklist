@@ -18,6 +18,7 @@ import { DashboardView } from "@/dashboard/DashboardView";
 import { ToolsView } from "@/tools/components/ToolsView";
 import { LearnView } from "@/learn/components/LearnView";
 import { BountyPlaybookView } from "@/learn/components/BountyPlaybookView";
+import { FintechPlaybookView } from "@/learn/components/FintechPlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -325,7 +326,7 @@ export default function App() {
           ) : view === "playbook" ? (
             <BountyPlaybookView onPractice={jumpToCategory} />
           ) : view === "fintech" ? (
-            <BountyPlaybookView onPractice={jumpToCategory} defaultTab="fintech" />
+            <FintechPlaybookView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}

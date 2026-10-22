@@ -27,7 +27,6 @@ import {
   GitBranch,
   FlaskConical,
   Binary,
-  CreditCard,
 } from "lucide-react";
 import { LEARN_LANGS, type Lang, localize } from "@/learn/data/types";
 import {
@@ -41,25 +40,9 @@ import {
   HIGH_YIELD_PAYLOADS,
   P3_P4_TECHNIQUES,
 } from "@/learn/data/playbookData";
-import { FintechPlaybookView } from "@/learn/components/FintechPlaybookView";
 
 interface BountyPlaybookProps {
   onPractice?: (categoryId: string) => void;
-  defaultTab?:
-    | "targets"
-    | "calculator"
-    | "bugs"
-    | "volume"
-    | "trees"
-    | "chaining"
-    | "waf"
-    | "payloads"
-    | "oneliners"
-    | "automation"
-    | "routine"
-    | "donts"
-    | "template"
-    | "fintech";
 }
 
 const LANG_KEY = "learn.lang";
@@ -95,11 +78,11 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-export function BountyPlaybookView({ onPractice, defaultTab }: BountyPlaybookProps) {
+export function BountyPlaybookView({ onPractice }: BountyPlaybookProps) {
   const [lang, setLangState] = useState<Lang>(loadLang);
   const [activeTab, setActiveTab] = useState<
-    "targets" | "calculator" | "bugs" | "volume" | "trees" | "chaining" | "waf" | "payloads" | "oneliners" | "automation" | "routine" | "donts" | "template" | "fintech"
-  >(defaultTab || "targets");
+    "targets" | "calculator" | "bugs" | "volume" | "trees" | "chaining" | "waf" | "payloads" | "oneliners" | "automation" | "routine" | "donts" | "template"
+  >("targets");
   const [activeBug, setActiveBug] = useState<number>(0);
   const [activeChain, setActiveChain] = useState<number>(0);
   const [activeTree, setActiveTree] = useState<number>(0);
@@ -296,11 +279,6 @@ export function BountyPlaybookView({ onPractice, defaultTab }: BountyPlaybookPro
       en: "📋 Reports & Escalators",
       simple: "📋 Reports & Escalators",
       hi: "📋 रिपोर्ट टेम्पलेट्स व एस्केलेटर गाइड",
-    }[lang],
-    tabFintech: {
-      en: "🏦 Fintech",
-      simple: "🏦 Fintech",
-      hi: "🏦 फिनटेक",
     }[lang],
   };
 
@@ -1001,16 +979,6 @@ export function BountyPlaybookView({ onPractice, defaultTab }: BountyPlaybookPro
           }`}
         >
           <FileText className="h-3.5 w-3.5" /> {t.tabTemplate}
-        </button>
-        <button
-          onClick={() => setActiveTab("fintech")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-            activeTab === "fintech"
-              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-              : "border border-border bg-card text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <CreditCard className="h-3.5 w-3.5 text-cyan-400" /> {t.tabFintech}
         </button>
       </div>
 
@@ -2511,11 +2479,6 @@ export function BountyPlaybookView({ onPractice, defaultTab }: BountyPlaybookPro
             })()}
           </div>
         </div>
-      )}
-
-      {/* ── TAB 14: FINTECH PLAYBOOK ── */}
-      {activeTab === "fintech" && (
-        <FintechPlaybookView onPractice={onPractice} />
       )}
     </div>
   );

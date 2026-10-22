@@ -28,10 +28,29 @@ interface FintechPlaybookViewProps {
   onPractice?: (categoryId: string) => void;
 }
 
+const LANG_KEY = "learn.lang";
+function loadLang(): Lang {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (v === "en" || v === "simple" || v === "hi") return v;
+  } catch {
+    /* ignore */
+  }
+  return "en";
+}
+
 type TabMode = "vulnerabilities" | "methodology" | "lab" | "mobile" | "reports";
 
 export function FintechPlaybookView({ onPractice }: FintechPlaybookViewProps) {
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLangState] = useState<Lang>(loadLang);
+  const setLang = (l: Lang) => {
+    setLangState(l);
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {
+      /* ignore */
+    }
+  };
   const [activeTab, setActiveTab] = useState<TabMode>("vulnerabilities");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCard, setExpandedCard] = useState<string | null>(FINTECH_VULN_CLASSES[0].id);
