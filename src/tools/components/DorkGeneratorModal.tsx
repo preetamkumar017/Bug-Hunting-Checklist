@@ -141,6 +141,26 @@ function DorkCard({
               href={searchUrl(engine, query)}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => {
+                // If user clicks with Cmd (Mac) / Ctrl (Windows) or Middle Click, browser natively opens in background tab
+                if (e.metaKey || e.ctrlKey || e.button === 1) return;
+
+                try {
+                  const newWin = window.open(searchUrl(engine, query), "_blank");
+                  if (newWin) {
+                    e.preventDefault();
+                    try {
+                      newWin.blur();
+                    } catch {
+                      /* cross-origin ignore */
+                    }
+                    window.focus();
+                  }
+                } catch {
+                  /* fallback to normal <a> target="_blank" */
+                }
+              }}
+              title="Open search in new tab (Tip: ⌘+Click / Middle-Click opens in background without switching tabs)"
               className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold text-white transition ${engineBtnClass}`}
             >
               <ExternalLink className="h-3 w-3" />
@@ -516,9 +536,14 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
         <div className="shrink-0 border-b border-border px-4 py-2.5 sm:px-5 sm:py-3">
           {mode === "finder" ? (
             <>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Sector / Keyword
-                <span className="ml-1 font-normal normal-case text-slate-600">— optional, leave blank for generic</span>
+              <label className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <span>
+                  Sector / Keyword
+                  <span className="ml-1 font-normal normal-case text-slate-600">— optional, leave blank for generic</span>
+                </span>
+                <span className="font-normal normal-case text-slate-500 hidden sm:inline">
+                  Tip: Hold <kbd className="rounded border border-slate-700 bg-slate-900 px-1 py-0.2 font-mono text-[9px] text-slate-300">⌘</kbd> / Middle-click to open in background
+                </span>
               </label>
               <input
                 type="text"
@@ -530,8 +555,11 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
             </>
           ) : (
             <>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {mode === "vuln" ? "Target domain" : "Company name or domain"}
+              <label className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <span>{mode === "vuln" ? "Target domain" : "Company name or domain"}</span>
+                <span className="font-normal normal-case text-slate-500 hidden sm:inline">
+                  Tip: Hold <kbd className="rounded border border-slate-700 bg-slate-900 px-1 py-0.2 font-mono text-[9px] text-slate-300">⌘</kbd> / Middle-click to open in background
+                </span>
               </label>
               <input
                 type="text"
