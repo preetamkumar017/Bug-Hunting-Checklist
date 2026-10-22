@@ -207,7 +207,6 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
     group: DorkGroup | TargetReconGroup,
     buildFn: (q: string) => string,
     codeColor: string,
-    btnClass: string,
   ) {
     const dorks = group.dorks;
     const allQ  = dorks.map((d) => buildFn(d.query)).join("\n");
@@ -455,8 +454,8 @@ export function DorkGeneratorModal({ open, onClose, defaultDomain }: DorkGenerat
 
           {/* Dork list panel */}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4">
-            {mode === "vuln"   && renderDorkList(vulnGroup,  (q) => buildQuery(q, domain), "text-violet-300/90", ENGINE_STYLE.google)}
-            {mode === "recon"  && renderDorkList(reconGroup, (q) => buildQuery(q, domain), "text-emerald-300/90", ENGINE_STYLE.google)}
+            {mode === "vuln"   && renderDorkList(vulnGroup,  (q) => buildQuery(q, domain), "text-violet-300/90")}
+            {mode === "recon"  && renderDorkList(reconGroup, (q) => buildQuery(q, domain), "text-emerald-300/90")}
             {mode === "finder" && renderFinderList(finderGroup)}
           </div>
         </div>
