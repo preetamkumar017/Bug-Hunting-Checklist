@@ -141,26 +141,7 @@ function DorkCard({
               href={searchUrl(engine, query)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => {
-                // If user clicks with Cmd (Mac) / Ctrl (Windows) or Middle Click, browser natively opens in background tab
-                if (e.metaKey || e.ctrlKey || e.button === 1) return;
-
-                try {
-                  const newWin = window.open(searchUrl(engine, query), "_blank");
-                  if (newWin) {
-                    e.preventDefault();
-                    try {
-                      newWin.blur();
-                    } catch {
-                      /* cross-origin ignore */
-                    }
-                    window.focus();
-                  }
-                } catch {
-                  /* fallback to normal <a> target="_blank" */
-                }
-              }}
-              title="Open search in new tab (Tip: ⌘+Click / Middle-Click opens in background without switching tabs)"
+              title="Open search (Tip: Hold ⌘ on Mac or Middle-click to open in background tab without switching)"
               className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] font-semibold text-white transition ${engineBtnClass}`}
             >
               <ExternalLink className="h-3 w-3" />
