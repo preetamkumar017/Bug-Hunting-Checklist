@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Sparkles,
   CreditCard,
+  Cloud,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -20,7 +21,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -138,6 +139,15 @@ function CommandPaletteDialog({
         icon: CreditCard,
         badge: "View",
         run: () => onSelectView("fintech"),
+      },
+      {
+        id: "view-saas",
+        category: "Navigation",
+        title: "Go to SaaS Bug Hunting Playbook",
+        subtitle: "Multi-tenant BOLA, SSO/SAML takeover, RBAC privilege escalation & SSRF",
+        icon: Cloud,
+        badge: "View",
+        run: () => onSelectView("saas"),
       },
 
       // Tools

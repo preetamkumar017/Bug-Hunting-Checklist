@@ -19,6 +19,7 @@ import { ToolsView } from "@/tools/components/ToolsView";
 import { LearnView } from "@/learn/components/LearnView";
 import { BountyPlaybookView } from "@/learn/components/BountyPlaybookView";
 import { FintechPlaybookView } from "@/learn/components/FintechPlaybookView";
+import { SaaSPlaybookView } from "@/learn/components/SaaSPlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -32,7 +33,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -45,6 +46,7 @@ const VIEW_PATH: Record<View, string> = {
   scope: "/scope",
   playbook: "/playbook",
   fintech: "/fintech",
+  saas: "/saas",
 };
 
 function pathToView(pathname: string): View {
@@ -250,6 +252,8 @@ export default function App() {
                 ? "🎯 Bounty Playbook"
                 : view === "fintech"
                 ? "🏦 Fintech Playbook"
+                : view === "saas"
+                ? "☁️ SaaS Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -327,6 +331,8 @@ export default function App() {
             <BountyPlaybookView onPractice={jumpToCategory} />
           ) : view === "fintech" ? (
             <FintechPlaybookView onPractice={jumpToCategory} />
+          ) : view === "saas" ? (
+            <SaaSPlaybookView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}
