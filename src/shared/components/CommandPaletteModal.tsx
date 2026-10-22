@@ -11,6 +11,7 @@ import {
   BookOpen,
   ArrowRight,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -19,7 +20,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -119,6 +120,24 @@ function CommandPaletteDialog({
         icon: Layers,
         badge: "View",
         run: () => onSelectView("tools"),
+      },
+      {
+        id: "view-playbook",
+        category: "Navigation",
+        title: "Go to Bounty Playbook",
+        subtitle: "Vulnerability chaining matrix, WAF bypasses, automation & high-yield routines",
+        icon: Zap,
+        badge: "View",
+        run: () => onSelectView("playbook"),
+      },
+      {
+        id: "view-fintech",
+        category: "Navigation",
+        title: "Go to Fintech Bug Hunting Playbook",
+        subtitle: "High-yield payment manipulation, wallet race conditions, KYC & financial IDORs",
+        icon: CreditCard,
+        badge: "View",
+        run: () => onSelectView("fintech"),
       },
 
       // Tools

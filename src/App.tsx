@@ -31,7 +31,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -43,6 +43,7 @@ const VIEW_PATH: Record<View, string> = {
   findings: "/findings",
   scope: "/scope",
   playbook: "/playbook",
+  fintech: "/fintech",
 };
 
 function pathToView(pathname: string): View {
@@ -244,6 +245,10 @@ export default function App() {
                 ? "🐞 Findings"
                 : view === "learn"
                 ? "🎓 Learn"
+                : view === "playbook"
+                ? "🎯 Bounty Playbook"
+                : view === "fintech"
+                ? "🏦 Fintech Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -319,6 +324,8 @@ export default function App() {
             <LearnView onPractice={jumpToCategory} />
           ) : view === "playbook" ? (
             <BountyPlaybookView onPractice={jumpToCategory} />
+          ) : view === "fintech" ? (
+            <BountyPlaybookView onPractice={jumpToCategory} defaultTab="fintech" />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}
