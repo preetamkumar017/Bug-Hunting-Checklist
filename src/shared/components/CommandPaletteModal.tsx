@@ -22,6 +22,7 @@ import {
   FileCode,
   Share2,
   Radio,
+  Cpu,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -30,7 +31,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -247,6 +248,15 @@ function CommandPaletteDialog({
         icon: Radio,
         badge: "View",
         run: () => onSelectView("websocket"),
+      },
+      {
+        id: "view-prototype",
+        category: "Navigation",
+        title: "Go to Prototype Pollution & DOM Clobbering Playbook",
+        subtitle: "Client-side prototype pollution, GTM & Vue gadgets, zero-click DOM XSS & HTML clobbering",
+        icon: Cpu,
+        badge: "View",
+        run: () => onSelectView("prototype"),
       },
 
       // Tools
