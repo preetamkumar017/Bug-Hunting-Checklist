@@ -14,6 +14,9 @@ import {
   CreditCard,
   Cloud,
   Flame,
+  LockOpen,
+  Server,
+  KeyRound,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -22,7 +25,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -158,6 +161,33 @@ function CommandPaletteDialog({
         icon: Flame,
         badge: "View",
         run: () => onSelectView("cloudflare"),
+      },
+      {
+        id: "view-forbidden",
+        category: "Navigation",
+        title: "Go to 403 Forbidden & Access Control Bypass Playbook",
+        subtitle: "Header fuzzing, matrix path traversal, HTTP verb tampering & rewrite smuggling",
+        icon: LockOpen,
+        badge: "View",
+        run: () => onSelectView("forbidden"),
+      },
+      {
+        id: "view-awswaf",
+        category: "Navigation",
+        title: "Go to AWS WAF & CloudFront Origin Bypass Playbook",
+        subtitle: "ALB direct IP unmasking, S3 origin takeover, 16KB body padding & AMR evasion",
+        icon: Server,
+        badge: "View",
+        run: () => onSelectView("awswaf"),
+      },
+      {
+        id: "view-otpbypass",
+        category: "Navigation",
+        title: "Go to 2FA, OTP & Rate-Limit Bypass Playbook",
+        subtitle: "Response manipulation, IP rotation, race conditions & session binding",
+        icon: KeyRound,
+        badge: "View",
+        run: () => onSelectView("otpbypass"),
       },
 
       // Tools

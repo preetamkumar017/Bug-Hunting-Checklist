@@ -21,6 +21,9 @@ import { BountyPlaybookView } from "@/learn/components/BountyPlaybookView";
 import { FintechPlaybookView } from "@/learn/components/FintechPlaybookView";
 import { SaaSPlaybookView } from "@/learn/components/SaaSPlaybookView";
 import { CloudflarePlaybookView } from "@/learn/components/CloudflarePlaybookView";
+import { ForbiddenBypassView } from "@/learn/components/ForbiddenBypassView";
+import { AwsWafPlaybookView } from "@/learn/components/AwsWafPlaybookView";
+import { OtpBypassView } from "@/learn/components/OtpBypassView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -34,7 +37,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -49,6 +52,9 @@ const VIEW_PATH: Record<View, string> = {
   fintech: "/fintech",
   saas: "/saas",
   cloudflare: "/cloudflare",
+  forbidden: "/403-bypass",
+  awswaf: "/aws-bypass",
+  otpbypass: "/otp-bypass",
 };
 
 function pathToView(pathname: string): View {
@@ -258,6 +264,12 @@ export default function App() {
                 ? "☁️ SaaS Playbook"
                 : view === "cloudflare"
                 ? "🛡️ Cloudflare Playbook"
+                : view === "forbidden"
+                ? "🚪 403 Bypass Playbook"
+                : view === "awswaf"
+                ? "☁️ AWS WAF Playbook"
+                : view === "otpbypass"
+                ? "🔐 2FA / OTP Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -339,6 +351,12 @@ export default function App() {
             <SaaSPlaybookView onPractice={jumpToCategory} />
           ) : view === "cloudflare" ? (
             <CloudflarePlaybookView onPractice={jumpToCategory} />
+          ) : view === "forbidden" ? (
+            <ForbiddenBypassView onPractice={jumpToCategory} />
+          ) : view === "awswaf" ? (
+            <AwsWafPlaybookView onPractice={jumpToCategory} />
+          ) : view === "otpbypass" ? (
+            <OtpBypassView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}
