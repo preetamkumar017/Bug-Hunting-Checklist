@@ -20,6 +20,7 @@ import {
   Server,
   KeyRound,
   Database,
+  Timer,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
@@ -42,8 +43,8 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache";
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache") => void;
+  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race";
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race") => void;
   onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
   onJumpToCategory?: (categoryId: string) => void;
@@ -57,7 +58,7 @@ export function Sidebar({
 
   // The two worlds stay separate: only one world's navigation shows at a time.
   // Dashboard is the Hunt world's home.
-  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" ? "knowledge" : "hunt";
+  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" ? "knowledge" : "hunt";
 
   const [sortAlphabetical, setSortAlphabetical] = useState(true);
   const [showSubCategories, setShowSubCategories] = useState(true);
@@ -395,6 +396,19 @@ export function Sidebar({
               }`}
             >
               <Database className="h-4 w-4 text-cyan-400" /> ⚡ Web Cache Playbook
+            </button>
+            <button
+              onClick={() => {
+                onSelectView("race");
+                onClose();
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+                view === "race"
+                  ? "bg-violet-500/10 text-violet-400 font-semibold"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
+            >
+              <Timer className="h-4 w-4 text-violet-400" /> 🏎️ Race Conditions Playbook
             </button>
           </nav>
         )}

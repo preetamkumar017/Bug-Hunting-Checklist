@@ -18,6 +18,7 @@ import {
   Server,
   KeyRound,
   Database,
+  Timer,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -26,7 +27,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -198,6 +199,15 @@ function CommandPaletteDialog({
         icon: Database,
         badge: "View",
         run: () => onSelectView("cache"),
+      },
+      {
+        id: "view-race",
+        category: "Navigation",
+        title: "Go to Single-Packet Race Conditions Playbook",
+        subtitle: "Limit overrun, double-spend, anti-brute-force collision & HTTP/2 synchronization",
+        icon: Timer,
+        badge: "View",
+        run: () => onSelectView("race"),
       },
 
       // Tools
