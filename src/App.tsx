@@ -35,6 +35,7 @@ import { SubdomainTakeoverView } from "@/learn/components/SubdomainTakeoverView"
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
+import { GlobalTargetBar } from "@/shared/components/GlobalTargetBar";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
 import { effectiveCategories, effectiveCatalogue } from '@/shared/lib/catalogue';
 const HackerToolsModal = lazy(() => import('@/tools/components/HackerToolsModal').then(m => ({ default: m.HackerToolsModal })));
@@ -44,6 +45,7 @@ const DorkGeneratorModal = lazy(() => import('@/tools/components/DorkGeneratorMo
 const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').then(m => ({ default: m.BurpRulesModal })));
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 const FaviconHashModal = lazy(() => import('@/tools/components/FaviconHashModal').then(m => ({ default: m.FaviconHashModal })));
+const AttackChainerModal = lazy(() => import('@/tools/components/AttackChainerModal').then(m => ({ default: m.AttackChainerModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
 export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
@@ -94,6 +96,7 @@ export default function App() {
   const [burpRulesOpen, setBurpRulesOpen] = useState(false);
   const [reportDrafterOpen, setReportDrafterOpen] = useState(false);
   const [faviconHashOpen, setFaviconHashOpen] = useState(false);
+  const [chainerOpen, setChainerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -330,6 +333,9 @@ export default function App() {
       <main key={`content:${profile?.id ?? 'no-profile'}`} className="min-w-0 flex-1 overflow-y-auto">
         {storageError && <p role="alert" className="bg-red-950 p-4 text-red-200">Changes were not saved: {storageError}</p>}
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+          {/* Global Target Context & Auto-Replacer Control Bar */}
+          <GlobalTargetBar onOpenChainer={() => setChainerOpen(true)} />
+
           {/* Search bar — only on the checklist, where it searches checks & payloads */}
           {view === "checklist" && (
             <div className="relative mb-5 flex flex-wrap items-center gap-2">
@@ -415,6 +421,7 @@ export default function App() {
               onOpenReportDrafter={() => setReportDrafterOpen(true)}
               onOpenBurpRules={() => setBurpRulesOpen(true)}
               onOpenFaviconHash={() => setFaviconHashOpen(true)}
+              onOpenChainer={() => setChainerOpen(true)}
               onOpenTools={() => setToolsOpen(true)}
               onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             />
@@ -538,6 +545,7 @@ export default function App() {
         onOpenBurpRules={() => setBurpRulesOpen(true)}
         onOpenReportDrafter={() => setReportDrafterOpen(true)}
         onOpenFaviconHash={() => setFaviconHashOpen(true)}
+        onOpenChainer={() => setChainerOpen(true)}
         onJumpToCategory={jumpToCategory}
       />
 
@@ -570,6 +578,13 @@ export default function App() {
         open={faviconHashOpen}
         onClose={() => setFaviconHashOpen(false)}
         defaultUrl={profile?.name}
+      />}
+
+      {/* Recon & Attack Chainer Modal */}
+      {chainerOpen && <AttackChainerModal
+        open={chainerOpen}
+        onClose={() => setChainerOpen(false)}
+        onNavigateToView={(v) => setView(v as View)}
       />}
       </Suspense>
     </div>

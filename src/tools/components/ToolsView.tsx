@@ -17,6 +17,7 @@ interface ToolsViewProps {
   onOpenReportDrafter: () => void;
   onOpenBurpRules: () => void;
   onOpenFaviconHash: () => void;
+  onOpenChainer: () => void;
   onOpenTools: () => void;
   onOpenCommandPalette: () => void;
 }
@@ -38,10 +39,21 @@ export function ToolsView({
   onOpenReportDrafter,
   onOpenBurpRules,
   onOpenFaviconHash,
+  onOpenChainer,
   onOpenTools,
   onOpenCommandPalette,
 }: ToolsViewProps) {
   const tools: ToolCard[] = [
+    {
+      id: "attack-chainer",
+      title: "Recon & Attack Chainer",
+      emoji: "⚡",
+      description:
+        "Found a Subdomain, Origin IP, S3 Bucket, or 403? Get prioritized next-step attack chains with live target auto-interpolation.",
+      icon: Zap,
+      accent: "amber",
+      onOpen: onOpenChainer,
+    },
     {
       id: "favicon-hash",
       title: "Favicon & MurmurHash3",

@@ -39,6 +39,7 @@ interface CommandPaletteModalProps {
   onOpenBurpRules: () => void;
   onOpenReportDrafter: () => void;
   onOpenFaviconHash?: () => void;
+  onOpenChainer?: () => void;
   onJumpToCategory: (categoryId: string) => void;
 }
 
@@ -67,6 +68,7 @@ function CommandPaletteDialog({
   onOpenBurpRules,
   onOpenReportDrafter,
   onOpenFaviconHash,
+  onOpenChainer,
   onJumpToCategory,
 }: CommandPaletteModalProps) {
   const [query, setQuery] = useState("");
@@ -273,6 +275,15 @@ function CommandPaletteDialog({
 
       // Tools
       {
+        id: "tool-attackchainer",
+        category: "Hacker Tools",
+        title: "Recon & Attack Chainer (Next-Action Engine)",
+        subtitle: "Decision engine for Subdomains, Origin IPs, S3 Buckets, and 403 bypasses with auto-interpolation",
+        icon: Zap,
+        badge: "Tool",
+        run: onOpenChainer ?? onOpenTools,
+      },
+      {
         id: "tool-faviconhash",
         category: "Hacker Tools",
         title: "Favicon & MurmurHash3 Generator (Shodan & FOFA)",
@@ -373,6 +384,7 @@ function CommandPaletteDialog({
     onOpenBurpRules,
     onOpenReportDrafter,
     onOpenFaviconHash,
+    onOpenChainer,
     onJumpToCategory,
   ]);
 

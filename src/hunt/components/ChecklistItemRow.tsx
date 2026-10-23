@@ -11,6 +11,7 @@ import { DEFAULT_CVSS, calcCvss, cvssSeverityLabel, type CvssMetrics } from "@/s
 import { useChecklistStore } from "@/shared/store/useChecklistStore";
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_SCREENSHOTS, MAX_SCREENSHOT_BYTES, validateScreenshot } from '@/shared/lib/profileValidation';
+import { interpolateTargetVars, useTargetContext } from "@/shared/store/useTargetContext";
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,9 +45,14 @@ export function ChecklistItemRow({
   const [copiedPayloadIdx, setCopiedPayloadIdx] = useState<number | null>(null);
   const [saveError, setSaveError] = useState('');
 
+  const targetDomain = useTargetContext((s) => s.targetDomain);
+  const subdomain = useTargetContext((s) => s.subdomain);
+  const originIp = useTargetContext((s) => s.originIp);
+
   async function copyPayload(text: string, idx: number) {
     try {
-      await navigator.clipboard.writeText(text);
+      const interpolated = interpolateTargetVars(text, { targetDomain, subdomain, originIp });
+      await navigator.clipboard.writeText(interpolated);
       setCopiedPayloadIdx(idx);
       setTimeout(() => setCopiedPayloadIdx(null), 1500);
     } catch {
@@ -190,15 +196,16 @@ export function ChecklistItemRow({
                   <ul className="mt-1 space-y-1.5">
                     {item.payloads.map((p, i) => {
                       const refs = findReferencedCommands(p);
+                      const displayPayload = interpolateTargetVars(p, { targetDomain, subdomain, originIp });
                       return (
                         <li key={i}>
                           <div className="flex items-start gap-1.5">
                             <code className="block flex-1 whitespace-pre-wrap rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-emerald-400">
-                              {p}
+                              {displayPayload}
                             </code>
-                            {p.startsWith("http://") || p.startsWith("https://") ? (
+                            {displayPayload.startsWith("http://") || displayPayload.startsWith("https://") ? (
                               <a
-                                href={p}
+                                href={displayPayload}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="mt-0.5 shrink-0 rounded p-1 text-slate-400 hover:text-blue-400 hover:bg-slate-800 transition"
@@ -209,7 +216,7 @@ export function ChecklistItemRow({
                               </a>
                             ) : null}
                             <button
-                              onClick={() => copyPayload(p, i)}
+                              onClick={() => copyPayload(displayPayload, i)}
                               className="mt-0.5 shrink-0 rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
                               title="Copy payload"
                               aria-label="Copy payload"
