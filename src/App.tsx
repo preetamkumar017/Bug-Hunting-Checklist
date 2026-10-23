@@ -24,6 +24,7 @@ import { CloudflarePlaybookView } from "@/learn/components/CloudflarePlaybookVie
 import { ForbiddenBypassView } from "@/learn/components/ForbiddenBypassView";
 import { AwsWafPlaybookView } from "@/learn/components/AwsWafPlaybookView";
 import { OtpBypassView } from "@/learn/components/OtpBypassView";
+import { CachePlaybookView } from "@/learn/components/CachePlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -37,7 +38,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -55,6 +56,7 @@ const VIEW_PATH: Record<View, string> = {
   forbidden: "/403-bypass",
   awswaf: "/aws-bypass",
   otpbypass: "/otp-bypass",
+  cache: "/cache-playbook",
 };
 
 function pathToView(pathname: string): View {
@@ -270,6 +272,8 @@ export default function App() {
                 ? "☁️ AWS WAF Playbook"
                 : view === "otpbypass"
                 ? "🔐 2FA / OTP Playbook"
+                : view === "cache"
+                ? "⚡ Web Cache Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -357,6 +361,8 @@ export default function App() {
             <AwsWafPlaybookView onPractice={jumpToCategory} />
           ) : view === "otpbypass" ? (
             <OtpBypassView onPractice={jumpToCategory} />
+          ) : view === "cache" ? (
+            <CachePlaybookView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}

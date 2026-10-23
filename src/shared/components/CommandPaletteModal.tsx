@@ -17,6 +17,7 @@ import {
   LockOpen,
   Server,
   KeyRound,
+  Database,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -25,7 +26,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -188,6 +189,15 @@ function CommandPaletteDialog({
         icon: KeyRound,
         badge: "View",
         run: () => onSelectView("otpbypass"),
+      },
+      {
+        id: "view-cache",
+        category: "Navigation",
+        title: "Go to Web Cache Deception & Poisoning Playbook",
+        subtitle: "WCD path confusion, unkeyed headers, Fat GET & DoS cache poisoning",
+        icon: Database,
+        badge: "View",
+        run: () => onSelectView("cache"),
       },
 
       // Tools
