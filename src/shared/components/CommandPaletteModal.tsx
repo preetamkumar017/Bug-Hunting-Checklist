@@ -13,6 +13,7 @@ import {
   Sparkles,
   CreditCard,
   Cloud,
+  Flame,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -21,7 +22,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -148,6 +149,15 @@ function CommandPaletteDialog({
         icon: Cloud,
         badge: "View",
         run: () => onSelectView("saas"),
+      },
+      {
+        id: "view-cloudflare",
+        category: "Navigation",
+        title: "Go to Cloudflare & WAF Bypass Playbook",
+        subtitle: "Origin IP discovery, IBM037 charset smuggling, Turnstile & Bot Shield bypasses",
+        icon: Flame,
+        badge: "View",
+        run: () => onSelectView("cloudflare"),
       },
 
       // Tools
