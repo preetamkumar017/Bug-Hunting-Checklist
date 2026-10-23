@@ -19,6 +19,7 @@ import {
   KeyRound,
   Database,
   Timer,
+  FileCode,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -27,7 +28,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -208,6 +209,15 @@ function CommandPaletteDialog({
         icon: Timer,
         badge: "View",
         run: () => onSelectView("race"),
+      },
+      {
+        id: "view-pdfssrf",
+        category: "Navigation",
+        title: "Go to PDF & Headless Browser SSRF Playbook",
+        subtitle: "Headless Chrome/wkhtmltopdf LFI, iframe exfiltration, cloud metadata & XHR SSRF",
+        icon: FileCode,
+        badge: "View",
+        run: () => onSelectView("pdfssrf"),
       },
 
       // Tools

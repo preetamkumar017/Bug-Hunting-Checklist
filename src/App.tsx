@@ -26,6 +26,7 @@ import { AwsWafPlaybookView } from "@/learn/components/AwsWafPlaybookView";
 import { OtpBypassView } from "@/learn/components/OtpBypassView";
 import { CachePlaybookView } from "@/learn/components/CachePlaybookView";
 import { RaceConditionView } from "@/learn/components/RaceConditionView";
+import { PdfSsrfView } from "@/learn/components/PdfSsrfView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -39,7 +40,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -59,6 +60,7 @@ const VIEW_PATH: Record<View, string> = {
   otpbypass: "/otp-bypass",
   cache: "/cache-playbook",
   race: "/race-conditions",
+  pdfssrf: "/pdf-ssrf",
 };
 
 function pathToView(pathname: string): View {
@@ -278,6 +280,8 @@ export default function App() {
                 ? "⚡ Web Cache Playbook"
                 : view === "race"
                 ? "🏎️ Race Conditions Playbook"
+                : view === "pdfssrf"
+                ? "🖼️ PDF & SSRF Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -369,6 +373,8 @@ export default function App() {
             <CachePlaybookView onPractice={jumpToCategory} />
           ) : view === "race" ? (
             <RaceConditionView onPractice={jumpToCategory} />
+          ) : view === "pdfssrf" ? (
+            <PdfSsrfView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}
