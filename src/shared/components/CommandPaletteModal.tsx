@@ -29,7 +29,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -228,6 +228,15 @@ function CommandPaletteDialog({
         icon: Share2,
         badge: "View",
         run: () => onSelectView("graphql"),
+      },
+      {
+        id: "view-oauthsso",
+        category: "Navigation",
+        title: "Go to Pre-Account Takeover & OAuth SSO Playbook",
+        subtitle: "Unverified email pre-ATO, OAuth linking CSRF, state bypass & redirect_uri token theft",
+        icon: KeyRound,
+        badge: "View",
+        run: () => onSelectView("oauthsso"),
       },
 
       // Tools

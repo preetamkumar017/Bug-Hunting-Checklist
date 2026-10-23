@@ -28,6 +28,7 @@ import { CachePlaybookView } from "@/learn/components/CachePlaybookView";
 import { RaceConditionView } from "@/learn/components/RaceConditionView";
 import { PdfSsrfView } from "@/learn/components/PdfSsrfView";
 import { GraphQLPlaybookView } from "@/learn/components/GraphQLPlaybookView";
+import { OAuthPlaybookView } from "@/learn/components/OAuthPlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -41,7 +42,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -63,6 +64,7 @@ const VIEW_PATH: Record<View, string> = {
   race: "/race-conditions",
   pdfssrf: "/pdf-ssrf",
   graphql: "/graphql-playbook",
+  oauthsso: "/oauth-sso-playbook",
 };
 
 function pathToView(pathname: string): View {
@@ -286,6 +288,8 @@ export default function App() {
                 ? "🖼️ PDF & SSRF Playbook"
                 : view === "graphql"
                 ? "🔀 GraphQL Playbook"
+                : view === "oauthsso"
+                ? "🔑 OAuth SSO Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -381,6 +385,8 @@ export default function App() {
             <PdfSsrfView onPractice={jumpToCategory} />
           ) : view === "graphql" ? (
             <GraphQLPlaybookView onPractice={jumpToCategory} />
+          ) : view === "oauthsso" ? (
+            <OAuthPlaybookView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}
