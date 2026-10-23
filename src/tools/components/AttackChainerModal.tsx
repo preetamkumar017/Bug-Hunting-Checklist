@@ -99,13 +99,13 @@ export function AttackChainerModal({
       open={open}
       onClose={onClose}
       title="Recon & Attack Chainer"
-      className="w-full max-w-5xl"
+      className="w-full max-w-5xl !max-h-[92vh] !p-0 !overflow-hidden"
     >
-      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-xl border border-border bg-card shadow-2xl">
+      <div className="relative flex h-[88vh] max-h-[88vh] w-full max-w-5xl flex-col rounded-xl border border-border bg-card shadow-2xl overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-slate-900/90 px-5 py-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 shrink-0">
               <Zap className="h-4 w-4" />
             </span>
             <div>
@@ -123,7 +123,7 @@ export function AttackChainerModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {/* Language Selector */}
             <div className="flex rounded-md border border-border bg-slate-900/80 p-0.5 text-[11px]">
               <button
@@ -155,100 +155,105 @@ export function AttackChainerModal({
             <button
               aria-label="Close attack chainer"
               onClick={onClose}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-slate-200 transition"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Global Live Target Controls Bar */}
-        <div className="border-b border-border/80 bg-slate-950/70 px-5 py-2.5">
+        {/* Global Live Target Controls Bar (Compact HUD style) */}
+        <div className="shrink-0 border-b border-border/80 bg-slate-950/80 px-5 py-2">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Target Domain Input */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <Target className="h-3 w-3 text-cyan-400" /> Target Domain
+            <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-slate-900/90 px-3 py-1.5 focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-500/30 transition">
+              <Target className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+              <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                  Domain:
                 </span>
+                <input
+                  type="text"
+                  value={targetDomain}
+                  onChange={(e) => setTargetDomain(e.target.value)}
+                  placeholder="e.g. salesflare.com"
+                  className="w-full min-w-0 bg-transparent text-xs font-mono text-cyan-300 placeholder-slate-600 focus:outline-none"
+                />
               </div>
-              <input
-                type="text"
-                value={targetDomain}
-                onChange={(e) => setTargetDomain(e.target.value)}
-                placeholder="e.g. uber.com"
-                className="w-full rounded-md border border-border bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-cyan-300 focus:border-cyan-500 focus:outline-none"
-              />
             </div>
 
             {/* Subdomain Input */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <Globe className="h-3 w-3 text-cyan-400" /> Subdomain
+            <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-slate-900/90 px-3 py-1.5 focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-500/30 transition">
+              <Globe className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+              <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                  Subdomain:
                 </span>
+                <input
+                  type="text"
+                  value={subdomain}
+                  onChange={(e) => setSubdomain(e.target.value)}
+                  placeholder="e.g. api.salesflare.com"
+                  className="w-full min-w-0 bg-transparent text-xs font-mono text-cyan-300 placeholder-slate-600 focus:outline-none"
+                />
               </div>
-              <input
-                type="text"
-                value={subdomain}
-                onChange={(e) => setSubdomain(e.target.value)}
-                placeholder="e.g. dev.uber.com"
-                className="w-full rounded-md border border-border bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-cyan-300 focus:border-cyan-500 focus:outline-none"
-              />
             </div>
 
             {/* Contextual 3rd Input based on active tab */}
             {activeCategoryId === "cloud_bucket" ? (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Server className="h-3 w-3 text-sky-400" /> S3 / Cloud Bucket
+              <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-slate-900/90 px-3 py-1.5 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-500/30 transition">
+                <Server className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                    S3 Bucket:
                   </span>
+                  <input
+                    type="text"
+                    value={cloudBucket}
+                    onChange={(e) => setCloudBucket(e.target.value)}
+                    placeholder="e.g. salesflare-assets"
+                    className="w-full min-w-0 bg-transparent text-xs font-mono text-sky-300 placeholder-slate-600 focus:outline-none"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={cloudBucket}
-                  onChange={(e) => setCloudBucket(e.target.value)}
-                  placeholder="e.g. target-assets"
-                  className="w-full rounded-md border border-border bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-sky-300 focus:border-sky-500 focus:outline-none"
-                />
               </div>
             ) : activeCategoryId === "protected_path" ? (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Server className="h-3 w-3 text-rose-400" /> Protected Path
+              <div className="flex items-center gap-2 rounded-lg border border-rose-500/20 bg-slate-900/90 px-3 py-1.5 focus-within:border-rose-400 focus-within:ring-1 focus-within:ring-rose-500/30 transition">
+                <Server className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                    Path:
                   </span>
+                  <input
+                    type="text"
+                    value={protectedPath}
+                    onChange={(e) => setProtectedPath(e.target.value)}
+                    placeholder="e.g. /admin or /api/v2"
+                    className="w-full min-w-0 bg-transparent text-xs font-mono text-rose-300 placeholder-slate-600 focus:outline-none"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={protectedPath}
-                  onChange={(e) => setProtectedPath(e.target.value)}
-                  placeholder="e.g. /admin or /api/v2"
-                  className="w-full rounded-md border border-border bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-rose-300 focus:border-rose-500 focus:outline-none"
-                />
               </div>
             ) : (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                    <Server className="h-3 w-3 text-amber-400" /> Origin IP (WAF Bypass)
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-slate-900/90 px-3 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-500/30 transition">
+                <Server className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                    Origin IP:
                   </span>
+                  <input
+                    type="text"
+                    value={originIp}
+                    onChange={(e) => setOriginIp(e.target.value)}
+                    placeholder="e.g. 35.186.254.174"
+                    className="w-full min-w-0 bg-transparent text-xs font-mono text-amber-300 placeholder-slate-600 focus:outline-none"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={originIp}
-                  onChange={(e) => setOriginIp(e.target.value)}
-                  placeholder="e.g. 198.51.100.25"
-                  className="w-full rounded-md border border-border bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-amber-300 focus:border-amber-500 focus:outline-none"
-                />
               </div>
             )}
           </div>
         </div>
 
-        {/* Artifact Categories Horizontal Tabs */}
-        <div className="flex overflow-x-auto border-b border-border bg-slate-900/40 px-5 scrollbar-thin">
+        {/* Artifact Categories Horizontal Tabs Strip */}
+        <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto border-b border-border bg-slate-900/60 px-5 py-2 scrollbar-thin">
           {ATTACK_CHAINS.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -258,15 +263,21 @@ export function AttackChainerModal({
                   setActiveCategoryId(cat.id);
                   setFilterQuery("");
                 }}
-                className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+                className={`group flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   isActive
-                    ? "border-amber-500 text-amber-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm font-semibold"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
                 }`}
               >
                 <span>{cat.emoji}</span>
-                <span>{cat.title}</span>
-                <span className="rounded-full bg-slate-800 px-1.5 py-0.2 text-[9px] text-slate-400">
+                <span className="whitespace-nowrap">{cat.title}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                    isActive
+                      ? "bg-amber-500/25 text-amber-200"
+                      : "bg-slate-800 text-slate-400 group-hover:text-slate-300"
+                  }`}
+                >
                   {cat.steps.length}
                 </span>
               </button>
@@ -275,143 +286,169 @@ export function AttackChainerModal({
         </div>
 
         {/* Category Description Banner & Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-slate-900/20 px-5 py-2.5">
-          <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-            <span className="font-semibold text-amber-300 mr-1.5">
-              {currentCategory.emoji} What to do with: {currentCategory.artifactName}:
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-slate-950/40 px-5 py-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-500/20 shrink-0">
+              {currentCategory.emoji} Playbook
             </span>
-            {currentCategory.description[lang]}
-          </p>
+            <p className="text-xs text-slate-300 truncate sm:whitespace-normal leading-relaxed">
+              {currentCategory.description[lang]}
+            </p>
+          </div>
 
-          <div className="relative min-w-[200px]">
+          <div className="relative w-full sm:w-64 shrink-0">
             <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-500" />
             <input
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Filter attack steps..."
-              className="w-full rounded-md border border-border bg-slate-900/80 pl-8 pr-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+              placeholder="Filter steps or commands..."
+              className="w-full rounded-md border border-border bg-slate-900/80 pl-8 pr-7 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none"
             />
+            {filterQuery && (
+              <button
+                onClick={() => setFilterQuery("")}
+                className="absolute right-2 top-1.5 text-slate-500 hover:text-slate-300"
+                aria-label="Clear filter"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Main Body: Attack Steps Progression */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {filteredSteps.map((step, idx) => {
-            const interpolatedCommand = interpolateTargetVars(step.commandTemplate, {
-              targetDomain,
-              subdomain,
-              originIp,
-              cloudBucket,
-              protectedPath,
-            });
-
-            const cardKey = `step-${step.id}-${idx}`;
-
-            return (
-              <div
-                key={step.id}
-                className="rounded-xl border border-border/80 bg-slate-900/50 p-4 space-y-3 transition-colors hover:border-border"
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4 scrollbar-thin">
+          {filteredSteps.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+              <Search className="h-8 w-8 text-slate-600 mb-2" />
+              <p className="text-sm font-medium text-slate-300">
+                No attack steps match &quot;{filterQuery}&quot;
+              </p>
+              <button
+                onClick={() => setFilterQuery("")}
+                className="mt-2 text-xs font-semibold text-amber-400 hover:underline"
               >
-                {/* Header: Title, Badge, and Playbook Link */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">
-                      {idx + 1}
-                    </span>
-                    <h3 className="text-xs font-bold text-slate-100">{step.title}</h3>
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                        step.badge === "P1"
-                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                          : step.badge === "P2"
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                          : step.badge === "Bypass"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
-                      }`}
-                    >
-                      {step.badge}
-                    </span>
+                Clear filter
+              </button>
+            </div>
+          ) : (
+            filteredSteps.map((step, idx) => {
+              const interpolatedCommand = interpolateTargetVars(step.commandTemplate, {
+                targetDomain,
+                subdomain,
+                originIp,
+                cloudBucket,
+                protectedPath,
+              });
+
+              const cardKey = `step-${step.id}-${idx}`;
+
+              return (
+                <div
+                  key={step.id}
+                  className="rounded-xl border border-border/80 bg-slate-900/50 p-4 space-y-3 transition-colors hover:border-border"
+                >
+                  {/* Header: Title, Badge, and Playbook Link */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">
+                        {idx + 1}
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-100">{step.title}</h3>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                          step.badge === "P1"
+                            ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                            : step.badge === "P2"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : step.badge === "Bypass"
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                        }`}
+                      >
+                        {step.badge}
+                      </span>
+                    </div>
+
+                    {step.playbookRoute && onNavigateToView && (
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onNavigateToView(step.playbookRoute!.replace(/^\//, ""));
+                        }}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 transition"
+                      >
+                        <span>{step.playbookLabel || "Open Playbook"}</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
 
-                  {step.playbookRoute && onNavigateToView && (
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onNavigateToView(step.playbookRoute!.replace(/^\//, ""));
-                      }}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 transition"
-                    >
-                      <span>{step.playbookLabel || "Open Playbook"}</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </button>
-                  )}
+                  {/* Objective Description */}
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {step.objective[lang]}
+                  </p>
+
+                  {/* Executable Command Snippet */}
+                  <div className="relative rounded-lg border border-border/70 bg-black/60 p-3">
+                    <div className="flex items-center justify-between mb-1.5 text-[10px] text-slate-400">
+                      <span className="font-mono text-cyan-400"># Auto-Interpolated Command</span>
+                      <button
+                        onClick={() => handleCopy(interpolatedCommand, cardKey)}
+                        className="flex items-center gap-1 rounded bg-slate-800 px-2 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                      >
+                        {copiedKey === cardKey ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copy Command</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <pre className="overflow-x-auto font-mono text-xs text-amber-200/90 whitespace-pre-wrap select-all">
+                      {interpolatedCommand}
+                    </pre>
+                  </div>
+
+                  {/* Vulnerable vs Safe Expected Signals */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                    <div className="rounded-lg border border-red-500/25 bg-red-950/15 p-2.5 space-y-1">
+                      <span className="flex items-center gap-1 font-bold text-red-400">
+                        <ShieldAlert className="h-3.5 w-3.5" /> Expected Vulnerable Signal:
+                      </span>
+                      <p className="text-slate-300 leading-relaxed">
+                        {step.expectedVulnerable[lang]}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-emerald-500/25 bg-emerald-950/15 p-2.5 space-y-1">
+                      <span className="flex items-center gap-1 font-bold text-emerald-400">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Expected Safe Signal:
+                      </span>
+                      <p className="text-slate-300 leading-relaxed">
+                        {step.expectedSafe[lang]}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bounty Tip */}
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 text-[11px] text-amber-200/90">
+                    <Lightbulb className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-amber-300">Bounty Pro-Tip: </span>
+                      <span>{step.bountyTip[lang]}</span>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Objective Description */}
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {step.objective[lang]}
-                </p>
-
-                {/* Executable Command Snippet */}
-                <div className="relative rounded-lg border border-border/70 bg-black/60 p-3">
-                  <div className="flex items-center justify-between mb-1.5 text-[10px] text-slate-400">
-                    <span className="font-mono text-cyan-400"># Auto-Interpolated Command</span>
-                    <button
-                      onClick={() => handleCopy(interpolatedCommand, cardKey)}
-                      className="flex items-center gap-1 rounded bg-slate-800 px-2 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-white transition"
-                    >
-                      {copiedKey === cardKey ? (
-                        <>
-                          <Check className="h-3 w-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" />
-                          <span>Copy Command</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <pre className="overflow-x-auto font-mono text-xs text-amber-200/90 whitespace-pre-wrap select-all">
-                    {interpolatedCommand}
-                  </pre>
-                </div>
-
-                {/* Vulnerable vs Safe Expected Signals */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
-                  <div className="rounded-lg border border-red-500/25 bg-red-950/15 p-2.5 space-y-1">
-                    <span className="flex items-center gap-1 font-bold text-red-400">
-                      <ShieldAlert className="h-3.5 w-3.5" /> Expected Vulnerable Signal:
-                    </span>
-                    <p className="text-slate-300 leading-relaxed">
-                      {step.expectedVulnerable[lang]}
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg border border-emerald-500/25 bg-emerald-950/15 p-2.5 space-y-1">
-                    <span className="flex items-center gap-1 font-bold text-emerald-400">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Expected Safe Signal:
-                    </span>
-                    <p className="text-slate-300 leading-relaxed">
-                      {step.expectedSafe[lang]}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bounty Tip */}
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 text-[11px] text-amber-200/90">
-                  <Lightbulb className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-amber-300">Bounty Pro-Tip: </span>
-                    <span>{step.bountyTip[lang]}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </Modal>
