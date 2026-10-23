@@ -23,6 +23,7 @@ import {
   Share2,
   Radio,
   Cpu,
+  Globe,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -31,7 +32,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -257,6 +258,15 @@ function CommandPaletteDialog({
         icon: Cpu,
         badge: "View",
         run: () => onSelectView("prototype"),
+      },
+      {
+        id: "view-takeover",
+        category: "Navigation",
+        title: "Go to Subdomain & Cloud Storage Takeover Playbook",
+        subtitle: "Dangling CNAME takeovers, S3 bucket claims, second-order cookie theft & NS delegation",
+        icon: Globe,
+        badge: "View",
+        run: () => onSelectView("takeover"),
       },
 
       // Tools
