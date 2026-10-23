@@ -105,7 +105,7 @@ export const ATTACK_CHAINS: AttackChainCategory[] = [
           simple: "Find web services running on unusual ports like 8080 or 8443.",
           hi: "अनकॉमन पोर्ट्स (8080, 8443, 9000) पर चल रहे हिडन वेब पोर्टल्स को स्कैन करें।",
         },
-        commandTemplate: `httpx -u "https://{SUBDOMAIN}" -ports 80,443,8080,8443,8888,9000,9443 -title -tech-detect -status-code`,
+        commandTemplate: `httpx-toolkit -u "https://{SUBDOMAIN}" -p 80,443,8080,8443,8888,9000,9443 -title -tech-detect -status-code`,
         expectedVulnerable: {
           en: "Port 8080 or 8443 responds with Spring Boot, Jenkins, Tomcat Manager, or Swagger UI without SSO.",
           simple: "Admin dashboard or developer panel exposed on high port without login.",
@@ -117,9 +117,9 @@ export const ATTACK_CHAINS: AttackChainCategory[] = [
           hi: "पोर्ट्स फ़ायरवॉल द्वारा बंद हैं या सख्त VPN/SSO लगा हुआ है।",
         },
         bountyTip: {
-          en: "Microservices exposed on port 8443 often bypass the main frontend WAF and rate limiters.",
-          simple: "Port 8443 often lacks the main website's WAF and rate limiting.",
-          hi: "पोर्ट 8443 पर चलने वाली सर्विसेज पर मुख्य WAF और रेट-लिमिटर अक्सर नहीं होते।",
+          en: "In Kali Linux, use 'httpx-toolkit' command (Kali names ProjectDiscovery httpx as httpx-toolkit to prevent conflict with Python httpx). Use -p for port list.",
+          simple: "In Kali Linux, run 'httpx-toolkit' instead of 'httpx'. Use -p for ports.",
+          hi: "काली लिनक्स में 'httpx-toolkit' कमांड चलाएं (काली में Python httpx के टकराव से बचने के लिए इसे httpx-toolkit नाम दिया गया है) और पोर्ट्स के लिए -p इस्तेमाल करें।",
         },
       },
       {
