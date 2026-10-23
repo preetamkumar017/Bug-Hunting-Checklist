@@ -42,6 +42,7 @@ import {
   signJwtHmac,
   type JwtSignResult,
 } from "@/tools/lib/hackerTools";
+import { murmur3_32_signed } from "@/tools/lib/faviconHash";
 import {
   calcCvss4,
   parseCvss4Vector,
@@ -288,11 +289,12 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
   const [hashInput, setHashInput] = useState("5f4dcc3b5aa765d61d8327deb882cf99");
   const [hashLiveText, setHashLiveText] = useState("admin");
   const [computedHashes, setComputedHashes] = useState<{
+    mmh3: string;
     md5: string;
     sha1: string;
     sha256: string;
     sha512: string;
-  }>({ md5: "", sha1: "", sha256: "", sha512: "" });
+  }>({ mmh3: "", md5: "", sha1: "", sha256: "", sha512: "" });
 
   // URL Studio State
   const [urlInput, setUrlInput] = useState(
@@ -306,12 +308,13 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     let cancelled = false;
     async function updateHashes() {
+      const mmh3 = String(murmur3_32_signed(hashLiveText));
       const md5 = computeMd5(hashLiveText);
       const sha1 = await computeSubtleHash(hashLiveText, "SHA-1");
       const sha256 = await computeSubtleHash(hashLiveText, "SHA-256");
       const sha512 = await computeSubtleHash(hashLiveText, "SHA-512");
       if (!cancelled) {
-        setComputedHashes({ md5, sha1, sha256, sha512 });
+        setComputedHashes({ mmh3, md5, sha1, sha256, sha512 });
       }
     }
     updateHashes();
@@ -1242,6 +1245,7 @@ function HackerToolsModalContent({ onClose }: { onClose: () => void }) {
 
                 <div className="space-y-2">
                   {[
+                    { label: "MurmurHash3 (32-bit signed / Shodan mmh3)", hash: computedHashes.mmh3 },
                     { label: "MD5 (128-bit)", hash: computedHashes.md5 },
                     { label: "SHA-1 (160-bit)", hash: computedHashes.sha1 },
                     { label: "SHA-256 (256-bit)", hash: computedHashes.sha256 },

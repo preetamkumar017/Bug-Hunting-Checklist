@@ -43,6 +43,7 @@ const WordlistsModal = lazy(() => import('@/tools/components/WordlistsModal').th
 const DorkGeneratorModal = lazy(() => import('@/tools/components/DorkGeneratorModal').then(m => ({ default: m.DorkGeneratorModal })));
 const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').then(m => ({ default: m.BurpRulesModal })));
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
+const FaviconHashModal = lazy(() => import('@/tools/components/FaviconHashModal').then(m => ({ default: m.FaviconHashModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
 export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
@@ -92,6 +93,7 @@ export default function App() {
   const [dorksOpen, setDorksOpen] = useState(false);
   const [burpRulesOpen, setBurpRulesOpen] = useState(false);
   const [reportDrafterOpen, setReportDrafterOpen] = useState(false);
+  const [faviconHashOpen, setFaviconHashOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -412,6 +414,7 @@ export default function App() {
               onOpenDorks={() => setDorksOpen(true)}
               onOpenReportDrafter={() => setReportDrafterOpen(true)}
               onOpenBurpRules={() => setBurpRulesOpen(true)}
+              onOpenFaviconHash={() => setFaviconHashOpen(true)}
               onOpenTools={() => setToolsOpen(true)}
               onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             />
@@ -534,6 +537,7 @@ export default function App() {
         onOpenWordlists={() => setWordlistsOpen(true)}
         onOpenBurpRules={() => setBurpRulesOpen(true)}
         onOpenReportDrafter={() => setReportDrafterOpen(true)}
+        onOpenFaviconHash={() => setFaviconHashOpen(true)}
         onJumpToCategory={jumpToCategory}
       />
 
@@ -559,6 +563,13 @@ export default function App() {
       {reportDrafterOpen && <ReportDrafterModal
         open={reportDrafterOpen}
         onClose={() => setReportDrafterOpen(false)}
+      />}
+
+      {/* Favicon & MurmurHash3 Recon Generator Modal */}
+      {faviconHashOpen && <FaviconHashModal
+        open={faviconHashOpen}
+        onClose={() => setFaviconHashOpen(false)}
+        defaultUrl={profile?.name}
       />}
       </Suspense>
     </div>

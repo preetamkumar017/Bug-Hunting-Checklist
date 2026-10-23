@@ -16,6 +16,7 @@ interface ToolsViewProps {
   onOpenDorks: () => void;
   onOpenReportDrafter: () => void;
   onOpenBurpRules: () => void;
+  onOpenFaviconHash: () => void;
   onOpenTools: () => void;
   onOpenCommandPalette: () => void;
 }
@@ -36,10 +37,21 @@ export function ToolsView({
   onOpenDorks,
   onOpenReportDrafter,
   onOpenBurpRules,
+  onOpenFaviconHash,
   onOpenTools,
   onOpenCommandPalette,
 }: ToolsViewProps) {
   const tools: ToolCard[] = [
+    {
+      id: "favicon-hash",
+      title: "Favicon & MurmurHash3",
+      emoji: "🎯",
+      description:
+        "Generate Shodan http.favicon.hash, FOFA icon_hash, and Censys digests from URL or direct file upload for asset recon.",
+      icon: Search,
+      accent: "cyan",
+      onOpen: onOpenFaviconHash,
+    },
     {
       id: "analyzer",
       title: "HTTP Request Analyzer",
@@ -113,6 +125,12 @@ export function ToolsView({
   ];
 
   const accentClasses: Record<string, { border: string; bg: string; icon: string; hover: string }> = {
+    cyan: {
+      border: "border-cyan-500/30",
+      bg: "bg-cyan-500/10 text-cyan-400",
+      icon: "text-cyan-400",
+      hover: "hover:border-cyan-500/60",
+    },
     emerald: {
       border: "border-emerald-500/30",
       bg: "bg-emerald-500/10 text-emerald-400",

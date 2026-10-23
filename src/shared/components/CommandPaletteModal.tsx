@@ -38,6 +38,7 @@ interface CommandPaletteModalProps {
   onOpenWordlists: () => void;
   onOpenBurpRules: () => void;
   onOpenReportDrafter: () => void;
+  onOpenFaviconHash?: () => void;
   onJumpToCategory: (categoryId: string) => void;
 }
 
@@ -65,6 +66,7 @@ function CommandPaletteDialog({
   onOpenWordlists,
   onOpenBurpRules,
   onOpenReportDrafter,
+  onOpenFaviconHash,
   onJumpToCategory,
 }: CommandPaletteModalProps) {
   const [query, setQuery] = useState("");
@@ -271,6 +273,15 @@ function CommandPaletteDialog({
 
       // Tools
       {
+        id: "tool-faviconhash",
+        category: "Hacker Tools",
+        title: "Favicon & MurmurHash3 Generator (Shodan & FOFA)",
+        subtitle: "Compute Shodan http.favicon.hash, FOFA icon_hash, MD5 & SHA-256 from URL or file upload",
+        icon: Globe,
+        badge: "Tool",
+        run: onOpenFaviconHash ?? onOpenTools,
+      },
+      {
         id: "tool-analyzer",
         category: "Hacker Tools",
         title: "Raw HTTP Request & Vulnerability Analyzer",
@@ -361,6 +372,7 @@ function CommandPaletteDialog({
     onOpenWordlists,
     onOpenBurpRules,
     onOpenReportDrafter,
+    onOpenFaviconHash,
     onJumpToCategory,
   ]);
 
