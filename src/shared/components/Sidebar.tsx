@@ -22,6 +22,7 @@ import {
   Database,
   Timer,
   FileCode,
+  Share2,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
@@ -44,8 +45,8 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf";
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf") => void;
+  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql";
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql") => void;
   onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
   onJumpToCategory?: (categoryId: string) => void;
@@ -59,7 +60,7 @@ export function Sidebar({
 
   // The two worlds stay separate: only one world's navigation shows at a time.
   // Dashboard is the Hunt world's home.
-  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" ? "knowledge" : "hunt";
+  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" || view === "graphql" ? "knowledge" : "hunt";
 
   const [sortAlphabetical, setSortAlphabetical] = useState(true);
   const [showSubCategories, setShowSubCategories] = useState(true);
@@ -423,6 +424,19 @@ export function Sidebar({
               }`}
             >
               <FileCode className="h-4 w-4 text-rose-400" /> 🖼️ PDF & SSRF Playbook
+            </button>
+            <button
+              onClick={() => {
+                onSelectView("graphql");
+                onClose();
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+                view === "graphql"
+                  ? "bg-fuchsia-500/10 text-fuchsia-400 font-semibold"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
+            >
+              <Share2 className="h-4 w-4 text-fuchsia-400" /> 🔀 GraphQL Playbook
             </button>
           </nav>
         )}

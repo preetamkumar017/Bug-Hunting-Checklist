@@ -20,6 +20,7 @@ import {
   Database,
   Timer,
   FileCode,
+  Share2,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -28,7 +29,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -218,6 +219,15 @@ function CommandPaletteDialog({
         icon: FileCode,
         badge: "View",
         run: () => onSelectView("pdfssrf"),
+      },
+      {
+        id: "view-graphql",
+        category: "Navigation",
+        title: "Go to GraphQL Batching & Aliasing Playbook",
+        subtitle: "Query batching OTP brute force, alias smuggling, introspection leaks & Relay node IDOR",
+        icon: Share2,
+        badge: "View",
+        run: () => onSelectView("graphql"),
       },
 
       // Tools
