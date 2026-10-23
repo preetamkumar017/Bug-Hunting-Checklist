@@ -29,6 +29,7 @@ import { RaceConditionView } from "@/learn/components/RaceConditionView";
 import { PdfSsrfView } from "@/learn/components/PdfSsrfView";
 import { GraphQLPlaybookView } from "@/learn/components/GraphQLPlaybookView";
 import { OAuthPlaybookView } from "@/learn/components/OAuthPlaybookView";
+import { WebSocketPlaybookView } from "@/learn/components/WebSocketPlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -42,7 +43,7 @@ const BurpRulesModal = lazy(() => import('@/tools/components/BurpRulesModal').th
 const ReportDrafterModal = lazy(() => import('@/tools/components/ReportDrafterModal').then(m => ({ default: m.ReportDrafterModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -65,6 +66,7 @@ const VIEW_PATH: Record<View, string> = {
   pdfssrf: "/pdf-ssrf",
   graphql: "/graphql-playbook",
   oauthsso: "/oauth-sso-playbook",
+  websocket: "/websocket-playbook",
 };
 
 function pathToView(pathname: string): View {
@@ -290,6 +292,8 @@ export default function App() {
                 ? "🔀 GraphQL Playbook"
                 : view === "oauthsso"
                 ? "🔑 OAuth SSO Playbook"
+                : view === "websocket"
+                ? "🌐 WebSocket Playbook"
                 : "🧰 Tools"}
             </p>
           </div>
@@ -387,6 +391,8 @@ export default function App() {
             <GraphQLPlaybookView onPractice={jumpToCategory} />
           ) : view === "oauthsso" ? (
             <OAuthPlaybookView onPractice={jumpToCategory} />
+          ) : view === "websocket" ? (
+            <WebSocketPlaybookView onPractice={jumpToCategory} />
           ) : view === "tools" ? (
             <ToolsView
               onOpenAnalyzer={() => setAnalyzerOpen(true)}

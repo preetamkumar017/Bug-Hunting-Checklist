@@ -23,6 +23,7 @@ import {
   Timer,
   FileCode,
   Share2,
+  Radio,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
@@ -45,8 +46,8 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso";
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso") => void;
+  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket";
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket") => void;
   onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
   onJumpToCategory?: (categoryId: string) => void;
@@ -60,7 +61,7 @@ export function Sidebar({
 
   // The two worlds stay separate: only one world's navigation shows at a time.
   // Dashboard is the Hunt world's home.
-  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" || view === "graphql" || view === "oauthsso" ? "knowledge" : "hunt";
+  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" || view === "graphql" || view === "oauthsso" || view === "websocket" ? "knowledge" : "hunt";
 
   const [sortAlphabetical, setSortAlphabetical] = useState(true);
   const [showSubCategories, setShowSubCategories] = useState(true);
@@ -450,6 +451,19 @@ export function Sidebar({
               }`}
             >
               <KeyRound className="h-4 w-4 text-sky-400" /> 🔑 OAuth SSO Playbook
+            </button>
+            <button
+              onClick={() => {
+                onSelectView("websocket");
+                onClose();
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+                view === "websocket"
+                  ? "bg-amber-500/10 text-amber-400 font-semibold"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
+            >
+              <Radio className="h-4 w-4 text-amber-400" /> 🌐 WebSocket Playbook
             </button>
           </nav>
         )}

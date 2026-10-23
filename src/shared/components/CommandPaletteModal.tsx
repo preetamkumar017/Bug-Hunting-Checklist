@@ -21,6 +21,7 @@ import {
   Timer,
   FileCode,
   Share2,
+  Radio,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -29,7 +30,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -237,6 +238,15 @@ function CommandPaletteDialog({
         icon: KeyRound,
         badge: "View",
         run: () => onSelectView("oauthsso"),
+      },
+      {
+        id: "view-websocket",
+        category: "Navigation",
+        title: "Go to Cross-Site WebSocket Hijacking Playbook",
+        subtitle: "CSWSH handshake theft, origin bypasses, live chat exfiltration & WS frame injection",
+        icon: Radio,
+        badge: "View",
+        run: () => onSelectView("websocket"),
       },
 
       // Tools
