@@ -149,6 +149,34 @@ test('syncTargetContextFromProfile auto-seeds domain and subdomain from profile 
   assert.equal(state.subdomain, 'api.uber.com');
 });
 
+test('target profiles maintain isolated scratchpad notes', () => {
+  const profileSalesflare = {
+    id: 'p-sf-notes',
+    name: 'salesflare.com',
+    createdAt: Date.now(),
+    itemStates: {},
+    findings: [],
+    scratchpad: '- [ ] Test IDOR on /api/v1/invoices\n- Creds: admin:hunter2',
+  };
+
+  const profileTesla = {
+    id: 'p-ts-notes',
+    name: 'tesla.com',
+    createdAt: Date.now(),
+    itemStates: {},
+    findings: [],
+    scratchpad: '- [ ] Check S3 bucket tesla-prod-assets\n- Origin IP: 104.22.0.1',
+  };
+
+  assert.ok(profileSalesflare.scratchpad.includes('hunter2'));
+  assert.ok(profileTesla.scratchpad.includes('tesla-prod-assets'));
+  assert.notEqual(profileSalesflare.scratchpad, profileTesla.scratchpad);
+
+  // Validate profiles with scratchpad notes
+  assert.equal(validateProfile(profileSalesflare).scratchpad, profileSalesflare.scratchpad);
+  assert.equal(validateProfile(profileTesla).scratchpad, profileTesla.scratchpad);
+});
+
 test.after(async () => {
   await server.close();
 });

@@ -37,6 +37,7 @@ import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
 import { GlobalTargetBar } from "@/shared/components/GlobalTargetBar";
+import { TargetStickyNote } from "@/shared/components/TargetStickyNote";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
 import { useTargetContext } from "@/shared/store/useTargetContext";
 import { extractDomainFromText } from "@/shared/lib/domainExtractor";
@@ -339,7 +340,8 @@ export default function App() {
 
       <main key={`content:${profile?.id ?? 'no-profile'}`} className="min-w-0 flex-1 overflow-y-auto">
         {storageError && <p role="alert" className="bg-red-950 p-4 text-red-200">Changes were not saved: {storageError}</p>}
-        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        <div className="mx-auto flex max-w-7xl justify-center px-4 py-6 sm:px-6 gap-6">
+          <div className="min-w-0 max-w-4xl flex-1">
           {/* Global Target Context & Auto-Replacer Control Bar */}
           <GlobalTargetBar onOpenChainer={() => setChainerOpen(true)} />
 
@@ -521,7 +523,18 @@ export default function App() {
               )}
             </div>
           )}
+          </div>
+
+          {/* Target-Specific Sticky Note Rail for Desktop (Blank space right of checklist) */}
+          <aside aria-label="Target Sticky Notes" className="hidden xl:block w-80 shrink-0">
+            <div className="sticky top-6">
+              <TargetStickyNote isDocked={true} />
+            </div>
+          </aside>
         </div>
+
+        {/* Floating trigger & slide-over for smaller screens */}
+        <TargetStickyNote isDocked={false} />
       </main>
 
       {/* Swiss Army Knife Modal */}
