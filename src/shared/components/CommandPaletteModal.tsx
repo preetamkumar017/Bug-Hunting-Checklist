@@ -24,6 +24,7 @@ import {
   Radio,
   Cpu,
   Globe,
+  ShoppingBag,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import type { Domain } from "@/shared/types/checklist";
@@ -32,7 +33,7 @@ interface CommandPaletteModalProps {
   open: boolean;
   onClose: () => void;
   onSelectDomain: (d: Domain) => void;
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover") => void;
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "ecommerce" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover") => void;
   onOpenTools: () => void;
   onOpenAnalyzer: () => void;
   onOpenWordlists: () => void;
@@ -154,6 +155,15 @@ function CommandPaletteDialog({
         icon: CreditCard,
         badge: "View",
         run: () => onSelectView("fintech"),
+      },
+      {
+        id: "view-ecommerce",
+        category: "Navigation",
+        title: "Go to E-Commerce & Retail Security Playbook",
+        subtitle: "Cart price tampering, negative quantities, coupon race conditions & webhook bypass",
+        icon: ShoppingBag,
+        badge: "View",
+        run: () => onSelectView("ecommerce"),
       },
       {
         id: "view-saas",

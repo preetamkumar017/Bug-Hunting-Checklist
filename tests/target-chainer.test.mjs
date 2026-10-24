@@ -63,6 +63,38 @@ test('ATTACK_CHAINS data contains valid categories and non-empty steps', () => {
   }
 });
 
+const {
+  ECOMMERCE_VULN_CLASSES,
+  ECOMMERCE_METHODOLOGY_PHASES,
+  ECOMMERCE_TOOLS_STASH,
+  ECOMMERCE_REPORT_TEMPLATES,
+} = await load('learn/data/ecommerceData.ts');
+
+test('ECOMMERCE data contains 6 high-yield classes with scenarios, methodology and reports', () => {
+  assert.equal(ECOMMERCE_VULN_CLASSES.length, 6);
+  for (const v of ECOMMERCE_VULN_CLASSES) {
+    assert.ok(v.id && v.title.en && v.title.hi);
+    assert.ok(v.cwe && v.vrt && v.bountyRange);
+    assert.ok(v.scenarios.length > 0);
+    assert.ok(v.testingRecipe.length > 0);
+    for (const sc of v.scenarios) {
+      assert.ok(sc.title.en && sc.title.hi);
+      assert.ok(sc.description.en && sc.description.hi);
+      assert.ok(sc.impact.en && sc.impact.hi);
+    }
+  }
+  assert.equal(ECOMMERCE_METHODOLOGY_PHASES.length, 5);
+  for (const ph of ECOMMERCE_METHODOLOGY_PHASES) {
+    assert.ok(ph.phase && ph.title.en && ph.title.hi);
+    assert.ok(ph.steps.length > 0);
+  }
+  assert.ok(ECOMMERCE_TOOLS_STASH.length >= 2);
+  assert.equal(ECOMMERCE_REPORT_TEMPLATES.length, 3);
+  for (const tmpl of ECOMMERCE_REPORT_TEMPLATES) {
+    assert.ok(tmpl.id && tmpl.title.en && tmpl.cvss && tmpl.reportMarkdown);
+  }
+});
+
 test.after(async () => {
   await server.close();
 });

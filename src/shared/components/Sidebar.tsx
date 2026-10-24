@@ -26,6 +26,7 @@ import {
   Radio,
   Cpu,
   Globe,
+  ShoppingBag,
 } from "lucide-react";
 import { domains } from "@/hunt/data/domains";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
@@ -48,8 +49,8 @@ export function Sidebar({
 }: {
   activeDomain: Domain;
   onSelectDomain: (d: Domain) => void;
-  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
-  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover") => void;
+  view: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "ecommerce" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
+  onSelectView: (v: "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "ecommerce" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover") => void;
   onOpenCommandPalette?: () => void;
   onOpenAddCategory: () => void;
   onJumpToCategory?: (categoryId: string) => void;
@@ -63,7 +64,7 @@ export function Sidebar({
 
   // The two worlds stay separate: only one world's navigation shows at a time.
   // Dashboard is the Hunt world's home.
-  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" || view === "graphql" || view === "oauthsso" || view === "websocket" || view === "prototype" || view === "takeover" ? "knowledge" : "hunt";
+  const world: "hunt" | "knowledge" = view === "learn" || view === "tools" || view === "playbook" || view === "fintech" || view === "ecommerce" || view === "saas" || view === "cloudflare" || view === "forbidden" || view === "awswaf" || view === "otpbypass" || view === "cache" || view === "race" || view === "pdfssrf" || view === "graphql" || view === "oauthsso" || view === "websocket" || view === "prototype" || view === "takeover" ? "knowledge" : "hunt";
 
   const [sortAlphabetical, setSortAlphabetical] = useState(true);
   const [showSubCategories, setShowSubCategories] = useState(true);
@@ -323,6 +324,19 @@ export function Sidebar({
               }`}
             >
               <CreditCard className="h-4 w-4 text-cyan-400" /> 🏦 Fintech Playbook
+            </button>
+            <button
+              onClick={() => {
+                onSelectView("ecommerce");
+                onClose();
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition ${
+                view === "ecommerce"
+                  ? "bg-amber-500/10 text-amber-400 font-semibold"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              }`}
+            >
+              <ShoppingBag className="h-4 w-4 text-amber-400" /> 🛒 E-Commerce Playbook
             </button>
             <button
               onClick={() => {

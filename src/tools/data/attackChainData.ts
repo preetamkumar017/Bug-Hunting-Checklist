@@ -682,4 +682,104 @@ export const ATTACK_CHAINS: AttackChainCategory[] = [
       },
     ],
   },
+
+  // ─── 7. E-COMMERCE CART / CHECKOUT / PAYMENT DISCOVERED ─────────────────────
+  {
+    id: "ecommerce_checkout",
+    title: "E-Commerce / Checkout Discovered",
+    artifactName: "E-Commerce Store (Cart API, Checkout Flow, Promo Codes, Webhooks)",
+    emoji: "🛒",
+    accentColor: "amber",
+    description: {
+      en: "Target contains a shopping cart, checkout flow, discount coupon input, or payment gateway. Test negative quantities, coupon race conditions, and webhook forgery.",
+      simple: "Found an online store or cart. Test price tampering, coupon stacking, and fake payments.",
+      hi: "शॉपिंग कार्ट या चेकआउट मिला है। तुरंत नेगेटिव क्वांटिटी, कूपन रेस कंडीशन और फर्जी पेमेंट टेस्ट करें।",
+    },
+    steps: [
+      {
+        id: "ecom-negative-quantity",
+        title: "Negative Quantity & Price Tampering in Cart",
+        badge: "P1",
+        objective: {
+          en: "Submit quantity=-1 or unit_price=0.01 in the cart/checkout payload to offset total bill to $0.",
+          simple: "Test negative item quantities to make expensive items free.",
+          hi: "कार्ट में quantity: -1 डालकर कुल बिल को ₹0 बनाकर मुफ्त खरीदारी टेस्ट करें।",
+        },
+        commandTemplate: `curl -i -X POST "https://{TARGET}/api/cart/items" -H "Content-Type: application/json" -d '{"items":[{"product_id":"1","quantity":1},{"product_id":"2","quantity":-10}]}'`,
+        expectedVulnerable: {
+          en: "Cart subtotal decreases or drops to $0/$1, allowing checkout at the tampered price.",
+          simple: "Cart total decreases or becomes $0.",
+          hi: "कार्ट का कुल बिल कम या ₹0 हो जाता है और ऑर्डर प्लेस हो जाता है।",
+        },
+        expectedSafe: {
+          en: "HTTP 400 'Quantity must be a positive integer greater than zero'.",
+          simple: "Server rejects negative numbers.",
+          hi: "सर्वर नेगेटिव नंबर रिजेक्ट कर देता है।",
+        },
+        bountyTip: {
+          en: "Test PATCH/PUT /cart/items/{id} updates; many sites validate quantity on addition but forget validation during in-cart updates!",
+          simple: "Check if negative numbers work when editing the cart instead of adding.",
+          hi: "कार्ट में सामान एडिट (अपडेट) करते वक्त नेगेटिव नंबर टेस्ट करें।",
+        },
+        playbookRoute: "/ecommerce",
+        playbookLabel: "E-Commerce Playbook",
+      },
+      {
+        id: "ecom-coupon-race",
+        title: "Single-Packet HTTP/2 Coupon Stacking Race",
+        badge: "P2",
+        objective: {
+          en: "Apply a single-use 50% discount coupon 20 times in parallel using Turbo Intruder to drive total to $0.",
+          simple: "Send single-use coupon 20 times at the same millisecond to stack discount.",
+          hi: "एक बार इस्तेमाल होने वाले कूपन को 20 बार एक साथ भेजकर 100% फ्री शॉपिंग टेस्ट करें।",
+        },
+        commandTemplate: `turbo-intruder: engine.openGate('coupon_race') -> 30 concurrent coupon applications`,
+        expectedVulnerable: {
+          en: "Multiple coupon applications succeed on the same cart, multiplying the discount.",
+          simple: "Discount applies multiple times on the same cart.",
+          hi: "एक ही कार्ट पर डिस्काउंट कई बार लागू होकर बिल शून्य हो जाता है।",
+        },
+        expectedSafe: {
+          en: "Only 1 request succeeds with 200 OK; remaining 29 fail with 'Coupon already applied'.",
+          simple: "Coupon applies only once.",
+          hi: "कूपन सिर्फ एक बार लगता है, बाकी रिजेक्ट हो जाते हैं।",
+        },
+        bountyTip: {
+          en: "Combine this with gift card redemption to test double-spending store credits!",
+          simple: "Try the same race attack on gift cards.",
+          hi: "गिफ्ट कार्ड को भी दो टैब में एक साथ भुनाकर डबल-स्पेंड टेस्ट करें।",
+        },
+        playbookRoute: "/ecommerce",
+        playbookLabel: "E-Commerce Playbook",
+      },
+      {
+        id: "ecom-webhook-tampering",
+        title: "Payment Gateway Webhook Forgery (Missing HMAC Check)",
+        badge: "P1",
+        objective: {
+          en: "Send a direct fake charge.successful webhook to merchant backend without cryptographic signatures.",
+          simple: "Send a fake payment success message to the store without bank signatures.",
+          hi: "बिना बैंक सिग्नेचर के सीधे सर्वर को फर्जी पेमेंट कन्फर्मेशन भेजें।",
+        },
+        commandTemplate: `curl -i -X POST "https://{TARGET}/api/webhooks/payment" -H "Content-Type: application/json" -d '{"event":"payment.succeeded","order_id":"123","status":"PAID"}'`,
+        expectedVulnerable: {
+          en: "Backend returns HTTP 200 OK and marks order as PAID / READY FOR SHIPMENT without bank signature.",
+          simple: "Order gets marked as paid without any real payment.",
+          hi: "बिना किसी पेमेंट के आर्डर 'PAID' मार्क होकर शिपिंग के लिए तैयार हो जाता है।",
+        },
+        expectedSafe: {
+          en: "HTTP 401/403 'Invalid webhook signature' or 'HMAC verification failed'.",
+          simple: "Webhook rejected due to missing signature.",
+          hi: "फर्जी सिग्नेचर होने पर सर्वर 401/403 एरर देता है।",
+        },
+        bountyTip: {
+          en: "Check JS files for exposed pk_test_ keys; if active in production, use Stripe test cards to order real items!",
+          simple: "Look for test keys in JS code to place orders with fake test cards.",
+          hi: "JS फाइल्स में pk_test_ कीज ढूंढें, टेस्ट कार्ड से असली सामान आर्डर हो सकता है।",
+        },
+        playbookRoute: "/ecommerce",
+        playbookLabel: "E-Commerce Playbook",
+      },
+    ],
+  },
 ];

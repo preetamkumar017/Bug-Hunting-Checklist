@@ -32,6 +32,7 @@ import { OAuthPlaybookView } from "@/learn/components/OAuthPlaybookView";
 import { WebSocketPlaybookView } from "@/learn/components/WebSocketPlaybookView";
 import { PrototypePollutionView } from "@/learn/components/PrototypePollutionView";
 import { SubdomainTakeoverView } from "@/learn/components/SubdomainTakeoverView";
+import { EcommercePlaybookView } from "@/learn/components/EcommercePlaybookView";
 import { ChecklistItemRow } from "@/hunt/components/ChecklistItemRow";
 import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal";
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
@@ -48,7 +49,7 @@ const FaviconHashModal = lazy(() => import('@/tools/components/FaviconHashModal'
 const AttackChainerModal = lazy(() => import('@/tools/components/AttackChainerModal').then(m => ({ default: m.AttackChainerModal })));
 
 type StatusFilter = "all" | ItemStatus | "critical_high";
-export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
+export type View = "checklist" | "dashboard" | "findings" | "scope" | "tools" | "learn" | "playbook" | "fintech" | "ecommerce" | "saas" | "cloudflare" | "forbidden" | "awswaf" | "otpbypass" | "cache" | "race" | "pdfssrf" | "graphql" | "oauthsso" | "websocket" | "prototype" | "takeover";
 
 // Per-section URL routing. Dashboard is the root; every other view gets its own
 // path so the URL reflects the section and back/forward + direct links work.
@@ -61,6 +62,7 @@ const VIEW_PATH: Record<View, string> = {
   scope: "/scope",
   playbook: "/playbook",
   fintech: "/fintech",
+  ecommerce: "/ecommerce",
   saas: "/saas",
   cloudflare: "/cloudflare",
   forbidden: "/403-bypass",
@@ -387,6 +389,8 @@ export default function App() {
             <BountyPlaybookView onPractice={jumpToCategory} />
           ) : view === "fintech" ? (
             <FintechPlaybookView onPractice={jumpToCategory} />
+          ) : view === "ecommerce" ? (
+            <EcommercePlaybookView onPractice={jumpToCategory} />
           ) : view === "saas" ? (
             <SaaSPlaybookView onPractice={jumpToCategory} />
           ) : view === "cloudflare" ? (
