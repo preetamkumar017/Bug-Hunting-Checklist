@@ -123,6 +123,16 @@ export interface TargetScope {
   bountyTier?: string;
 }
 
+export interface TargetContextValues {
+  targetDomain: string;
+  subdomain: string;
+  originIp: string;
+  cloudBucket: string;
+  protectedPath: string;
+  techStack: string;
+  tokenOrSecret: string;
+}
+
 /** A target/program profile — isolates progress + findings per bug bounty target. */
 export interface TargetProfile {
   id: string;
@@ -134,6 +144,7 @@ export interface TargetProfile {
   scratchpad?: string; // Persistent markdown notes, credentials, and test scratchpad
   assets?: TargetAsset[]; // Subdomain & asset inventory
   customCategories?: ChecklistCategory[];
+  targetContext?: TargetContextValues;
 }
 
 export interface AppState {

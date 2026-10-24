@@ -38,6 +38,8 @@ import { AddCustomCategoryModal } from "@/hunt/components/AddCustomCategoryModal
 import { CommandPaletteModal } from "@/shared/components/CommandPaletteModal";
 import { GlobalTargetBar } from "@/shared/components/GlobalTargetBar";
 import { useActiveProfile, useChecklistStore } from "@/shared/store/useChecklistStore";
+import { useTargetContext } from "@/shared/store/useTargetContext";
+import { extractDomainFromText } from "@/shared/lib/domainExtractor";
 import { effectiveCategories, effectiveCatalogue } from '@/shared/lib/catalogue';
 const HackerToolsModal = lazy(() => import('@/tools/components/HackerToolsModal').then(m => ({ default: m.HackerToolsModal })));
 const HttpAnalyzerModal = lazy(() => import('@/tools/components/HttpAnalyzerModal').then(m => ({ default: m.HttpAnalyzerModal })));
@@ -103,6 +105,9 @@ export default function App() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profile = useActiveProfile();
+  const targetDomain = useTargetContext((s) => s.targetDomain);
+  const activeTargetDomain = targetDomain || (profile?.name ? extractDomainFromText(profile.name) : "");
+  const defaultUrl = activeTargetDomain ? `https://${activeTargetDomain}` : undefined;
   const storageError = useChecklistStore(s => s.storageError);
   const [jump, setJump] = useState<{ id: string; sequence: number } | null>(null);
 
@@ -562,7 +567,7 @@ export default function App() {
       {dorksOpen && <DorkGeneratorModal
         open={dorksOpen}
         onClose={() => setDorksOpen(false)}
-        defaultDomain={profile?.name}
+        defaultDomain={activeTargetDomain || undefined}
       />}
 
       {/* Burp Suite & Caido Match/Replace Rule Generator Modal */}
@@ -581,7 +586,7 @@ export default function App() {
       {faviconHashOpen && <FaviconHashModal
         open={faviconHashOpen}
         onClose={() => setFaviconHashOpen(false)}
-        defaultUrl={profile?.name}
+        defaultUrl={defaultUrl}
       />}
 
       {/* Recon & Attack Chainer Modal */}

@@ -9,11 +9,22 @@ import type {
   Finding,
   ItemStatus,
   TargetAsset,
+  TargetContextValues,
   TargetProfile,
   TargetScope,
 } from "@/shared/types/checklist";
+import { extractDomainFromText, deriveSubdomain } from "@/shared/lib/domainExtractor";
+import {
+  syncTargetContextFromProfile,
+  registerTargetContextProfileSync,
+  loadLegacyTargetContext,
+} from "@/shared/store/useTargetContext";
 
-function newProfile(name: string): TargetProfile {
+function newProfile(name: string, initialContext?: Partial<TargetContextValues>): TargetProfile {
+  const extracted = extractDomainFromText(name);
+  const targetDomain = initialContext?.targetDomain ?? extracted ?? "";
+  const subdomain = initialContext?.subdomain ?? (targetDomain ? deriveSubdomain(targetDomain) : "");
+
   return {
     id: crypto.randomUUID(),
     name,
@@ -29,6 +40,15 @@ function newProfile(name: string): TargetProfile {
     scratchpad: "",
     assets: [],
     customCategories: [],
+    targetContext: {
+      targetDomain,
+      subdomain,
+      originIp: initialContext?.originIp ?? "",
+      cloudBucket: initialContext?.cloudBucket ?? "",
+      protectedPath: initialContext?.protectedPath ?? "",
+      techStack: initialContext?.techStack ?? "",
+      tokenOrSecret: initialContext?.tokenOrSecret ?? "",
+    },
   };
 }
 
@@ -39,6 +59,7 @@ interface ChecklistStore extends AppState {
   deleteProfile: (id: string) => void;
   setActiveProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
+  setTargetContext: (patch: Partial<TargetContextValues>) => void;
 
   setItemStatus: (itemId: string, status: ItemStatus) => void;
   setItemNote: (itemId: string, note: string) => void;
@@ -74,6 +95,41 @@ export const useChecklistStore = create<ChecklistStore>()(
       let initial: AppState = { profiles: { [DEFAULT_PROFILE.id]: DEFAULT_PROFILE }, activeProfileId: DEFAULT_PROFILE.id };
       let hydrationError: string | null = null;
       try { initial = loadState() ?? initial; } catch (error) { hydrationError = `Saved data could not be loaded; original storage is preserved. ${error instanceof Error ? error.message : String(error)}`; }
+
+      // Migrate or sync active target profile context on load
+      if (initial.activeProfileId && initial.profiles[initial.activeProfileId]) {
+        const activeProfile = initial.profiles[initial.activeProfileId];
+        if (!activeProfile.targetContext) {
+          const legacy = loadLegacyTargetContext();
+          const extracted = extractDomainFromText(activeProfile.name);
+          const targetDomain = legacy.targetDomain || extracted || "";
+          const subdomain = legacy.subdomain || (targetDomain ? deriveSubdomain(targetDomain) : "");
+          activeProfile.targetContext = {
+            ...legacy,
+            targetDomain,
+            subdomain,
+          };
+        }
+        syncTargetContextFromProfile(activeProfile);
+      }
+
+      // Register listener so changes in useTargetContext persist directly to active profile
+      registerTargetContextProfileSync((values) => {
+        const activeId = get().activeProfileId;
+        if (!activeId) return;
+        const profile = get().profiles[activeId];
+        if (!profile) return;
+        set((s) => ({
+          profiles: {
+            ...s.profiles,
+            [activeId]: {
+              ...profile,
+              targetContext: values,
+            },
+          },
+        }));
+      });
+
       const set = (update: Partial<ChecklistStore> | ((state: ChecklistStore) => Partial<ChecklistStore>)) => {
         try {
           if (hydrationError) throw new Error('Saved data is unreadable. Recover or clear bbc-store in browser storage before editing.');
@@ -99,6 +155,7 @@ export const useChecklistStore = create<ChecklistStore>()(
           profiles: { ...s.profiles, [p.id]: p },
           activeProfileId: p.id,
         }));
+        syncTargetContextFromProfile(p);
       },
 
       deleteProfile: (id) => {
@@ -110,16 +167,46 @@ export const useChecklistStore = create<ChecklistStore>()(
             s.activeProfileId === id ? remainingIds[0] ?? null : s.activeProfileId;
           return { profiles, activeProfileId };
         });
+        const nextActiveId = get().activeProfileId;
+        syncTargetContextFromProfile(nextActiveId ? get().profiles[nextActiveId] : null);
       },
 
-      setActiveProfile: (id) => { if (Object.hasOwn(get().profiles, id)) set({ activeProfileId: id }); },
+      setActiveProfile: (id) => {
+        if (Object.hasOwn(get().profiles, id)) {
+          set({ activeProfileId: id });
+          syncTargetContextFromProfile(get().profiles[id]);
+        }
+      },
 
       renameProfile: (id, name) => {
         set((s) => {
           const profile = s.profiles[id];
           if (!profile) return s;
-          return { profiles: { ...s.profiles, [id]: { ...profile, name } } };
+          const currentContext = profile.targetContext;
+          const newExtracted = extractDomainFromText(name);
+          const shouldUpdateDomain = (!currentContext?.targetDomain || currentContext.targetDomain === extractDomainFromText(profile.name)) && Boolean(newExtracted);
+          const targetContext = shouldUpdateDomain
+            ? {
+                targetDomain: newExtracted,
+                subdomain: currentContext?.subdomain || deriveSubdomain(newExtracted),
+                originIp: currentContext?.originIp || "",
+                cloudBucket: currentContext?.cloudBucket || "",
+                protectedPath: currentContext?.protectedPath || "",
+                techStack: currentContext?.techStack || "",
+                tokenOrSecret: currentContext?.tokenOrSecret || "",
+              }
+            : currentContext;
+
+          return {
+            profiles: {
+              ...s.profiles,
+              [id]: { ...profile, name, targetContext },
+            },
+          };
         });
+        if (get().activeProfileId === id) {
+          syncTargetContextFromProfile(get().profiles[id]);
+        }
       },
 
       setItemStatus: (itemId, status) => {
@@ -478,6 +565,36 @@ export const useChecklistStore = create<ChecklistStore>()(
         });
       },
 
+      setTargetContext: (patch) => {
+        set((s) => {
+          const activeId = s.activeProfileId;
+          if (!activeId) return s;
+          const profile = s.profiles[activeId];
+          if (!profile) return s;
+          const current = profile.targetContext || {
+            targetDomain: "",
+            subdomain: "",
+            originIp: "",
+            cloudBucket: "",
+            protectedPath: "",
+            techStack: "",
+            tokenOrSecret: "",
+          };
+          const nextContext = { ...current, ...patch };
+          return {
+            profiles: {
+              ...s.profiles,
+              [activeId]: {
+                ...profile,
+                targetContext: nextContext,
+              },
+            },
+          };
+        });
+        const active = get().activeProfileId ? get().profiles[get().activeProfileId!] : null;
+        syncTargetContextFromProfile(active);
+      },
+
       importProfile: (input) => {
         const profile = validateProfile(input);
         if (get().profiles[profile.id]) {
@@ -488,6 +605,7 @@ export const useChecklistStore = create<ChecklistStore>()(
           profiles: { ...s.profiles, [profile.id]: profile },
           activeProfileId: profile.id,
         }));
+        syncTargetContextFromProfile(profile);
       },
     });
   }

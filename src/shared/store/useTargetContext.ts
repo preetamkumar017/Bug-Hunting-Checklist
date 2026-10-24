@@ -1,14 +1,10 @@
 import { create } from "zustand";
+import type { TargetContextValues, TargetProfile } from "@/shared/types/checklist";
+import { extractDomainFromText, deriveSubdomain } from "@/shared/lib/domainExtractor";
 
-export interface TargetContextState {
-  targetDomain: string;
-  subdomain: string;
-  originIp: string;
-  cloudBucket: string;
-  protectedPath: string;
-  techStack: string;
-  tokenOrSecret: string;
+export type { TargetContextValues };
 
+export interface TargetContextState extends TargetContextValues {
   setTargetDomain: (val: string) => void;
   setSubdomain: (val: string) => void;
   setOriginIp: (val: string) => void;
@@ -17,22 +13,13 @@ export interface TargetContextState {
   setTechStack: (val: string) => void;
   setTokenOrSecret: (val: string) => void;
   setAll: (patch: Partial<TargetContextValues>) => void;
+  loadContext: (values: TargetContextValues) => void;
   reset: () => void;
 }
 
-export type TargetContextValues = {
-  targetDomain: string;
-  subdomain: string;
-  originIp: string;
-  cloudBucket: string;
-  protectedPath: string;
-  techStack: string;
-  tokenOrSecret: string;
-};
-
 const STORAGE_KEY = "bbc-target-context";
 
-const DEFAULT_VALUES: TargetContextValues = {
+export const DEFAULT_TARGET_CONTEXT: TargetContextValues = {
   targetDomain: "",
   subdomain: "",
   originIp: "",
@@ -42,34 +29,47 @@ const DEFAULT_VALUES: TargetContextValues = {
   tokenOrSecret: "",
 };
 
-function loadStoredContext(): TargetContextValues {
+export function loadLegacyTargetContext(): TargetContextValues {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     if (raw) {
-      return { ...DEFAULT_VALUES, ...JSON.parse(raw) };
+      return { ...DEFAULT_TARGET_CONTEXT, ...JSON.parse(raw) };
     }
   } catch {
     // ignore
   }
-  return DEFAULT_VALUES;
+  return DEFAULT_TARGET_CONTEXT;
 }
 
-function saveStoredContext(values: TargetContextValues) {
+function saveLegacyTargetContext(values: TargetContextValues) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+    }
   } catch {
     // ignore
   }
 }
 
+type ProfileSyncListener = (values: TargetContextValues) => void;
+let syncListener: ProfileSyncListener | null = null;
+let isSyncing = false;
+
+/**
+ * Register a listener so changes in useTargetContext update the active profile in useChecklistStore.
+ */
+export function registerTargetContextProfileSync(fn: ProfileSyncListener) {
+  syncListener = fn;
+}
+
 export const useTargetContext = create<TargetContextState>((set) => {
-  const initial = typeof window !== "undefined" ? loadStoredContext() : DEFAULT_VALUES;
+  const initial = loadLegacyTargetContext();
 
   const persist = (updater: (prev: TargetContextState) => Partial<TargetContextState>) => {
     set((state) => {
       const patch = updater(state);
       const next = { ...state, ...patch };
-      saveStoredContext({
+      const values: TargetContextValues = {
         targetDomain: next.targetDomain,
         subdomain: next.subdomain,
         originIp: next.originIp,
@@ -77,7 +77,14 @@ export const useTargetContext = create<TargetContextState>((set) => {
         protectedPath: next.protectedPath,
         techStack: next.techStack,
         tokenOrSecret: next.tokenOrSecret,
-      });
+      };
+
+      saveLegacyTargetContext(values);
+
+      if (!isSyncing && syncListener) {
+        syncListener(values);
+      }
+
       return patch;
     });
   };
@@ -98,17 +105,61 @@ export const useTargetContext = create<TargetContextState>((set) => {
         ...patch,
       })),
 
+    loadContext: (values) =>
+      set(() => ({
+        targetDomain: values.targetDomain || "",
+        subdomain: values.subdomain || "",
+        originIp: values.originIp || "",
+        cloudBucket: values.cloudBucket || "",
+        protectedPath: values.protectedPath || "",
+        techStack: values.techStack || "",
+        tokenOrSecret: values.tokenOrSecret || "",
+      })),
+
     reset: () =>
       persist(() => ({
-        ...DEFAULT_VALUES,
+        ...DEFAULT_TARGET_CONTEXT,
       })),
   };
 });
 
 /**
+ * Synchronize the target context store from an active TargetProfile.
+ * Automatically seeds targetDomain and subdomain from the profile name or assets
+ * if they are not already set in profile.targetContext.
+ */
+export function syncTargetContextFromProfile(profile?: TargetProfile | null) {
+  if (!profile) return;
+  isSyncing = true;
+  try {
+    const raw = profile.targetContext;
+    const extracted = extractDomainFromText(profile.name);
+    const assetDomain = !extracted && profile.assets && profile.assets.length > 0
+      ? extractDomainFromText(profile.assets[0].host)
+      : "";
+    const domain = raw?.targetDomain?.trim() || extracted || assetDomain || "";
+    const sub = raw?.subdomain?.trim() || deriveSubdomain(domain);
+
+    const values: TargetContextValues = {
+      targetDomain: domain,
+      subdomain: sub,
+      originIp: raw?.originIp || "",
+      cloudBucket: raw?.cloudBucket || "",
+      protectedPath: raw?.protectedPath || "",
+      techStack: raw?.techStack || "",
+      tokenOrSecret: raw?.tokenOrSecret || "",
+    };
+
+    useTargetContext.getState().loadContext(values);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+/**
  * Smart Variable Interpolator
  * Replaces placeholders like {TARGET}, {DOMAIN}, {SUBDOMAIN}, {ORIGIN_IP},
- * {IP}, {BUCKET}, {PATH} and standard dummy domains (target.com, api.target.com)
+ * {IP}, {BUCKET}, {PATH}, {TARGET_URL}, {URL} and standard dummy domains (target.com, api.target.com, api.example.com)
  * with the active hunter context.
  */
 export function interpolateTargetVars(
@@ -134,9 +185,14 @@ export function interpolateTargetVars(
     out = out.replace(/\{TARGET\}/g, target);
     out = out.replace(/\{DOMAIN\}/g, target);
     out = out.replace(/\{TARGET_DOMAIN\}/g, target);
+    out = out.replace(/\{TARGET_URL\}/g, `https://${target}`);
+    out = out.replace(/\{URL\}/g, `https://${target}`);
 
     // Dummy standard URLs in templates
     out = out.replace(/\bapi\.target\.com\b/g, sub || `api.${target}`);
+    out = out.replace(/\bapi\.example\.com\b/g, sub || `api.${target}`);
+    out = out.replace(/\bapp\.example\.com\b/g, sub ? `app.${target}` : `app.${target}`);
+    out = out.replace(/\bclient\.example\.com\b/g, sub ? `client.${target}` : `client.${target}`);
     out = out.replace(/\btarget\.com\b/g, target);
     out = out.replace(/\bexample\.com\b/g, target);
     out = out.replace(/\bcompany\.com\b/g, target);

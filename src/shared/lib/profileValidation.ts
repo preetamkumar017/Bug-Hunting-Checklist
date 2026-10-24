@@ -94,6 +94,12 @@ export function validateProfile(input: unknown, options: ValidationOptions = {})
   }
   if (p.scope !== undefined) { const scope = object(p.scope); for (const k of ['inScope', 'outOfScope', 'programPolicy']) text(scope[k]); if (scope.bountyTier !== undefined) text(scope.bountyTier); }
   if (p.scratchpad !== undefined) text(p.scratchpad);
+  if (p.targetContext !== undefined) {
+    const tc = object(p.targetContext);
+    for (const k of ['targetDomain', 'subdomain', 'originIp', 'cloudBucket', 'protectedPath', 'techStack', 'tokenOrSecret']) {
+      if (tc[k] !== undefined) text(tc[k], 2000);
+    }
+  }
   const assets = array(p.assets ?? [], 5000); unique(assets);
   for (const asset of assets) { const value = object(asset); if (value.type !== undefined) assert(['domain', 'subdomain', 'ip', 'api', 'mobile_app', 'repo'].includes(value.type as string), 'Invalid asset type'); }
   for (const entry of assets) { const a = object(entry); text(a.host, 2000); for (const k of ['status', 'ports', 'notes']) if (a[k] !== undefined) text(a[k]); if (a.tech !== undefined) array(a.tech, 100).forEach(v => text(v, 200)); assert(typeof a.updatedAt === 'number', 'Invalid asset date'); }
